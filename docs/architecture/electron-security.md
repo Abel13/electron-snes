@@ -10,8 +10,10 @@ The desktop shell enables Electron sandboxing before startup and creates windows
 - `webSecurity: true`
 - `allowRunningInsecureContent: false`
 
-The initial preload exposes an empty frozen `pixelCore` object. It does not expose
-Node.js, Electron, filesystem, IPC, plugins, or application services to the renderer.
+The preload exposes a frozen `pixelCore` API with narrowly typed methods. It does
+not expose Node.js, Electron, filesystem, IPC primitives, plugins, or application
+services to the renderer. IPC contracts are defined in
+[IPC boundaries](ipc-boundaries.md).
 
 ## Navigation boundary
 
@@ -21,6 +23,6 @@ and content security policy.
 
 ## Future work
 
-IPC channels, payload validation, renderer APIs, file selection, plugin execution,
-and filesystem access remain outside this baseline. They must extend the preload
-through narrowly typed, validated contracts rather than exposing Electron primitives.
+File selection, plugin execution, and filesystem access remain outside this
+baseline. They must extend the preload through narrowly typed, validated contracts
+rather than exposing Electron primitives.
