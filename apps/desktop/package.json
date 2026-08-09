@@ -1,0 +1,31 @@
+{
+  "name": "@platform/desktop",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "lint": "eslint src --max-warnings=0",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@platform/console-sdk": "workspace:*",
+    "@platform/controller-sdk": "workspace:*",
+    "@platform/core": "workspace:*",
+    "@platform/emulator": "workspace:*",
+    "@platform/emulator-sdk": "workspace:*",
+    "@platform/game-sdk": "workspace:*",
+    "@platform/input": "workspace:*",
+    "@platform/integration-sdk": "workspace:*",
+    "@platform/library": "workspace:*",
+    "@platform/plugin-sdk": "workspace:*",
+    "@platform/shared": "workspace:*",
+    "@platform/theme-sdk": "workspace:*",
+    "@platform/ui": "workspace:*",
+    "@platform/ui-contracts": "workspace:*"
+  }
+}

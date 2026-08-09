@@ -20,3 +20,19 @@ Estrutura de governança:
 
 Objetivo operacional:
 Manter uma base escalável, testável, segura e de fácil contribuição para novos consoles, emuladores, controllers, metadados, temas e integrações.
+
+## Desenvolvimento local
+
+Requisitos: Node.js 22 ou superior e pnpm 10.33.0.
+
+```sh
+corepack enable
+pnpm install
+pnpm lint
+pnpm format:check
+pnpm typecheck
+pnpm test
+pnpm build
+```
+
+O workspace usa pnpm e Turborepo. A estrutura de packages e suas dependências estão documentadas em `docs/architecture/monorepo.md`.

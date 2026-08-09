@@ -123,6 +123,6 @@ Use o próximo número sequencial e inclua: contexto, decisão, alternativas, co
 ## Antes de solicitar revisão
 
 - Confirme que o escopo da PR está claro e sem alterações não relacionadas.
-- Execute os comandos de validação definidos pelo projeto para as áreas alteradas.
+- Execute `pnpm lint`, `pnpm format:check`, `pnpm typecheck`, `pnpm test` e `pnpm build` para mudanças de workspace ou tooling.
 - Documente compatibilidade, migrações e limitações conhecidas.
 - Descreva como a mudança foi testada e o que não foi testado.
