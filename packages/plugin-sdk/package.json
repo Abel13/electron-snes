@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@platform/core": "workspace:*",
-    "@platform/shared": "workspace:*"
+    "@platform/shared": "workspace:*",
+    "zod": "^4.4.3"
   }
 }

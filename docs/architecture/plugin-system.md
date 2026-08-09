@@ -8,6 +8,10 @@
 contrato público suportado pelo plugin; a compatibilidade é determinada pela faixa
 inclusiva suportada pelo host. Consulte `plugin-api-versions.md`.
 
+O formato estrito de `manifest.json`, seus campos e limites estão em
+`plugin-manifest.md`. O schema define a estrutura; validação em runtime e diagnósticos
+pertencem à fronteira de validação de manifestos.
+
 ## Tipos
 
 `console`, `emulator-core`, `controller`, `game-metadata`, `theme`, `integration`.

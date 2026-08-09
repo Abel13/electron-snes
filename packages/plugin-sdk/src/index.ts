@@ -10,3 +10,5 @@ export type {
   PluginApiVersion,
   UnsupportedPluginApi,
 } from './api-version.js';
+export { PLUGIN_TYPES, PluginManifestPermissionSchema, PluginManifestSchema } from './manifest.js';
+export type { PluginManifest, PluginManifestPermission, PluginType } from './manifest.js';

@@ -1,0 +1,46 @@
+# Plugin Manifest
+
+## Purpose
+
+Every PixelCore plugin exposes a declarative `manifest.json` that identifies the
+plugin, declares its public API revision, describes its capabilities, and requests
+permissions. `PluginManifestSchema` in `@platform/plugin-sdk` is the canonical v1
+schema and the source of the inferred TypeScript `PluginManifest` type.
+
+## Required fields
+
+| Field | Rule |
+| --- | --- |
+| `id` | Lowercase reverse-DNS identifier with at least two segments, up to 128 characters. |
+| `name` | Trimmed human-readable name, 1-120 characters. |
+| `version` | SemVer plugin release, up to 64 characters. |
+| `apiVersion` | Positive integer public API revision. |
+| `type` | `console`, `emulator-core`, `controller`, `game-metadata`, `theme`, or `integration`. |
+| `capabilities` | Non-empty, duplicate-free lowercase kebab-case identifiers. |
+| `permissions` | Required array of zero or more declarative permission requests. |
+
+The manifest root and permission objects are strict. Unknown fields are rejected.
+
+## Capabilities
+
+Capabilities use lowercase kebab-case identifiers, such as `gamepad-mapping`. They
+describe generic behavior and must not encode a product, brand, console, or game.
+Each manifest declares at least one capability and cannot repeat one.
+
+## Permissions
+
+Each permission request has a named resource, one or more unique actions, and an
+optional rationale. Allowed actions are `read`, `write`, `list`, and `execute`.
+Resources use lowercase segments separated by `:`, such as `device:metadata`.
+
+A resource may appear only once in a manifest. A plugin with no requested access uses
+an empty `permissions` array.
+
+## Compatibility and validation
+
+`apiVersion` declares one plugin API revision. Schema parsing verifies that it is a
+positive integer; host-range compatibility is evaluated after parsing.
+
+This schema does not read files, produce platform diagnostics, discover plugins,
+activate code, or grant permissions. Runtime validation and diagnostics belong to the
+manifest validation boundary in issue `#7`.
