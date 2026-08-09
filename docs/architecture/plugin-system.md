@@ -12,6 +12,10 @@ O formato estrito de `manifest.json`, seus campos e limites estão em
 `plugin-manifest.md`. O schema define a estrutura; validação em runtime e diagnósticos
 pertencem à fronteira de validação de manifestos.
 
+A validação classifica manifestos como `valid`, `inactive` ou `invalid`. Um manifesto
+incompatível com a API do host é `inactive`, visível apenas para diagnóstico e sem
+execução de código ou permissões. Consulte `plugin-manifest-validation.md`.
+
 ## Tipos
 
 `console`, `emulator-core`, `controller`, `game-metadata`, `theme`, `integration`.

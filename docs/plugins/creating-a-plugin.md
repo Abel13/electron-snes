@@ -46,6 +46,9 @@ Regras:
   `device:metadata`; as ações permitidas são `read`, `write`, `list` e `execute`.
 - O schema valida estrutura e formato. A validação de arquivo, compatibilidade com o
   host e diagnósticos de descoberta pertencem à próxima fronteira de validação.
+- Um manifesto estruturalmente inválido bloqueia a descoberta. Um manifesto válido com
+  `apiVersion` incompatível fica inativo para diagnóstico e não pode executar código
+  ou receber permissões.
 
 ## Definição
 
