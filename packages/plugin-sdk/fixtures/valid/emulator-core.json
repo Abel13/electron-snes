@@ -1,0 +1,15 @@
+{
+  "apiVersion": 1,
+  "capabilities": ["rom-execution"],
+  "id": "org.pixelcore.reference-emulator",
+  "name": "Reference Emulator",
+  "permissions": [
+    {
+      "actions": ["read"],
+      "reason": "Load a user-selected ROM through the library boundary.",
+      "resource": "library:rom-content"
+    }
+  ],
+  "type": "emulator-core",
+  "version": "1.0.0"
+}
