@@ -8,6 +8,8 @@
 - TypeScript estrito e contratos explícitos.
 - Plugins declarativos com manifesto/validacao/capabilities.
 - Segurança Electron por padrão e validação de IPC/inputs.
+- Renderer Electron isolado, sem Node integration, com sandbox, preload mínimo e
+  bloqueio de navegação/popup externo.
 - Diagnósticos estruturados, JSON-safe e sem conteúdo de ROM, paths, secrets ou dados
   pessoais desnecessários.
 - Performance: evitar acoplamento de alto-volume de estado à renderização React.
