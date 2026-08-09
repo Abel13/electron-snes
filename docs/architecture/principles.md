@@ -10,3 +10,4 @@
 - Segurança Electron por padrão e validação de IPC/inputs.
 - Performance: evitar acoplamento de alto-volume de estado à renderização React.
 - Layout, ownership e direção de dependência: `monorepo.md`.
+- Contratos públicos do core: `core-contracts.md`.

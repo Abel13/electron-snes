@@ -1,0 +1,80 @@
+# Core Contracts
+
+## Purpose
+
+`@platform/core` defines stable, implementation-free ports for platform services.
+It depends only on `@platform/shared` and never imports a plugin, console, emulator,
+controller, game, UI, Electron API, or filesystem API.
+
+## Shared boundary
+
+`@platform/shared` exposes JSON-safe primitives: `JsonPrimitive`, `JsonArray`,
+`JsonObject`, `JsonRecord`, and `JsonValue`. Public core payloads, metadata, logging
+context, configuration, and JSON storage use these primitives rather than runtime
+objects, classes, dates, or filesystem handles.
+
+Timestamps are ISO 8601 strings. Contract consumers must treat all metadata and JSON
+objects as readonly.
+
+## Result and errors
+
+Expected operational failures use the discriminated `Result<T, E>` union:
+
+```ts
+const result = await registry.resolve('plugin.example');
+
+if (!result.ok) {
+  console.error(result.error.code);
+  return;
+}
+
+const entry = result.value;
+```
+
+`CoreError` has a stable machine-readable `code`, a human-readable `message`, and
+optional JSON-safe `details`. Initial codes cover invalid input, missing resources,
+conflicts, denied permissions, unavailable services, event delivery, and unexpected
+failures. Do not use exceptions for failures represented by `Result`.
+
+## Service lifecycle and events
+
+`LifecycleService` models generic core services with `idle`, `starting`, `running`,
+`stopping`, `stopped`, and `failed` states. It does not model an emulator or game
+session.
+
+`EventBus<TEventMap>` publishes typed JSON-safe event envelopes asynchronously.
+Events have a type, payload, and ISO timestamp. Subscriptions return an unsubscribe
+function; concrete delivery, buffering, retries, and telemetry are not part of this
+contract.
+
+## Registry, configuration, and storage
+
+`Registry<T>` defines asynchronous registration, resolution, listing, and removal of
+identified entries. Plugin discovery and registry implementation belong to issue `#8`.
+
+`ConfigurationStore` provides namespaced JSON values. `JsonStoragePort` separates
+JSON storage into application configuration, game library, cache, plugin configuration,
+and user preference domains. Neither contract selects a persistence technology or
+exposes paths.
+
+Binary save files and save states are intentionally excluded. Their storage ports and
+adapters belong to issue `#10`.
+
+## Permissions and logging
+
+`PermissionRequest` contains a named resource, explicit `read`, `write`, `list`, or
+`execute` actions, and an optional rationale. Resource naming remains extensible;
+manifest parsing and permission evaluation belong to issues `#6` and `#9`.
+
+`Logger` accepts structured entries with level, message, ISO timestamp, and optional
+JSON context. Log destinations, redaction, retention, and diagnostics belong to issue
+`#11`.
+
+## Rules for consumers
+
+- Depend on ports, not implementations.
+- Preserve `Result` failures instead of converting expected conditions into exceptions.
+- Keep contract payloads JSON-safe and readonly.
+- Do not add console, plugin, Electron, filesystem, or renderer assumptions.
+- Add a new public contract only with documentation, tests, compatibility review, and
+  an ADR when it has long-term architectural impact.
