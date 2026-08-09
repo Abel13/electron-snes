@@ -1,10 +1,17 @@
 import { app, BrowserWindow, dialog, ipcMain } from 'electron';
 import type { OpenDialogOptions } from 'electron';
+import { readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { createSecureWindowOptions } from './electron-security.js';
-import { IPC_CHANNELS, createHostVersionResponse, hasNoIpcPayload } from './ipc.js';
+import {
+  IPC_CHANNELS,
+  createHostVersionResponse,
+  hasNoIpcPayload,
+  hasRomSelectionIdPayload,
+} from './ipc.js';
+import { loadSelectedRom } from './rom-loader.js';
 import { createRomSelectionStore } from './rom-selection.js';
 
 const currentDirectory = dirname(fileURLToPath(import.meta.url));
@@ -58,6 +65,12 @@ app.whenReady().then(() => {
     }
 
     return { rom: selection, status: 'selected' };
+  });
+
+  ipcMain.handle(IPC_CHANNELS.loadRom, async (_event, ...payload: unknown[]) => {
+    if (!hasRomSelectionIdPayload(payload))
+      throw new Error('The load-ROM IPC channel requires one opaque selection ID.');
+    return loadSelectedRom(payload[0], romSelections, readFile);
   });
 
   createMainWindow();
