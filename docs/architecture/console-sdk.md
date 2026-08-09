@@ -26,3 +26,6 @@ console definition.
 The SDK does not load ROMs, start emulators, assign players, access files, or grant
 permissions. Those responsibilities remain with the emulator, input, and Electron
 boundaries.
+
+The official implementation lives in `plugins/consoles/game-boy-family` and is an
+example of a console plugin consuming the SDK without changing platform core code.

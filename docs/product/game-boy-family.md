@@ -6,6 +6,11 @@ Game Boy and Game Boy Color are the first official console family in PixelCore. 
 is a product focus, not a core dependency: the platform continues to support future
 console families through versioned plugin contracts.
 
+The official declarative console plugin is `org.pixelcore.game-boy-family`. It owns
+the `.gb` and `.gbc` format declaration, one player port, and the directional, `A`,
+`B`, `Start`, and `Select` console actions. It does not contain emulator code or
+filesystem access.
+
 ## Initial playable scope
 
 - Accept local user-supplied ROM files with `.gb` and `.gbc` extensions.
