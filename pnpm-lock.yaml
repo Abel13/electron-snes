@@ -204,6 +204,12 @@ importers:
         specifier: workspace:*
         version: link:../shared
 
+  plugins/consoles/game-boy-family:
+    dependencies:
+      '@platform/console-sdk':
+        specifier: workspace:*
+        version: link:../../../packages/console-sdk
+
 packages:
 
   '@electron-internal/extract-zip@1.0.5':
