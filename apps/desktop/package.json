@@ -3,12 +3,14 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "main": "dist/main.js",
   "engines": {
     "node": ">=22"
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "lint": "eslint src --max-warnings=0",
+    "start": "pnpm build && electron .",
     "test": "vitest run --passWithNoTests",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
@@ -27,5 +29,8 @@
     "@platform/theme-sdk": "workspace:*",
     "@platform/ui": "workspace:*",
     "@platform/ui-contracts": "workspace:*"
+  },
+  "devDependencies": {
+    "electron": "^43.3.0"
   }
 }
