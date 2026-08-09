@@ -59,6 +59,8 @@ Closes #
 - [ ] Escopo focado; sem mudanças não relacionadas.
 - [ ] Commits seguem Conventional Commits em inglês.
 - [ ] Commits relacionados incluem o número da issue (`#123`).
+- [ ] Cada commit tem um único propósito; implementação, testes e documentação estão separados.
+- [ ] A PR não mistura funcionalidade, correção, refatoração ou documentação não relacionadas.
 - [ ] A PR contém uma referência de fechamento para cada issue resolvida.
 - [ ] Documentação pública atualizada, quando aplicável.
 - [ ] Erros, limites e riscos conhecidos estão documentados.

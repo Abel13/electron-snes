@@ -73,7 +73,9 @@ Evite títulos genéricos como `Fix bug`, `Improve UI` ou `Update code`. A branc
 - Use Conventional Commits em inglês: `type(scope): short imperative description`.
 - Tipos usuais: `feat`, `fix`, `docs`, `refactor`, `test`, `build`, `ci`, `chore` e `perf`.
 - Quando o commit estiver relacionado a uma issue, inclua seu número: `fix(input): restore controller after reconnect #123`.
-- Mantenha cada commit focado em uma alteração coerente.
+- Cada commit deve ter um único propósito e um único tipo Conventional Commit.
+- Não misture `feat`, `fix`, `test` e `docs` no mesmo commit. Faça commits separados para implementação, testes e documentação.
+- Não inclua refatorações não relacionadas em commits de funcionalidade ou correção.
 - A descrição da PR deve conter uma palavra-chave de fechamento e a issue correspondente, por exemplo: `Closes #123`.
 
 Exemplos válidos:
@@ -83,6 +85,17 @@ feat(plugin-sdk): add manifest permission validation #123
 docs(architecture): document plugin compatibility policy #124
 fix(input): restore controller after reconnect #125
 ```
+
+## Bloqueios locais de commit
+
+Quando o projeto tiver a base Node configurada, o Husky deve bloquear commits que não atendam aos critérios verificáveis abaixo:
+
+- Cabeçalho fora de Conventional Commits.
+- Tipo não permitido.
+- Descrição vazia, em português ou sem verbo no imperativo.
+- Número de issue ausente quando a branch seguir o padrão com issue.
+
+A separação entre código, testes, documentação e outros propósitos será exigida na revisão da PR. Essa regra depende da intenção da alteração e não deve ser automatizada apenas pela extensão ou localização dos arquivos.
 
 ## Testes esperados
 
