@@ -4,6 +4,7 @@ export type { LifecycleService, ServiceStatus } from './lifecycle.js';
 export type { LogEntry, Logger, LogLevel } from './logging.js';
 export { PERMISSION_ACTIONS } from './permissions.js';
 export type { PermissionAction, PermissionRequest } from './permissions.js';
+export { InMemoryRegistry } from './registry.js';
 export type { Registry, RegistryEntry } from './registry.js';
 export { err, ok } from './result.js';
 export type { CoreError, CoreErrorCode, Err, Ok, Result } from './result.js';

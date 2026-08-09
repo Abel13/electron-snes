@@ -2,9 +2,9 @@
 
 ## Purpose
 
-`@platform/core` defines stable, implementation-free ports for platform services.
-It depends only on `@platform/shared` and never imports a plugin, console, emulator,
-controller, game, UI, Electron API, or filesystem API.
+`@platform/core` defines stable ports and small infrastructure-only implementations for
+platform services. It depends only on `@platform/shared` and never imports a plugin,
+console, emulator, controller, game, UI, Electron API, or filesystem API.
 
 ## Shared boundary
 
@@ -50,7 +50,10 @@ contract.
 ## Registry, configuration, and storage
 
 `Registry<T>` defines asynchronous registration, resolution, listing, and removal of
-identified entries. Plugin discovery and registry implementation belong to issue `#8`.
+identified entries. `InMemoryRegistry<T>` is its deterministic, non-persistent core
+implementation: duplicate identifiers return `conflict`, absent entries return
+`not-found`, and listings sort by identifier. Plugin-specific registration belongs to
+`@platform/plugin-sdk`; filesystem discovery remains outside this boundary.
 
 `ConfigurationStore` provides namespaced JSON values. `JsonStoragePort` separates
 JSON storage into application configuration, game library, cache, plugin configuration,
