@@ -1,4 +1,4 @@
-# Electron SNES
+# PixelCore
 
 ## Entendimento do projeto
 
@@ -20,6 +20,16 @@ Estrutura de governança:
 
 Objetivo operacional:
 Manter uma base escalável, testável, segura e de fácil contribuição para novos consoles, emuladores, controllers, metadados, temas e integrações.
+
+## Primeiro recorte jogável
+
+A primeira família oficial é Game Boy + Game Boy Color. O produto aceita ROMs locais
+`.gb` e `.gbc` fornecidas pelo usuário, com suporte de compatibilidade para jogos de
+Game Boy executados pelo console Game Boy Color. SNES permanece uma expansão futura,
+sem acoplamento ao core da plataforma.
+
+Consulte [a especificação da família Game Boy](docs/product/game-boy-family.md) para
+o escopo de controles, política de ROMs e estratégia de testes.
 
 ## Desenvolvimento local
 

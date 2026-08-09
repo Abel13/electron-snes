@@ -22,12 +22,15 @@ Accessibility audio
 
 Initial support targets:
 
-- SNES games: `.sfc` and `.smc`.
+- Game Boy and Game Boy Color games: `.gb` and `.gbc`.
 - User-supplied game artwork: `.png`, `.jpg`, and `.webp`.
 - UI sound sources: `.wav`.
 - Optimized UI sound distribution: `.ogg`.
 
 Compressed game archives and other ROM formats require explicit, validated support from the relevant emulator core or plugin. Unknown files must not be executed or treated as ROMs.
+
+SNES formats such as `.sfc` and `.smc` are a future expansion and require explicit
+support from their console and emulator-core plugins.
 
 ## UI sound tokens
 

@@ -21,7 +21,8 @@ Estabelecer contratos seguros e estáveis.
 Entregar o ciclo essencial de jogo.
 
 - Biblioteca local e seleção de ROM.
-- Um console oficial e um core de emulação oficial.
+- Uma família oficial de consoles: Game Boy + Game Boy Color, com um core de
+  emulação compatível com `.gb` e `.gbc`.
 - Carregamento de ROM, vídeo, áudio e ciclo de vida da sessão.
 - Pausar, retomar e encerrar sessão com segurança.
 
@@ -31,7 +32,8 @@ Permitir que dispositivos atuais funcionem naturalmente.
 
 - Teclado e Gamepad API.
 - Ações normalizadas independentes de hardware.
-- Mapeamento por console.
+- Mapeamento inicial para direcional, `A`, `B`, `Start` e `Select`, sem acoplar
+  adaptadores de hardware ao layout da família Game Boy.
 - Perfis, remapeamento e reconexão de dispositivos.
 - Testes de mapeamento e fallback de input.
 
@@ -88,13 +90,21 @@ Plugin registry
 
 ## Recorte da primeira versão
 
-- Um console oficial: SNES.
-- Um core oficial.
+- Uma família oficial: Game Boy + Game Boy Color.
+- Um core oficial compatível com ROMs `.gb` e `.gbc`.
 - Teclado e gamepad genérico.
 - Biblioteca local, sem conta, sincronização ou loja.
 - Abrir ROM, jogar, pausar e encerrar.
 - Save state, quando a capability do core estiver disponível.
 - Um plugin de controller de exemplo, em vez de suporte específico a marcas.
+- ROMs são adicionadas localmente pelos usuários; a plataforma não distribui jogos
+  comerciais.
+
+## Expansões futuras
+
+SNES permanece planejado como um console oficial posterior. Sua chegada deve ocorrer
+por plugins de console e de core compatíveis com os contratos públicos, sem alterações
+específicas no core da plataforma.
 
 ## Marco de extensibilidade
 
