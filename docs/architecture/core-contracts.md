@@ -57,11 +57,10 @@ implementation: duplicate identifiers return `conflict`, absent entries return
 
 `ConfigurationStore` provides namespaced JSON values. `JsonStoragePort` separates
 JSON storage into application configuration, game library, cache, plugin configuration,
-and user preference domains. Neither contract selects a persistence technology or
-exposes paths.
-
-Binary save files and save states are intentionally excluded. Their storage ports and
-adapters belong to issue `#10`.
+and user preference domains. `BinaryStoragePort` separately handles opaque binary
+entries for game saves and save states, exposing only a domain, key, bytes, size, and
+ISO update timestamp. Neither contract selects a persistence technology or exposes
+paths. See `storage-contracts.md`.
 
 ## Permissions and logging
 

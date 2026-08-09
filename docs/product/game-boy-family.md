@@ -31,8 +31,9 @@ game. It must not copy ROM contents into generic application configuration.
 
 ROM files remain owned and supplied by the user. Save files and save states are local
 user data, stored separately from ROM locations, application configuration, library
-metadata, and cache. They are not bundled with a ROM, synchronized by default, or
-shared by the platform.
+metadata, and cache. They are held through the binary storage boundary as opaque
+entries in separate `game-saves` and `save-states` domains; they are not bundled with
+a ROM, synchronized by default, or shared by the platform.
 
 ## Test guidance
 
