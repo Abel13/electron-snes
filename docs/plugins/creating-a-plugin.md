@@ -40,6 +40,12 @@ Regras:
 - `type` deve ser um tipo suportado: `console`, `emulator-core`, `controller`, `game-metadata`, `theme` ou `integration`.
 - `capabilities` descreve o que o plugin oferece; não use nomes de produto como capacidade.
 - `permissions` deve conter somente acessos estritamente necessários. A ausência de permissões é preferível.
+- O manifesto é estrito: campos extras são rejeitados. Cada capability é única em
+  `kebab-case`, e cada recurso de permissão aparece uma única vez com ações únicas.
+- Recursos de permissão usam segmentos minúsculos separados por `:`, como
+  `device:metadata`; as ações permitidas são `read`, `write`, `list` e `execute`.
+- O schema valida estrutura e formato. A validação de arquivo, compatibilidade com o
+  host e diagnósticos de descoberta pertencem à próxima fronteira de validação.
 
 ## Definição
 
