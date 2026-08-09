@@ -1,0 +1,15 @@
+# Substitua os identificadores abaixo pelos usuários ou times reais do repositório.
+# A proteção de branch deve exigir revisão dos code owners para estas regras.
+
+/AGENTS.md @architecture-owners
+/docs/architecture/ @architecture-owners
+/docs/adr/ @architecture-owners
+/packages/core/ @architecture-owners
+/packages/plugin-sdk/ @architecture-owners
+/packages/emulator-sdk/ @architecture-owners
+/packages/controller-sdk/ @architecture-owners
+/apps/desktop/ @desktop-owners
+/packages/ui/ @design-owners
+/docs/design/ @design-owners
+/plugins/ @plugin-owners
+/.github/ @maintainers
