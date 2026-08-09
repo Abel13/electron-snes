@@ -31,7 +31,12 @@ Todo plugin declara identidade, compatibilidade e acesso solicitado.
 Regras:
 
 - `id` deve ser estável e globalmente único.
-- `version` identifica a versão do plugin; `apiVersion` identifica o contrato suportado.
+- `version` identifica a versão do plugin; `apiVersion` identifica uma única revisão
+  inteira do contrato suportado.
+- O host aceita uma faixa inclusiva de revisões de API. Plugins fora dessa faixa são
+  mostrados como inativos para diagnóstico e nunca são executados.
+- Mudanças aditivas compatíveis preservam a revisão atual; mudanças quebradas exigem
+  uma nova revisão, estratégia de migração e documentação de compatibilidade.
 - `type` deve ser um tipo suportado: `console`, `emulator-core`, `controller`, `game-metadata`, `theme` ou `integration`.
 - `capabilities` descreve o que o plugin oferece; não use nomes de produto como capacidade.
 - `permissions` deve conter somente acessos estritamente necessários. A ausência de permissões é preferível.
