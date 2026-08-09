@@ -5,8 +5,14 @@
 ## Issue relacionada
 
 <!-- Use uma palavra-chave de fechamento: Closes #123, Fixes #123 ou Resolves #123. -->
+<!-- O título da issue deve ser compacto e reutilizável no nome da branch. -->
 
 Closes #
+
+## Git Flow
+
+- [ ] A branch segue o padrão `feature/`, `fix/`, `docs/`, `release/` ou `hotfix/`.
+- [ ] O destino da PR segue o fluxo: contribuições para `develop`; releases e hotfixes para `main`.
 
 ## Tipo de mudança
 

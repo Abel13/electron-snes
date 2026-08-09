@@ -11,11 +11,55 @@ Obrigado por contribuir com a plataforma. Antes de abrir uma pull request (PR), 
 
 ## Fluxo de contribuição
 
-1. Crie uma branch curta e descritiva a partir da branch principal.
+1. Crie a branch correta a partir de `develop` conforme o Git Flow.
 2. Mantenha a PR focada em um problema ou entrega.
 3. Inclua testes compatíveis com o risco da mudança.
 4. Atualize a documentação pública quando alterar SDKs, contratos, configuração ou comportamento observável.
 5. Preencha integralmente o template de PR.
+
+## Branches (Git Flow)
+
+As branches permanentes são:
+
+- `main`: versões estáveis publicadas; recebe apenas merges de `release/*` e `hotfix/*`.
+- `develop`: integração da próxima versão; recebe features, fixes e releases concluídas.
+
+Crie branches temporárias a partir da origem indicada:
+
+- `feature/<issue>-<description>` a partir de `develop`, para uma nova funcionalidade. Exemplo: `feature/123-controller-profiles`.
+- `fix/<issue>-<description>` a partir de `develop`, para corrigir comportamento ainda não publicado. Exemplo: `fix/123-input-reconnect`.
+- `release/<version>` a partir de `develop`, para estabilizar uma versão. Exemplo: `release/1.2.0`.
+- `hotfix/<issue>-<description>` a partir de `main`, para corrigir uma versão publicada. Exemplo: `hotfix/123-security-validation`.
+- `docs/<issue>-<description>` a partir de `develop`, para documentação. Exemplo: `docs/123-plugin-guide`.
+
+Abra PRs para:
+
+- `feature/*`, `fix/*` e `docs/*` em `develop`.
+- `release/*` em `main`; propague os ajustes necessários de volta para `develop`.
+- `hotfix/*` em `main`; propague o hotfix de volta para `develop`.
+
+O número da issue é obrigatório no nome de toda branch relacionada a uma issue. Use descrição curta, em inglês, separada por hífens.
+
+## Títulos de issues
+
+O título da issue deve ser compacto, descritivo e utilizável diretamente no nome da branch. Use inglês, verbo no imperativo e até cinco palavras quando possível.
+
+Formato recomendado:
+
+```text
+<verb> <domain or outcome>
+```
+
+Exemplos:
+
+```text
+Add controller profiles
+Restore input after reconnect
+Validate plugin permissions
+Document SDK compatibility
+```
+
+Evite títulos genéricos como `Fix bug`, `Improve UI` ou `Update code`. A branch derivada preserva o sentido do título em kebab-case: `feature/123-add-controller-profiles`.
 
 ## Convenções
 
