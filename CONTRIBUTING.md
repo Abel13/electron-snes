@@ -124,5 +124,7 @@ Use o próximo número sequencial e inclua: contexto, decisão, alternativas, co
 
 - Confirme que o escopo da PR está claro e sem alterações não relacionadas.
 - Execute `pnpm lint`, `pnpm format:check`, `pnpm typecheck`, `pnpm test` e `pnpm build` para mudanças de workspace ou tooling.
+- A workflow `Foundation validation` executa o mesmo gate em PRs para `develop` e
+  `main`; consulte `docs/architecture/foundation-ci.md`.
 - Documente compatibilidade, migrações e limitações conhecidas.
 - Descreva como a mudança foi testada e o que não foi testado.

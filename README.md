@@ -54,3 +54,4 @@ pnpm build
 ```
 
 O workspace usa pnpm e Turborepo. A estrutura de packages e suas dependências estão documentadas em `docs/architecture/monorepo.md`.
+O gate automatizado da fundação está documentado em `docs/architecture/foundation-ci.md`.
