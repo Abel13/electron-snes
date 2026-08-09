@@ -1,0 +1,9 @@
+{
+  "id": "org.pixelcore.sameboy",
+  "name": "SameBoy",
+  "version": "1.0.3",
+  "apiVersion": 1,
+  "type": "emulator-core",
+  "capabilities": ["audio-output", "video-output", "game-boy-family"],
+  "permissions": []
+}

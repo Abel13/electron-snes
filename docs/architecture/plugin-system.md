@@ -39,3 +39,6 @@ boundary; see `console-sdk.md`.
   grants explícitos e medeia cada recurso permitido. Consulte `plugin-permissions.md`.
 - Plugins com `apiVersion` fora da faixa suportada são descobertos como inativos e não
   executam código nem recebem permissões.
+# Official emulator cores
+
+The first official emulator-core plugin is [SameBoy](sameboy-emulator-plugin.md). It is an isolated adapter for the Game Boy family and compiles a pinned, Expat-licensed upstream source to WebAssembly. Platform packages continue to depend on `@platform/emulator-sdk`, never on the SameBoy plugin.
