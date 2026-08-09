@@ -30,7 +30,9 @@ does not have the right to distribute. Users select and add ROMs from local stor
 through explicit Electron file-access boundaries.
 
 The library stores only the references and metadata necessary to identify a user-added
-game. It must not copy ROM contents into generic application configuration.
+game. It must not copy ROM contents into generic application configuration. The initial
+file picker accepts exactly one `.gb` or `.gbc` file and returns only opaque selection
+metadata to the renderer; its filesystem path stays in the Electron main process.
 
 ## Save data
 
