@@ -1,6 +1,7 @@
 export type { ConfigurationNamespace, ConfigurationStore } from './configuration.js';
 export type { EventBus, EventEnvelope, EventHandler, JsonEventMap, Unsubscribe } from './events.js';
 export type { LifecycleService, ServiceStatus } from './lifecycle.js';
+export { DEFAULT_IN_MEMORY_LOG_CAPACITY, InMemoryLogger } from './logging.js';
 export type { LogEntry, Logger, LogLevel } from './logging.js';
 export {
   assessPermissionRequest,
