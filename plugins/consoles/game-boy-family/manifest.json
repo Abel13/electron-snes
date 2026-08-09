@@ -1,0 +1,9 @@
+{
+  "apiVersion": 1,
+  "capabilities": ["cartridge-playback"],
+  "id": "org.pixelcore.game-boy-family",
+  "name": "Game Boy Family",
+  "permissions": [],
+  "type": "console",
+  "version": "1.0.0"
+}
