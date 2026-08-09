@@ -9,3 +9,4 @@
 - Plugins declarativos com manifesto/validacao/capabilities.
 - Segurança Electron por padrão e validação de IPC/inputs.
 - Performance: evitar acoplamento de alto-volume de estado à renderização React.
+- Layout, ownership e direção de dependência: `monorepo.md`.
