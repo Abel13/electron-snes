@@ -210,6 +210,12 @@ importers:
         specifier: workspace:*
         version: link:../../../packages/console-sdk
 
+  plugins/emulator-cores/sameboy:
+    dependencies:
+      '@platform/emulator-sdk':
+        specifier: workspace:*
+        version: link:../../../packages/emulator-sdk
+
 packages:
 
   '@electron-internal/extract-zip@1.0.5':
