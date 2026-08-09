@@ -2,6 +2,7 @@ export type { ConfigurationNamespace, ConfigurationStore } from './configuration
 export type { EventBus, EventEnvelope, EventHandler, JsonEventMap, Unsubscribe } from './events.js';
 export type { LifecycleService, ServiceStatus } from './lifecycle.js';
 export type { LogEntry, Logger, LogLevel } from './logging.js';
+export { PERMISSION_ACTIONS } from './permissions.js';
 export type { PermissionAction, PermissionRequest } from './permissions.js';
 export type { Registry, RegistryEntry } from './registry.js';
 export { err, ok } from './result.js';
