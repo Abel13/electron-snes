@@ -1,0 +1,9 @@
+{
+  "apiVersion": 1,
+  "capabilities": ["visual-theme"],
+  "id": "org.pixelcore.reference-theme",
+  "name": "Reference Theme",
+  "permissions": [],
+  "type": "theme",
+  "version": "1.0.0"
+}

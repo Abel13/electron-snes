@@ -1,0 +1,9 @@
+{
+  "apiVersion": 1,
+  "capabilities": ["input-mapping"],
+  "id": "org.pixelcore.reference-console",
+  "name": "Reference Console",
+  "permissions": [],
+  "type": "console",
+  "version": "1.0.0"
+}

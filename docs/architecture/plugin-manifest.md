@@ -49,3 +49,6 @@ positive integer; host-range compatibility is evaluated after parsing.
 This schema does not read files, produce platform diagnostics, discover plugins,
 activate code, or grant permissions. Runtime validation and diagnostics belong to the
 manifest validation boundary in issue `#7`.
+
+Representative JSON inputs for every plugin type and validation outcome are
+maintained as [plugin contract fixtures](plugin-contract-fixtures.md).

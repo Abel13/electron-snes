@@ -1,0 +1,9 @@
+{
+  "apiVersion": 2,
+  "capabilities": ["gamepad-mapping"],
+  "id": "org.pixelcore.future-controller",
+  "name": "Future Controller",
+  "permissions": [],
+  "type": "controller",
+  "version": "2.0.0"
+}

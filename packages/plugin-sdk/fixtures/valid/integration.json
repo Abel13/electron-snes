@@ -1,0 +1,15 @@
+{
+  "apiVersion": 1,
+  "capabilities": ["external-service"],
+  "id": "org.pixelcore.reference-integration",
+  "name": "Reference Integration",
+  "permissions": [
+    {
+      "actions": ["execute"],
+      "reason": "Invoke a user-configured external integration.",
+      "resource": "integration:external"
+    }
+  ],
+  "type": "integration",
+  "version": "1.0.0"
+}
