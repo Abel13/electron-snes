@@ -12,9 +12,11 @@ O formato estrito de `manifest.json`, seus campos e limites estão em
 `plugin-manifest.md`. O schema define a estrutura; validação em runtime e diagnósticos
 pertencem à fronteira de validação de manifestos.
 
-A validação classifica manifestos como `valid`, `inactive` ou `invalid`. Um manifesto
-incompatível com a API do host é `inactive`, visível apenas para diagnóstico e sem
-execução de código ou permissões. Consulte `plugin-manifest-validation.md`.
+A validação classifica manifestos como `valid`, `inactive` ou `invalid`. Apenas os
+dois primeiros chegam ao registry: `valid` torna-se `eligible`; `inactive` permanece
+listável e resolvível por ID para diagnóstico, sem execução de código ou permissões.
+Manifestos `invalid` não são registráveis. Consulte `plugin-manifest-validation.md` e
+`plugin-registry.md`.
 
 ## Tipos
 

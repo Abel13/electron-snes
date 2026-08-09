@@ -37,7 +37,9 @@ manifest validation boundary.
   compatibility assessment.
 - Manifest schema and validation own presence, integer, and positivity checks for
   `apiVersion`.
-- Registry implementation owns discovery state and activation.
+- Registry implementation owns os registros elegíveis e inativos já validados.
+- Discovery, module loading, activation, and permission authorization remain separate
+  runtime responsibilities.
 - Permission implementation owns authorization after compatibility is confirmed.
 
 The API version contract does not expose Electron, filesystem APIs, plugin internals,
