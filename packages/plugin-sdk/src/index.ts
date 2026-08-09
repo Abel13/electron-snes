@@ -12,3 +12,13 @@ export type {
 } from './api-version.js';
 export { PLUGIN_TYPES, PluginManifestPermissionSchema, PluginManifestSchema } from './manifest.js';
 export type { PluginManifest, PluginManifestPermission, PluginType } from './manifest.js';
+export { validatePluginManifest } from './validate-manifest.js';
+export type {
+  InactivePluginManifest,
+  InvalidPluginManifest,
+  PluginManifestDiagnostic,
+  PluginManifestDiagnosticCode,
+  PluginManifestValidationOptions,
+  PluginManifestValidationResult,
+  ValidPluginManifest,
+} from './validate-manifest.js';
