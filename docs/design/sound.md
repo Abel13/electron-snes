@@ -56,11 +56,24 @@ Use semantic sound tokens instead of binding files directly to components:
 
 ## Registered assets
 
-| Token | Source file | Playback rule |
-| --- | --- | --- |
-| `sound.startup` | `sounds/default/startup.wav` | Play once when the application becomes ready for interaction. Do not replay on route changes, window focus, or renderer remounts. |
+The source masters below are original stereo WAV files at 48 kHz and 16-bit depth.
+Only `startup.wav` is approved for runtime use today. The interaction masters are
+catalogued early so their semantic ownership is clear, but they require editing
+to their documented interaction durations and, where required, matched variations
+before runtime packaging.
 
-Future master assets use original WAV files at 48 kHz. Runtime OGG exports must retain a documented source-to-runtime mapping in this table when packaging is introduced.
+| Token | Source file | Status and playback rule |
+| --- | --- | --- |
+| `sound.startup` | `sounds/default/startup.wav` | Approved master, 1 s. Play once when the application becomes ready for interaction. Do not replay on route changes, window focus, or renderer remounts. |
+| `sound.focus` | `sounds/default/focus.wav` | Candidate master, 1 s. Produce two matched 40-60 ms runtime variations before use. |
+| `sound.select` | `sounds/default/select.wav` | Candidate master, 1 s. Produce two matched 100-140 ms runtime variations before use. |
+| `sound.back` | `sounds/default/close.wav` | Candidate master, 6 s. This file semantically represents return, cancel, or close; edit it to two matched 70-100 ms return variations before use. |
+| `sound.open` | `sounds/default/open.wav` | Candidate master, 1 s. Edit to one 120-180 ms opening cue before use. |
+| `sound.toggle` | `sounds/default/toggle.wav` | Candidate master, 1 s. Derive distinct 60-90 ms on and off assets before use. |
+
+Future runtime OGG exports must retain a documented source-to-runtime mapping in
+this table when packaging is introduced. Candidate masters must not be wired into
+components or playback code before their timing and variation requirements are met.
 
 ## Interaction rules
 
