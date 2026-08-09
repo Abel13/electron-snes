@@ -26,6 +26,9 @@ válidos, inativos e inválidos sem criar plugins executáveis. Consulte
 
 `console`, `emulator-core`, `controller`, `game-metadata`, `theme`, `integration`.
 
+Console plugins use the public `@platform/console-sdk` declaration and validation
+boundary; see `console-sdk.md`.
+
 ## Regras
 
 - Preferir configuração declarativa (`json`/`yaml`) com validação no load.
