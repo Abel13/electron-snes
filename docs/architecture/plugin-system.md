@@ -28,5 +28,7 @@ Manifestos `invalid` não são registráveis. Consulte `plugin-manifest-validati
 - SDK com helpers (`defineConsole`, `defineController`, `defineEmulator`, `defineTheme`).
 - Mudanças quebradas exigem estratégia de migração e nova versão de API quando necessário.
 - Plugins recebem acesso mínimo e explícito aos recursos.
+- Uma declaração no manifesto não é autorização: o host aplica default deny, exige
+  grants explícitos e medeia cada recurso permitido. Consulte `plugin-permissions.md`.
 - Plugins com `apiVersion` fora da faixa suportada são descobertos como inativos e não
   executam código nem recebem permissões.

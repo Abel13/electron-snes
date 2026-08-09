@@ -44,11 +44,26 @@ Regras:
   `kebab-case`, e cada recurso de permissão aparece uma única vez com ações únicas.
 - Recursos de permissão usam segmentos minúsculos separados por `:`, como
   `device:metadata`; as ações permitidas são `read`, `write`, `list` e `execute`.
+- Uma permissão declarada é apenas uma solicitação. O host usa default deny e só a
+  torna disponível quando o recurso é reconhecido e recebe um grant explícito.
+- Solicite recursos mediados, como `library:rom-content`, `storage:plugin-data` ou
+  `network:outbound`; plugins nunca recebem caminhos, Node.js, Electron ou rede
+  irrestrita diretamente.
 - O schema valida estrutura e formato; a fronteira de validação também avalia a
   compatibilidade com o host e produz diagnósticos seguros.
 - Um manifesto estruturalmente inválido bloqueia a descoberta. Um manifesto válido com
   `apiVersion` incompatível é registrado como inativo para diagnóstico e não pode
   executar código ou receber permissões.
+
+Exemplo de solicitação mínima para leitura de uma ROM selecionada pelo usuário:
+
+```json
+{
+  "resource": "library:rom-content",
+  "actions": ["read"],
+  "reason": "Load the selected game into the emulator core."
+}
+```
 
 ## Definição
 
