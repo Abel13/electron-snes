@@ -72,8 +72,10 @@ unknown resources are unavailable, incomplete grants are denied, and no manifest
 request grants authority on its own. See `plugin-permissions.md`.
 
 `Logger` accepts structured entries with level, message, ISO timestamp, and optional
-JSON context. Log destinations, redaction, retention, and diagnostics belong to issue
-`#11`.
+JSON context. `InMemoryLogger` provides a bounded local diagnostic buffer and returns
+entries in write order. It never writes to a console or external sink. File sinks,
+redaction policy, retention outside the process, telemetry, and diagnostics UI remain
+separate concerns. See `structured-logging.md`.
 
 ## Rules for consumers
 
