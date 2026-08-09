@@ -36,6 +36,11 @@ Resources use lowercase segments separated by `:`, such as `device:metadata`.
 A resource may appear only once in a manifest. A plugin with no requested access uses
 an empty `permissions` array.
 
+The manifest only requests access. The host checks each request against its permission
+resource definitions and explicit grants; unknown resources remain unavailable and
+missing grants are denied. This process never exposes raw filesystem paths, Electron
+objects, or unrestricted network access. See `plugin-permissions.md`.
+
 ## Compatibility and validation
 
 `apiVersion` declares one plugin API revision. Schema parsing verifies that it is a

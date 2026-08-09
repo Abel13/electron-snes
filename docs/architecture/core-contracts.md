@@ -65,9 +65,12 @@ adapters belong to issue `#10`.
 
 ## Permissions and logging
 
-`PermissionRequest` contains a named resource, explicit `read`, `write`, `list`, or
-`execute` actions, and an optional rationale. Resource naming remains extensible;
-manifest parsing and permission evaluation belong to issues `#6` and `#9`.
+`PermissionRequest` declares a named resource, explicit `read`, `write`, `list`, or
+`execute` actions, and an optional rationale. `PermissionResourceDefinition` describes
+the host-mediated resource and its allowed actions; `PermissionGrant` records the
+explicit subset granted to a plugin. `assessPermissionRequest` is pure and default-deny:
+unknown resources are unavailable, incomplete grants are denied, and no manifest
+request grants authority on its own. See `plugin-permissions.md`.
 
 `Logger` accepts structured entries with level, message, ISO timestamp, and optional
 JSON context. Log destinations, redaction, retention, and diagnostics belong to issue
