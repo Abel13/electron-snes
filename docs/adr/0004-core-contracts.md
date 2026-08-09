@@ -17,7 +17,7 @@ issues implement.
 
 JSON storage covers configuration, library metadata, cache, plugin configuration, and
 user preferences. Binary save files and save states are deferred to the dedicated
-storage issue.
+storage contract issue.
 
 ## Alternatives considered
 

@@ -23,4 +23,10 @@ export { InMemoryRegistry } from './registry.js';
 export type { Registry, RegistryEntry } from './registry.js';
 export { err, ok } from './result.js';
 export type { CoreError, CoreErrorCode, Err, Ok, Result } from './result.js';
-export type { JsonStorageDomain, JsonStoragePort } from './storage.js';
+export type {
+  BinaryStorageDomain,
+  BinaryStorageEntry,
+  BinaryStoragePort,
+  JsonStorageDomain,
+  JsonStoragePort,
+} from './storage.js';
