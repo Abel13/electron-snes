@@ -1,3 +1,8 @@
-import { contextBridge } from 'electron';
+import { contextBridge, ipcRenderer } from 'electron';
 
-contextBridge.exposeInMainWorld('pixelCore', Object.freeze({}));
+import { createPixelCoreApi } from './ipc.js';
+
+contextBridge.exposeInMainWorld(
+  'pixelCore',
+  Object.freeze(createPixelCoreApi((channel) => ipcRenderer.invoke(channel))),
+);
