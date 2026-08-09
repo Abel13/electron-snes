@@ -18,6 +18,10 @@ listável e resolvível por ID para diagnóstico, sem execução de código ou p
 Manifestos `invalid` não são registráveis. Consulte `plugin-manifest-validation.md` e
 `plugin-registry.md`.
 
+Fixtures versionadas de contratos em `@platform/plugin-sdk` cobrem manifestos
+válidos, inativos e inválidos sem criar plugins executáveis. Consulte
+`plugin-contract-fixtures.md`.
+
 ## Tipos
 
 `console`, `emulator-core`, `controller`, `game-metadata`, `theme`, `integration`.
