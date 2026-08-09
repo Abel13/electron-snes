@@ -1,5 +1,13 @@
 # PixelCore
 
+<img src="apps/desktop/assets/brand/pixelcore-icon.png" alt="PixelCore" width="160">
+
+> Play. Preserve. Connect.
+
+Os masters oficiais de marca estão em `apps/desktop/assets/brand/`. Consulte o
+[guia de marca](docs/design/brand.md) antes de criar telas, splash screens ou assets
+de empacotamento.
+
 ## Entendimento do projeto
 
 Plataforma desktop de emulação retro modular e extensível, com foco em:
