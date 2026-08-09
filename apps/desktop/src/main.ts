@@ -1,8 +1,9 @@
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, ipcMain } from 'electron';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { createSecureWindowOptions } from './electron-security.js';
+import { IPC_CHANNELS, createHostVersionResponse, hasNoIpcPayload } from './ipc.js';
 
 const currentDirectory = dirname(fileURLToPath(import.meta.url));
 
@@ -20,6 +21,14 @@ const createMainWindow = (): BrowserWindow => {
 app.enableSandbox();
 
 app.whenReady().then(() => {
+  ipcMain.handle(IPC_CHANNELS.getHostVersion, (_event, ...payload: unknown[]) => {
+    if (!hasNoIpcPayload(payload)) {
+      throw new Error('The host-version IPC channel does not accept a payload.');
+    }
+
+    return createHostVersionResponse(app.getVersion());
+  });
+
   createMainWindow();
 
   app.on('activate', () => {
