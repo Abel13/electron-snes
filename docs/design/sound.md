@@ -40,6 +40,7 @@ Use semantic sound tokens instead of binding files directly to components:
 | --- | --- |
 | `sound.startup` | Confirm that the application is ready for interaction. | One 1-second signature. |
 | `sound.focus` | Move focus between navigation items. | Two 40-60 ms variations; 60 ms cooldown. |
+| `sound.browse` | Move between consoles or games in the primary carousels. | One dedicated cue; 80 ms cooldown. |
 | `sound.select` | Confirm a primary action. | Two 100-140 ms variations. |
 | `sound.back` | Return, cancel, or close. | Two 70-100 ms variations. |
 | `sound.open` | Open a panel, modal, or menu. | One 120-180 ms cue. |
@@ -65,6 +66,7 @@ uses the full candidate duration.
 | ----------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `sound.startup`         | `sounds/default/startup.wav`         | Approved master, 1 s. Play once when the application becomes ready for interaction. Do not replay on route changes, window focus, or renderer remounts. |
 | `sound.focus`           | `sounds/default/focus.wav`           | Candidate master, 1 s. Produce two matched 40-60 ms runtime variations before use.                                                                      |
+| `sound.browse`          | `sounds/default/focus.wav`           | Dedicated console and game carousel cue. Runtime copy is `apps/desktop/assets/audio/browse.wav`; never use it for buttons, settings, or categories.     |
 | `sound.select`          | `sounds/default/select.wav`          | Candidate master, 1 s. Produce two matched 100-140 ms runtime variations before use.                                                                    |
 | `sound.back`            | `sounds/default/close.wav`           | Candidate master, 6 s. This file semantically represents return, cancel, or close; edit it to two matched 70-100 ms return variations before use.       |
 | `sound.open`            | `sounds/default/open.wav`            | Candidate master, 1 s. Edit to one 120-180 ms opening cue before use.                                                                                   |
@@ -86,6 +88,7 @@ optimization; source masters are never referenced directly by components.
 ## Interaction rules
 
 - Trigger effects with meaningful user actions, focus changes, or state transitions.
+- Use `sound.browse` only when the selected console or selected game changes.
 - Play `sound.startup` only after the primary interface and input handling are ready.
 - Alternate `sound.focus`, `sound.select`, `sound.back`, and `sound.adjust` variations deterministically.
 - Keep navigation effects short and low-volume.
@@ -113,6 +116,8 @@ optimization; source masters are never referenced directly by components.
 - Respect a reduced-stimulation preference by reducing nonessential UI effects.
 - Pair important sounds with visible, readable feedback.
 - Preserve user settings across sessions.
+- Persist UI mute and volume in the `user-preferences/global` entry of Electron's
+  `preferences.json`; renderer `localStorage` is only a legacy migration source.
 
 ## Production briefs
 

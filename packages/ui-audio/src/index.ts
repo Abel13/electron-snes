@@ -1,5 +1,6 @@
 export const UI_SOUND_TOKENS = [
   'startup',
+  'browse',
   'focus',
   'select',
   'back',
@@ -36,7 +37,7 @@ export interface AudioElementLike {
   pause(): void;
 }
 
-const cooldowns: Partial<Record<UiSoundToken, number>> = { focus: 60 };
+const cooldowns: Partial<Record<UiSoundToken, number>> = { browse: 80, focus: 60 };
 
 export class BrowserUiAudioService implements UiAudioService {
   private preferences: UiAudioPreferences = { muted: false, volume: 0.22 };

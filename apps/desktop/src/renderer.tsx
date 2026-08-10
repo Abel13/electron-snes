@@ -65,6 +65,7 @@ const soundUrl = (name: string): string =>
   new URL(`../assets/audio/${name}.wav`, import.meta.url).href;
 const uiAudio = new BrowserUiAudioService({
   back: soundUrl('close'),
+  browse: soundUrl('browse'),
   error: soundUrl('error'),
   'favorite-add': soundUrl('favorite-add'),
   'favorite-remove': soundUrl('favorite-remove'),
@@ -705,7 +706,7 @@ const App = (): React.JSX.Element => {
               setGlobalSettingsOpen(false);
               setScreen('library');
             }}
-          onFocusSound={() => uiAudio.play('focus')}
+          onFocusSound={() => uiAudio.play('browse')}
             ref={carousel}
           />
           <button
@@ -816,7 +817,7 @@ const App = (): React.JSX.Element => {
             onFavorite={(game) => void toggleFavorite(game as LibraryGame)}
             onPlay={(game) => void launchGame(game as LibraryGame)}
             onSelect={(game) => setSelectedGameId(game.id)}
-            onSelectionChange={() => uiAudio.play('focus')}
+            onSelectionChange={() => uiAudio.play('browse')}
             ref={consoleLibrary}
           >
             {profile === undefined ? null : (
