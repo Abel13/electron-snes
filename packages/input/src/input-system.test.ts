@@ -7,6 +7,7 @@ import { NORMALIZED_INPUT_ACTIONS } from './actions.js';
 import { validateConsoleInputMapping, mapNormalizedActions } from './console-mapping.js';
 import { InputDeviceDiscovery, KEYBOARD_DEVICE } from './device-discovery.js';
 import { GamepadInputAdapter } from './gamepad-adapter.js';
+import { GamepadPromptActivityTracker, classifyGamepadPromptScheme } from './input-prompt-scheme.js';
 import { InputProfileRepository } from './input-profiles.js';
 import { KeyboardInputAdapter } from './keyboard-adapter.js';
 import { PlayerAssignmentManager } from './player-assignment.js';
@@ -80,6 +81,29 @@ describe('universal input', () => {
       index: 0,
     });
     expect(actions).toEqual(['move-down', 'move-left', 'primary']);
+  });
+  it('classifies presentation families with an Xbox fallback', () => {
+    expect(classifyGamepadPromptScheme('DualSense Wireless Controller (054c)')).toBe('playstation');
+    expect(classifyGamepadPromptScheme('Xbox Wireless Controller (045e)')).toBe('xbox');
+    expect(classifyGamepadPromptScheme('Generic USB Pad')).toBe('xbox');
+    expect(classifyGamepadPromptScheme('')).toBe('xbox');
+  });
+  it('detects gamepad edges while ignoring drift and held input', () => {
+    const tracker = new GamepadPromptActivityTracker();
+    const buttons = Array.from({ length: 16 }, () => ({ pressed: false, value: 0 }));
+    const snapshot = (axis: number, pressed = false) => ({
+      axes: [axis],
+      buttons: buttons.map((button, index) => index === 0 ? { pressed, value: pressed ? 1 : 0 } : button),
+      connected: true,
+      id: 'Pad',
+      index: 0,
+    });
+    expect(tracker.detect([snapshot(0.2)])).toBeUndefined();
+    expect(tracker.detect([snapshot(0.7)])?.id).toBe('Pad');
+    expect(tracker.detect([snapshot(0.8)])).toBeUndefined();
+    tracker.detect([snapshot(0)]);
+    expect(tracker.detect([snapshot(0, true)])?.id).toBe('Pad');
+    expect(tracker.detect([snapshot(0, true)])).toBeUndefined();
   });
 
   it('discovers keyboards and connected gamepads deterministically', () => {
