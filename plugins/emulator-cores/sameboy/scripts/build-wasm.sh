@@ -29,6 +29,6 @@ docker run --rm \
       ! -name 'sm83_disassembler.c' \
       ! -name 'symbol_hash.c') \
     -s STANDALONE_WASM=1 \
-    -s EXPORTED_FUNCTIONS='["_malloc","_free"]' \
+    -s EXPORTED_FUNCTIONS='["_malloc","_free","___wasm_call_ctors"]' \
     -Wl,--no-entry \
     -o wasm/sameboy.wasm

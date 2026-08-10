@@ -2,6 +2,7 @@ const frameByteLength = 160 * 144 * 4;
 
 interface SameBoyWasmExports extends WebAssembly.Exports {
   readonly memory: WebAssembly.Memory;
+  readonly __wasm_call_ctors: () => void;
   readonly malloc: (size: number) => number;
   readonly free: (address: number) => void;
   readonly sameboy_frame_buffer: () => number;
@@ -34,6 +35,7 @@ export const loadSameBoyWasmFromBytes = async (
   const requiredFunctions = [
     exports.malloc,
     exports.free,
+    exports.__wasm_call_ctors,
     exports.sameboy_frame_buffer,
     exports.sameboy_audio_sample_count,
     exports.sameboy_copy_audio,
@@ -48,6 +50,8 @@ export const loadSameBoyWasmFromBytes = async (
   ) {
     throw new Error('The SameBoy WebAssembly module has an incompatible export surface.');
   }
+
+  exports.__wasm_call_ctors();
 
   return {
     allocate: (size) => exports.malloc(size),

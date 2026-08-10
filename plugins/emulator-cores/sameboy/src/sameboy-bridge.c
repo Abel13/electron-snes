@@ -4,6 +4,7 @@
 #include <stdlib.h>
 
 #include "gb.h"
+#include "sameboy-cgb-bootrom.h"
 
 #define SAMEBOY_FRAME_WIDTH 160
 #define SAMEBOY_FRAME_HEIGHT 144
@@ -29,21 +30,10 @@ static uint32_t sameboy_rgb_encode_callback(GB_gameboy_t *gb, uint8_t red, uint8
     return ((uint32_t)red << 16) | ((uint32_t)green << 8) | blue;
 }
 
-static void sameboy_skip_boot_rom(GB_gameboy_t *gb)
+static void sameboy_boot_rom_loader(GB_gameboy_t *gb, GB_boot_rom_t type)
 {
-    gb->a = 0x11;
-    gb->f = 0x80;
-    gb->b = gb->c = 0x00;
-    gb->d = 0xff;
-    gb->e = 0x56;
-    gb->h = 0x00;
-    gb->l = 0x0d;
-    gb->sp = 0xfffe;
-    gb->pc = 0x0100;
-    GB_write_memory(gb, 0xff50, 1);
-    GB_write_memory(gb, 0xff26, 0x80);
-    GB_write_memory(gb, 0xff24, 0x77);
-    GB_write_memory(gb, 0xff25, 0xff);
+    (void)type;
+    GB_load_boot_rom_from_buffer(gb, sameboy_cgb_bootrom, sameboy_cgb_bootrom_len);
 }
 
 static void sameboy_audio_callback(GB_gameboy_t *gb, GB_sample_t *sample)
@@ -86,7 +76,12 @@ int sameboy_load_rom(const uint8_t *rom, const size_t size)
     initialize();
     GB_load_rom_from_buffer(gameboy, rom, size);
     GB_reset(gameboy);
-    sameboy_skip_boot_rom(gameboy);
+    GB_set_boot_rom_load_callback(gameboy, sameboy_boot_rom_loader);
+    GB_set_sample_rate(gameboy, 48000);
+    GB_set_highpass_filter_mode(gameboy, GB_HIGHPASS_OFF);
+    GB_apu_set_sample_callback(gameboy, sameboy_audio_callback);
+    audio_read_index = 0;
+    audio_write_index = 0;
     return 1;
 }
 
