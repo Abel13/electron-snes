@@ -6,6 +6,7 @@ import {
   hasNoIpcPayload,
   isHostVersionResponse,
   isSelectRomResponse,
+  isSessionInputPayload,
 } from './ipc.js';
 
 describe('IPC boundary contracts', () => {
@@ -68,5 +69,13 @@ describe('IPC boundary contracts', () => {
       rom: { extension: '.gb', id: 'selection-1', name: 'game.gb' },
       status: 'selected',
     });
+  });
+
+  it('accepts only bounded console action snapshots', () => {
+    expect(isSessionInputPayload({ actions: ['up', 'a'], playerPortId: 'player-one' })).toBe(true);
+    expect(isSessionInputPayload({ actions: ['up', 'up'], playerPortId: 'player-one' })).toBe(
+      false,
+    );
+    expect(isSessionInputPayload({ actions: ['KeyZ'], playerPortId: 'player-one' })).toBe(false);
   });
 });

@@ -7,6 +7,8 @@ import type {
 
 import { createDesktopSessionHost } from './session-host.js';
 
+const inputSnapshots: (readonly string[])[] = [];
+
 const createPlugin = (): EmulatorPluginDefinition => {
   let status: EmulatorSessionStatus = 'idle';
   let audio:
@@ -24,7 +26,7 @@ const createPlugin = (): EmulatorPluginDefinition => {
     loadRom: async () => ({ status: 'ok' }),
     pause: async () => ((status = 'paused'), { status: 'ok' }),
     resume: async () => ((status = 'running'), { status: 'ok' }),
-    setInput: async () => ({ status: 'ok' }),
+    setInput: async (input) => (inputSnapshots.push(input.actions), { status: 'ok' }),
     start: async () => {
       status = 'running';
       video?.({
@@ -79,6 +81,11 @@ describe('DesktopSessionHost', () => {
     ).resolves.toEqual({ sessionStatus: 'running', status: 'ok' });
     await expect(host.pause()).resolves.toEqual({ sessionStatus: 'paused', status: 'ok' });
     await expect(host.resume()).resolves.toEqual({ sessionStatus: 'running', status: 'ok' });
+    await expect(host.setInput('player-one', ['up', 'a'])).resolves.toEqual({
+      sessionStatus: 'running',
+      status: 'ok',
+    });
+    expect(inputSnapshots.at(-1)).toEqual(['up', 'a']);
     await expect(host.stop()).resolves.toEqual({ sessionStatus: 'stopped', status: 'ok' });
     expect(audio).toHaveLength(1);
     expect(video).toHaveLength(1);

@@ -16,6 +16,20 @@ const gameBoyConsole = defineConsole({
       { id: 'start' },
       { id: 'select' },
     ],
+    inputMapping: {
+      entries: [
+        { consoleAction: 'up', normalizedAction: 'move-up' },
+        { consoleAction: 'down', normalizedAction: 'move-down' },
+        { consoleAction: 'left', normalizedAction: 'move-left' },
+        { consoleAction: 'right', normalizedAction: 'move-right' },
+        { consoleAction: 'a', normalizedAction: 'primary' },
+        { consoleAction: 'b', normalizedAction: 'secondary' },
+        { consoleAction: 'start', normalizedAction: 'start' },
+        { consoleAction: 'select', normalizedAction: 'select' },
+      ],
+      playerPortId: 'player-one',
+      version: 1,
+    },
     playerPorts: [
       {
         id: 'player-one',
