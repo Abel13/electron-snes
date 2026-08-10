@@ -98,13 +98,23 @@ class SameBoyWorkerSession implements EmulatorSession {
       return;
     }
 
-    const frame: EmulatorVideoFrame = {
-      height: message.height,
-      pixelFormat: 'rgba8888',
-      pixels: message.pixels,
-      width: message.width,
+    if (message.type === 'video') {
+      const frame: EmulatorVideoFrame = {
+        height: message.height,
+        pixelFormat: 'rgba8888',
+        pixels: message.pixels,
+        width: message.width,
+      };
+      for (const listener of this.#videoListeners) listener(frame);
+      return;
+    }
+
+    const frame: EmulatorAudioFrame = {
+      channels: message.channels,
+      sampleRate: message.sampleRate,
+      samples: message.samples,
     };
-    for (const listener of this.#videoListeners) listener(frame);
+    for (const listener of this.#audioListeners) listener(frame);
   };
 
   private fail(message: string): void {

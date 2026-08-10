@@ -7,10 +7,28 @@
 
 #define SAMEBOY_FRAME_WIDTH 160
 #define SAMEBOY_FRAME_HEIGHT 144
+#define SAMEBOY_AUDIO_BUFFER_FRAMES 16384
 
 static GB_gameboy_t *gameboy;
 static uint32_t *pixels;
 static uint8_t *rgba_pixels;
+static int16_t audio_buffer[SAMEBOY_AUDIO_BUFFER_FRAMES * 2];
+static size_t audio_read_index;
+static size_t audio_write_index;
+
+static void sameboy_audio_callback(GB_gameboy_t *gb, GB_sample_t *sample)
+{
+    (void)gb;
+
+    const size_t next_write_index = (audio_write_index + 1) % SAMEBOY_AUDIO_BUFFER_FRAMES;
+    if (next_write_index == audio_read_index) {
+        return;
+    }
+
+    audio_buffer[audio_write_index * 2] = sample->left;
+    audio_buffer[audio_write_index * 2 + 1] = sample->right;
+    audio_write_index = next_write_index;
+}
 
 static void initialize(void)
 {
@@ -23,6 +41,7 @@ static void initialize(void)
     rgba_pixels = calloc(SAMEBOY_FRAME_WIDTH * SAMEBOY_FRAME_HEIGHT * 4, sizeof(*rgba_pixels));
     GB_set_pixels_output(gameboy, pixels);
     GB_set_sample_rate(gameboy, 48000);
+    GB_apu_set_sample_callback(gameboy, sameboy_audio_callback);
 }
 
 EMSCRIPTEN_KEEPALIVE
@@ -79,4 +98,29 @@ void sameboy_set_button(const int button, const int pressed)
     }
 
     GB_set_key_state(gameboy, buttons[button], pressed != 0);
+}
+
+EMSCRIPTEN_KEEPALIVE
+size_t sameboy_audio_sample_count(void)
+{
+    if (audio_write_index >= audio_read_index) {
+        return audio_write_index - audio_read_index;
+    }
+
+    return SAMEBOY_AUDIO_BUFFER_FRAMES - audio_read_index + audio_write_index;
+}
+
+EMSCRIPTEN_KEEPALIVE
+size_t sameboy_copy_audio(int16_t *output, const size_t maximum_frames)
+{
+    size_t copied_frames = 0;
+
+    while (copied_frames < maximum_frames && audio_read_index != audio_write_index) {
+        output[copied_frames * 2] = audio_buffer[audio_read_index * 2];
+        output[copied_frames * 2 + 1] = audio_buffer[audio_read_index * 2 + 1];
+        audio_read_index = (audio_read_index + 1) % SAMEBOY_AUDIO_BUFFER_FRAMES;
+        copied_frames++;
+    }
+
+    return copied_frames;
 }

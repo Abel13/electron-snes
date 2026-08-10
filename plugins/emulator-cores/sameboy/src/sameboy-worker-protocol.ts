@@ -17,6 +17,12 @@ export type SameBoyWorkerCommand =
 
 export type SameBoyWorkerMessage =
   | {
+      readonly channels: 2;
+      readonly sampleRate: 48000;
+      readonly samples: Float32Array;
+      readonly type: 'audio';
+    }
+  | {
       readonly id: string;
       readonly result: EmulatorOperationResult;
       readonly status: EmulatorSessionStatus;

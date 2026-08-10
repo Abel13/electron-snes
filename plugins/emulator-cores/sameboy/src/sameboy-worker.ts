@@ -111,6 +111,10 @@ const runFrame = (): void => {
   if (buffer instanceof ArrayBuffer)
     post({ height: 144, pixels, type: 'video', width: 160 }, [buffer]);
   else post({ height: 144, pixels, type: 'video', width: 160 });
+  const samples = wasm.readAudio();
+  const audioBuffer = samples.buffer;
+  if (samples.length > 0 && audioBuffer instanceof ArrayBuffer)
+    post({ channels: 2, sampleRate: 48000, samples, type: 'audio' }, [audioBuffer]);
   scheduleFrame();
 };
 const stopClock = (): void => {
