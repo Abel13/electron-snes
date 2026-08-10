@@ -1,6 +1,7 @@
 import { forwardRef, useImperativeHandle, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { ConsoleCatalogItem } from '@platform/ui-contracts';
 import { Icon } from './icons.js';
+import { InputPrompt } from './input-prompts.js';
 import type { LibraryGameView } from './product-shell.js';
 
 export type ConsoleLibraryCategory = 'library' | 'favorites' | 'recent' | 'settings';
@@ -175,6 +176,7 @@ export const ConsoleLibrary = forwardRef<ConsoleLibraryHandle, ConsoleLibraryPro
 
     return (
       <main
+        autoFocus
         className="pc-console-library"
         onKeyDown={(event) => {
           const direction = {
@@ -193,6 +195,7 @@ export const ConsoleLibrary = forwardRef<ConsoleLibraryHandle, ConsoleLibraryPro
           }
         }}
         style={{ '--pc-console-accent': props.console.accentColor } as React.CSSProperties}
+        tabIndex={-1}
       >
         <div aria-hidden="true" className="pc-library-atmosphere" />
         <div aria-live="polite" className="pc-sr-only">
@@ -281,8 +284,8 @@ export const ConsoleLibrary = forwardRef<ConsoleLibraryHandle, ConsoleLibraryPro
           )}
         </section>
         <footer className="pc-console-library-footer">
-          <span>↑ ↓ {categoryName}</span>
-          <span>← → {selectedGame?.name ?? props.console.name}</span>
+          <span><InputPrompt action="navigate-vertical" label={categoryName} /> {categoryName}</span>
+          <span><InputPrompt action="navigate-horizontal" label={selectedGame?.name ?? props.console.name} /> {selectedGame?.name ?? props.console.name}</span>
           <span>
             {selectedGame === undefined ? '' : `${selectedIndex + 1} / ${categoryGames.length}`}
           </span>

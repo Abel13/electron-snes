@@ -7,9 +7,11 @@ export type {
 } from './emulator-audio-player.js';
 export { InputMappingSettings } from './input-mapping-settings.js';
 export { Icon } from './icons.js';
+export { InputPrompt, InputPromptGroup, InputPromptProvider } from './input-prompts.js';
 export { LibraryShell, ParticleField } from './product-shell.js';
 export { moveDirectionalFocus } from './directional-focus.js';
 export { ConsoleCarousel, rotateCarouselIndex } from './console-carousel.js';
+export { GlobalSettingsMenu, adjustSettingsVolume, cycleSettingsOption, moveSettingsIndex } from './global-settings-menu.js';
 export {
   ConsoleLibrary,
   getCarouselSlots,
@@ -29,8 +31,10 @@ export type {
   ConsoleLibraryHandle,
   ConsoleLibraryProps,
 } from './console-library.js';
+export type { GlobalSettingsLocaleOption, GlobalSettingsMenuCopy, GlobalSettingsMenuHandle, GlobalSettingsMenuProps } from './global-settings-menu.js';
 export type { FocusDirection } from './directional-focus.js';
 export type { IconName } from './icons.js';
+export type { InputPromptAction, InputPromptProviderProps, InputPromptScheme } from './input-prompts.js';
 export type {
   LibraryGameView,
   LibraryShellProps,

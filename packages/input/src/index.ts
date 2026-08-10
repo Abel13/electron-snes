@@ -12,6 +12,8 @@ export type {
   InputFrame,
 } from './devices.js';
 export { GamepadInputAdapter } from './gamepad-adapter.js';
+export { GamepadPromptActivityTracker, classifyGamepadPromptScheme } from './input-prompt-scheme.js';
+export type { InputPromptScheme } from './input-prompt-scheme.js';
 export { InputProfileRepository, validateInputProfile } from './input-profiles.js';
 export type { InputProfile } from './input-profiles.js';
 export { KeyboardInputAdapter } from './keyboard-adapter.js';

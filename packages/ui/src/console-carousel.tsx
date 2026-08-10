@@ -1,5 +1,6 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import type { ConsoleCatalogItem } from '@platform/ui-contracts';
+import { InputPrompt } from './input-prompts.js';
 
 export interface ConsoleCarouselCopy {
   readonly available: string;
@@ -15,6 +16,7 @@ export interface ConsoleCarouselCopy {
 
 export interface ConsoleCarouselHandle {
   confirm(): void;
+  focus(): void;
   move(direction: 'left' | 'right'): void;
 }
 
@@ -40,14 +42,20 @@ export const ConsoleCarousel = forwardRef<ConsoleCarouselHandle, ConsoleCarousel
     const [index, setIndex] = useState(0);
     const [direction, setDirection] = useState<'left' | 'right'>('right');
     const [outgoing, setOutgoing] = useState<ConsoleCatalogItem>();
+    const [pressedDirection, setPressedDirection] = useState<'left' | 'right'>();
     const [announcement, setAnnouncement] = useState('');
     const touchStart = useRef<number | undefined>(undefined);
+    const selection = useRef<HTMLButtonElement>(null);
     const transitionTimer = useRef<number | undefined>(undefined);
+    const pressTimer = useRef<number | undefined>(undefined);
     const selected = props.items[index];
 
     const move = (nextDirection: 'left' | 'right'): void => {
       if (selected === undefined || props.items.length < 2) return;
       window.clearTimeout(transitionTimer.current);
+      window.clearTimeout(pressTimer.current);
+      setPressedDirection(nextDirection);
+      pressTimer.current = window.setTimeout(() => setPressedDirection(undefined), 360);
       setOutgoing(selected);
       setDirection(nextDirection);
       const nextIndex = rotateCarouselIndex(index, nextDirection, props.items.length);
@@ -67,8 +75,14 @@ export const ConsoleCarousel = forwardRef<ConsoleCarouselHandle, ConsoleCarousel
       props.onConfirm(selected);
     };
 
-    useImperativeHandle(ref, () => ({ confirm, move }));
-    useEffect(() => () => window.clearTimeout(transitionTimer.current), []);
+    useImperativeHandle(ref, () => ({ confirm, focus: () => selection.current?.focus(), move }));
+    useEffect(
+      () => () => {
+        window.clearTimeout(transitionTimer.current);
+        window.clearTimeout(pressTimer.current);
+      },
+      [],
+    );
 
     if (selected === undefined) return <main className="pc-console-home" />;
     const availabilityLabel =
@@ -99,11 +113,19 @@ export const ConsoleCarousel = forwardRef<ConsoleCarouselHandle, ConsoleCarousel
         </header>
         <button
           aria-label={props.copy.previous}
-          className="pc-carousel-arrow pc-carousel-arrow-left"
+          className={`pc-carousel-arrow pc-carousel-arrow-left${pressedDirection === 'left' ? ' is-pressed' : ''}`}
           onClick={() => move('left')}
           type="button"
         >
-          <span aria-hidden="true">‹</span>
+          <span aria-hidden="true" className="pc-arrow-energy">
+            <i />
+            <i />
+            <i />
+            <i />
+          </span>
+          <span aria-hidden="true" className="pc-arrow-glyph">
+            ‹
+          </span>
         </button>
         <section
           aria-label={selected.name}
@@ -143,10 +165,11 @@ export const ConsoleCarousel = forwardRef<ConsoleCarouselHandle, ConsoleCarousel
             className={`pc-console-selection is-entering-from-${direction}`}
             key={selected.id}
             onClick={confirm}
+            ref={selection}
             type="button"
           >
             <img alt="" className="pc-console-artwork" src={selected.artworkUrl} />
-            <span className="pc-console-action">{props.copy.confirm}</span>
+            <span className="pc-console-action"><InputPrompt action="confirm" label={props.copy.confirm} />{props.copy.confirm}</span>
           </button>
         </section>
         <section className="pc-console-copy" id="pc-console-meta">
@@ -163,11 +186,19 @@ export const ConsoleCarousel = forwardRef<ConsoleCarouselHandle, ConsoleCarousel
         </section>
         <button
           aria-label={props.copy.next}
-          className="pc-carousel-arrow pc-carousel-arrow-right"
+          className={`pc-carousel-arrow pc-carousel-arrow-right${pressedDirection === 'right' ? ' is-pressed' : ''}`}
           onClick={() => move('right')}
           type="button"
         >
-          <span aria-hidden="true">›</span>
+          <span aria-hidden="true" className="pc-arrow-energy">
+            <i />
+            <i />
+            <i />
+            <i />
+          </span>
+          <span aria-hidden="true" className="pc-arrow-glyph">
+            ›
+          </span>
         </button>
         <footer className="pc-carousel-footer">
           <div aria-hidden="true" className="pc-carousel-dots">

@@ -3,25 +3,33 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   GamepadInputAdapter,
+  GamepadPromptActivityTracker,
   InputDeviceDiscovery,
   KeyboardInputAdapter,
   UniversalInputRuntime,
+  classifyGamepadPromptScheme,
   type ConsoleInputMapping,
   type InputDeviceDescriptor,
   type InputProfile,
   type NormalizedInputAction,
+  type InputPromptScheme,
 } from '@platform/input';
 import {
   EmulatorAudioPlayer,
   EmulatorVideoCanvas,
   ConsoleCarousel,
   ConsoleLibrary,
+  GlobalSettingsMenu,
   Icon,
+  InputPrompt,
+  InputPromptGroup,
+  InputPromptProvider,
   InputMappingSettings,
   moveDirectionalFocus,
   ParticleField,
   type ConsoleCarouselHandle,
   type ConsoleLibraryHandle,
+  type GlobalSettingsMenuHandle,
 } from '@platform/ui';
 import { BrowserUiAudioService } from '@platform/ui-audio';
 import type { LibraryGame, PixelCoreApi, SessionVideoFrame } from './ipc.js';
@@ -76,6 +84,7 @@ const App = (): React.JSX.Element => {
   const [startupVisible, setStartupVisible] = useState(true);
   const [screen, setScreen] = useState<AppScreen>('home');
   const [globalSettingsOpen, setGlobalSettingsOpen] = useState(false);
+  const [inputPromptScheme, setInputPromptScheme] = useState<InputPromptScheme>('desktop');
   const [availableConsoleIds, setAvailableConsoleIds] = useState<readonly string[]>([]);
   const [games, setGames] = useState<readonly LibraryGame[]>([]);
   const [selectedGameId, setSelectedGameId] = useState<string>();
@@ -88,14 +97,17 @@ const App = (): React.JSX.Element => {
   const audio = useRef(new EmulatorAudioPlayer());
   const keyboard = useRef(new KeyboardInputAdapter());
   const gamepad = useRef(new GamepadInputAdapter());
+  const gamepadPromptActivity = useRef(new GamepadPromptActivityTracker());
   const inputRuntime = useRef(new UniversalInputRuntime());
   const [devices, setDevices] = useState<readonly InputDeviceDescriptor[]>([]);
   const [profile, setProfile] = useState<InputProfile>();
   const profileRef = useRef<InputProfile | undefined>(undefined);
   const statusRef = useRef<ProductStatus>(status);
   const screenRef = useRef<AppScreen>(screen);
+  const globalSettingsOpenRef = useRef(false);
   const carousel = useRef<ConsoleCarouselHandle>(null);
   const consoleLibrary = useRef<ConsoleLibraryHandle>(null);
+  const globalSettings = useRef<GlobalSettingsMenuHandle>(null);
 
   const consoles = useMemo(
     () =>
@@ -108,6 +120,16 @@ const App = (): React.JSX.Element => {
   );
 
   const selectedGame = games.find((game) => game.id === selectedGameId) ?? games[0];
+
+  const setGlobalSettings = (open: boolean): void => {
+    globalSettingsOpenRef.current = open;
+    setGlobalSettingsOpen(open);
+    uiAudio.play(open ? 'open' : 'back');
+    window.requestAnimationFrame(() => {
+      if (open) globalSettings.current?.focus();
+      else carousel.current?.focus();
+    });
+  };
 
   const refreshLibrary = async (): Promise<void> => {
     const response = await window.pixelCore.listLibrary();
@@ -131,6 +153,28 @@ const App = (): React.JSX.Element => {
   useEffect(() => {
     profileRef.current = profile;
   }, [profile]);
+
+  useEffect(() => {
+    let pointerX: number | undefined;
+    let pointerY: number | undefined;
+    const useDesktopPrompts = (): void => setInputPromptScheme('desktop');
+    const handlePointerMove = (event: PointerEvent): void => {
+      if (
+        pointerX === undefined ||
+        pointerY === undefined ||
+        Math.hypot(event.clientX - pointerX, event.clientY - pointerY) >= 4
+      )
+        useDesktopPrompts();
+      pointerX = event.clientX;
+      pointerY = event.clientY;
+    };
+    window.addEventListener('pointerdown', useDesktopPrompts);
+    window.addEventListener('pointermove', handlePointerMove);
+    return () => {
+      window.removeEventListener('pointerdown', useDesktopPrompts);
+      window.removeEventListener('pointermove', handlePointerMove);
+    };
+  }, []);
 
   useEffect(() => {
     uiAudio.setPreferences({ muted: uiAudioMuted, volume: uiAudioVolume });
@@ -203,6 +247,9 @@ const App = (): React.JSX.Element => {
         setDevices(discovered);
       }
       inputRuntime.current.updateDevices(discovered);
+      const promptGamepad = gamepadPromptActivity.current.detect([...navigator.getGamepads()]);
+      if (promptGamepad !== undefined)
+        setInputPromptScheme(classifyGamepadPromptScheme(promptGamepad.id));
       const currentProfile = profileRef.current;
       if (currentProfile !== undefined) {
         inputRuntime.current.assignments.prefer(
@@ -231,7 +278,9 @@ const App = (): React.JSX.Element => {
             ['move-right', 'right'],
           ] as const) {
             if (currentNavigation.has(action) && !previousNavigation.has(action)) {
-              if (screenRef.current === 'home' && (direction === 'left' || direction === 'right'))
+              if (screenRef.current === 'home' && globalSettingsOpenRef.current)
+                globalSettings.current?.move(direction);
+              else if (screenRef.current === 'home' && (direction === 'left' || direction === 'right'))
                 carousel.current?.move(direction);
               else if (screenRef.current === 'library') consoleLibrary.current?.move(direction);
               else if (screenRef.current !== 'home' && moveDirectionalFocus(direction))
@@ -239,10 +288,25 @@ const App = (): React.JSX.Element => {
             }
           }
           if (currentNavigation.has('primary') && !previousNavigation.has('primary')) {
-            if (screenRef.current === 'home') carousel.current?.confirm();
+            if (screenRef.current === 'home' && globalSettingsOpenRef.current)
+              globalSettings.current?.confirm();
+            else if (screenRef.current === 'home') carousel.current?.confirm();
             else if (screenRef.current === 'library') consoleLibrary.current?.confirm();
             else (document.activeElement as HTMLElement | null)?.click();
           }
+          if (
+            screenRef.current === 'home' &&
+            currentNavigation.has('start') &&
+            !previousNavigation.has('start')
+          )
+            setGlobalSettings(!globalSettingsOpenRef.current);
+          if (
+            screenRef.current === 'home' &&
+            globalSettingsOpenRef.current &&
+            currentNavigation.has('secondary') &&
+            !previousNavigation.has('secondary')
+          )
+            setGlobalSettings(false);
           if (
             screenRef.current === 'library' &&
             currentNavigation.has('secondary') &&
@@ -275,6 +339,7 @@ const App = (): React.JSX.Element => {
       animationFrame = requestAnimationFrame(poll);
     };
     const handleKeyboard = (event: KeyboardEvent, pressed: boolean): void => {
+      if (pressed) setInputPromptScheme('desktop');
       const target = event.target;
       const editable =
         target instanceof HTMLElement &&
@@ -285,7 +350,13 @@ const App = (): React.JSX.Element => {
         return;
       }
       if (!pressed || editable) return;
-      if (screenRef.current === 'home') return;
+      if (screenRef.current === 'home') {
+        if (event.code === 'Escape') {
+          event.preventDefault();
+          setGlobalSettings(!globalSettingsOpenRef.current);
+        }
+        return;
+      }
       if (screenRef.current === 'library') {
         if (event.code === 'Escape' || event.code === 'Backspace') {
           event.preventDefault();
@@ -450,6 +521,7 @@ const App = (): React.JSX.Element => {
 
   if (status === 'running' || status === 'paused' || status === 'starting') {
     return (
+      <InputPromptProvider scheme={inputPromptScheme}>
       <main className="pc-session-view">
         <ParticleField />
         <header className="pc-session-header">
@@ -503,18 +575,20 @@ const App = (): React.JSX.Element => {
               </button>
             </div>
             <div className="pc-control-hint">
-              <span>↑ ↓ ← →</span>
-              <span>Z / X</span>
-              <span>Enter</span>
+              <span><InputPrompt action="navigate-all" label={t('settingsMoveHint')} /></span>
+              <span><InputPromptGroup actions={['primary', 'secondary']} label={t('gameControls')} /></span>
+              <span><InputPromptGroup actions={['start', 'select']} label={t('gameControls')} /></span>
             </div>
           </aside>
         </section>
       </main>
+      </InputPromptProvider>
     );
   }
 
   if (screen === 'home')
     return (
+      <InputPromptProvider scheme={inputPromptScheme}>
       <>
         <ConsoleCarousel
           copy={{
@@ -546,54 +620,50 @@ const App = (): React.JSX.Element => {
           aria-label={t('globalSettings')}
           className="pc-global-settings-button"
           onClick={() => {
-            setGlobalSettingsOpen((current) => !current);
-            uiAudio.play('open');
+            setGlobalSettings(!globalSettingsOpenRef.current);
           }}
           type="button"
         >
-          <Icon name="settings" />
+          <span className="pc-global-settings-icon"><Icon name="settings" /></span>
+          <span className="pc-global-settings-copy">
+            <strong>{t('globalSettings')}</strong>
+            <small><InputPrompt action="settings" label={t('globalSettings')} /></small>
+          </span>
         </button>
         {globalSettingsOpen ? (
-          <aside aria-label={t('globalSettings')} className="pc-global-settings">
-            <header>
-              <h2>{t('globalSettings')}</h2>
-              <button onClick={() => setGlobalSettingsOpen(false)} type="button">
-                ×
-              </button>
-            </header>
-            <label>
-              <span>{t('interfaceLanguage')}</span>
-              <select
-                value={i18n.language}
-                onChange={(event) => void setLocale(event.target.value as SupportedLocale)}
-              >
-                <option value="en-US">English</option>
-                <option value="pt-BR">Português (Brasil)</option>
-                <option value="zh-CN">简体中文</option>
-              </select>
-            </label>
-            <label className="pc-toggle-row">
-              <span>{t('muteUiSounds')}</span>
-              <input
-                checked={uiAudioMuted}
-                onChange={(event) => setUiAudioMuted(event.target.checked)}
-                type="checkbox"
-              />
-            </label>
-            <label className="pc-volume-row">
-              <span>{t('volume')}</span>
-              <input
-                max="1"
-                min="0"
-                onChange={(event) => setUiAudioVolume(Number(event.target.value))}
-                step="0.05"
-                type="range"
-                value={uiAudioVolume}
-              />
-            </label>
-          </aside>
+          <GlobalSettingsMenu
+            copy={{
+              adjustHint: t('settingsAdjustHint'),
+              close: t('close'),
+              closeHint: t('settingsCloseHint'),
+              confirmHint: t('settingsConfirmHint'),
+              language: t('interfaceLanguage'),
+              muted: t('muted'),
+              moveHint: t('settingsMoveHint'),
+              sounds: t('feedbackSounds'),
+              soundsOn: t('soundsOn'),
+              title: t('globalSettings'),
+              volume: t('volume'),
+            }}
+            locale={i18n.language}
+            locales={[
+              { label: 'English', value: 'en-US' },
+              { label: 'Português (Brasil)', value: 'pt-BR' },
+              { label: '简体中文', value: 'zh-CN' },
+            ]}
+            muted={uiAudioMuted}
+            onAdjust={() => uiAudio.play('adjust')}
+            onClose={() => setGlobalSettings(false)}
+            onLocaleChange={(locale) => void setLocale(locale as SupportedLocale)}
+            onMutedChange={setUiAudioMuted}
+            onNavigate={() => uiAudio.play('focus')}
+            onVolumeChange={setUiAudioVolume}
+            ref={globalSettings}
+            volume={uiAudioVolume}
+          />
         ) : null}
       </>
+      </InputPromptProvider>
     );
 
   if (status === 'loading')
@@ -604,6 +674,7 @@ const App = (): React.JSX.Element => {
       </main>
     );
   return (
+    <InputPromptProvider scheme={inputPromptScheme}>
     <>
       {consoles[0] === undefined ? null : (
         <ConsoleLibrary
@@ -672,6 +743,7 @@ const App = (): React.JSX.Element => {
         </aside>
       ) : null}
     </>
+    </InputPromptProvider>
   );
 };
 
