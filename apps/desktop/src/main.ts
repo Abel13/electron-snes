@@ -1,11 +1,14 @@
 import electron from 'electron';
 import type { BrowserWindow as ElectronBrowserWindow, OpenDialogOptions } from 'electron';
-import { readFile } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { copyFile, mkdir, readFile, readdir, stat } from 'node:fs/promises';
+import { basename, dirname, extname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { randomUUID } from 'node:crypto';
 
 import { createSecureWindowOptions } from './electron-security.js';
 import { InputProfileRepository } from '@platform/input';
+import { LocalGameLibrary } from '@platform/library';
+import type { LocalGame } from '@platform/library';
 import {
   resolveOfficialConsolePlugin,
   resolveOfficialEmulatorPlugin,
@@ -14,6 +17,8 @@ import {
   IPC_CHANNELS,
   SESSION_EVENT_CHANNELS,
   createHostVersionResponse,
+  hasFavoritePayload,
+  hasLibraryGameIdPayload,
   hasNoIpcPayload,
   hasInputProfilePayload,
   hasRomSelectionIdPayload,
@@ -50,9 +55,147 @@ const createMainWindow = (): ElectronBrowserWindow => {
 app.enableSandbox();
 
 app.whenReady().then(() => {
+  const libraryStorage = new JsonFileStorage(join(app.getPath('userData'), 'library.json'));
+  const library = new LocalGameLibrary(libraryStorage, randomUUID, () => new Date().toISOString());
+  const romDirectory = join(app.getPath('documents'), 'PixelCore', 'ROMs');
+  const artworkDirectory = join(app.getPath('userData'), 'artwork');
   const inputProfiles = new InputProfileRepository(
     new JsonFileStorage(join(app.getPath('userData'), 'preferences.json')),
   );
+
+  const toLibraryGame = async (game: LocalGame) => {
+    let artworkDataUrl: string | undefined;
+    if (game.artworkKey !== undefined && basename(game.artworkKey) === game.artworkKey) {
+      try {
+        const bytes = await readFile(join(artworkDirectory, game.artworkKey));
+        const extension = extname(game.artworkKey).toLowerCase();
+        const mime =
+          extension === '.png' ? 'image/png' : extension === '.webp' ? 'image/webp' : 'image/jpeg';
+        artworkDataUrl = `data:${mime};base64,${bytes.toString('base64')}`;
+      } catch {
+        artworkDataUrl = undefined;
+      }
+    }
+    return {
+      addedAt: game.addedAt,
+      ...(artworkDataUrl === undefined ? {} : { artworkDataUrl }),
+      extension: game.extension,
+      favorite: game.favorite,
+      id: game.id,
+      ...(game.lastPlayedAt === undefined ? {} : { lastPlayedAt: game.lastPlayedAt }),
+      name: game.name,
+    };
+  };
+
+  const synchronizeRomDirectory = async (): Promise<void> => {
+    await mkdir(romDirectory, { recursive: true });
+    const games = await library.list();
+    if (!games.ok) return;
+    const knownSources = new Set(games.value.map((game) => game.sourceKey));
+    for (const sourceKey of await readdir(romDirectory)) {
+      const extension = extname(sourceKey).toLowerCase();
+      if ((extension !== '.gb' && extension !== '.gbc') || knownSources.has(sourceKey)) continue;
+      await library.add({
+        extension,
+        name: basename(sourceKey, extension),
+        sourceKey,
+      });
+    }
+  };
+
+  ipcMain.handle(IPC_CHANNELS.listLibrary, async (_event, ...payload: unknown[]) => {
+    if (!hasNoIpcPayload(payload))
+      throw new Error('The library channel does not accept a payload.');
+    try {
+      await synchronizeRomDirectory();
+      const games = await library.list();
+      if (!games.ok) return { message: games.error.message, status: 'error' };
+      return { games: await Promise.all(games.value.map(toLibraryGame)), status: 'ready' };
+    } catch {
+      return { message: 'The local game library could not be loaded.', status: 'error' };
+    }
+  });
+
+  ipcMain.handle(IPC_CHANNELS.importGame, async (event, ...payload: unknown[]) => {
+    if (!hasNoIpcPayload(payload)) throw new Error('The import channel does not accept a payload.');
+    const ownerWindow = BrowserWindow.fromWebContents(event.sender);
+    const options: OpenDialogOptions = {
+      filters: [{ extensions: ['gb', 'gbc'], name: 'Game Boy ROMs' }],
+      properties: ['openFile'],
+      title: 'Add a game to PixelCore',
+    };
+    const result = ownerWindow
+      ? await dialog.showOpenDialog(ownerWindow, options)
+      : await dialog.showOpenDialog(options);
+    const [filePath] = result.filePaths;
+    if (result.canceled || filePath === undefined) return { status: 'cancelled' };
+    try {
+      const extension = extname(filePath).toLowerCase();
+      if (extension !== '.gb' && extension !== '.gbc')
+        return { message: 'Choose a supported .gb or .gbc ROM.', status: 'error' };
+      const file = await stat(filePath);
+      if (file.size <= 0 || file.size > 8 * 1024 * 1024)
+        return { message: 'The ROM must be between 1 byte and 8 MiB.', status: 'error' };
+      await mkdir(romDirectory, { recursive: true });
+      const sourceKey = `${randomUUID()}-${basename(filePath)}`;
+      await copyFile(filePath, join(romDirectory, sourceKey));
+      const added = await library.add({
+        extension,
+        name: basename(filePath, extension),
+        sourceKey,
+      });
+      return added.ok
+        ? { game: await toLibraryGame(added.value), status: 'imported' }
+        : { message: added.error.message, status: 'error' };
+    } catch {
+      return {
+        message: 'The game could not be copied to the PixelCore ROM folder.',
+        status: 'error',
+      };
+    }
+  });
+
+  ipcMain.handle(IPC_CHANNELS.updateFavorite, async (_event, ...payload: unknown[]) => {
+    if (!hasFavoritePayload(payload))
+      throw new Error('The favorite channel requires a game ID and boolean.');
+    const updated = await library.setFavorite(payload[0], payload[1]);
+    return updated.ok
+      ? { game: await toLibraryGame(updated.value), status: 'updated' }
+      : { message: updated.error.message, status: 'error' };
+  });
+
+  ipcMain.handle(IPC_CHANNELS.selectGameArtwork, async (event, ...payload: unknown[]) => {
+    if (!hasLibraryGameIdPayload(payload))
+      throw new Error('The artwork channel requires one game ID.');
+    const ownerWindow = BrowserWindow.fromWebContents(event.sender);
+    const options: OpenDialogOptions = {
+      filters: [{ extensions: ['png', 'jpg', 'jpeg', 'webp'], name: 'Game artwork' }],
+      properties: ['openFile'],
+      title: 'Choose game artwork',
+    };
+    const result = ownerWindow
+      ? await dialog.showOpenDialog(ownerWindow, options)
+      : await dialog.showOpenDialog(options);
+    const [filePath] = result.filePaths;
+    if (result.canceled || filePath === undefined) return { status: 'cancelled' };
+    try {
+      const extension = extname(filePath).toLowerCase();
+      if (!['.png', '.jpg', '.jpeg', '.webp'].includes(extension))
+        return { message: 'Choose PNG, JPG, or WebP artwork.', status: 'error' };
+      const file = await stat(filePath);
+      if (file.size <= 0 || file.size > 5 * 1024 * 1024)
+        return { message: 'Artwork must be smaller than 5 MiB.', status: 'error' };
+      await mkdir(artworkDirectory, { recursive: true });
+      const artworkKey = `${payload[0]}${extension}`;
+      await copyFile(filePath, join(artworkDirectory, artworkKey));
+      const updated = await library.setArtwork(payload[0], artworkKey);
+      return updated.ok
+        ? { game: await toLibraryGame(updated.value), status: 'updated' }
+        : { message: updated.error.message, status: 'error' };
+    } catch {
+      return { message: 'The artwork could not be stored.', status: 'error' };
+    }
+  });
   ipcMain.handle(IPC_CHANNELS.getHostVersion, (_event, ...payload: unknown[]) => {
     if (!hasNoIpcPayload(payload)) {
       throw new Error('The host-version IPC channel does not accept a payload.');
@@ -133,6 +276,31 @@ app.whenReady().then(() => {
         pixels: frame.pixels.buffer,
         width: frame.width,
       }),
+  });
+
+  ipcMain.handle(IPC_CHANNELS.startLibraryGame, async (_event, ...payload: unknown[]) => {
+    if (!hasLibraryGameIdPayload(payload))
+      throw new Error('The library session requires one game ID.');
+    const game = await library.find(payload[0]);
+    if (!game.ok || basename(game.value.sourceKey) !== game.value.sourceKey)
+      return {
+        code: 'unavailable',
+        message: game.ok ? 'The game source is invalid.' : game.error.message,
+        status: 'error',
+      };
+    const selection = romSelections.register(join(romDirectory, game.value.sourceKey));
+    if (selection === undefined)
+      return {
+        code: 'invalid-rom',
+        message: 'The library entry is not a supported ROM.',
+        status: 'error',
+      };
+    const loaded = await loadSelectedRom(selection.id, romSelections, readFile);
+    if (loaded.status !== 'loaded')
+      return { code: loaded.code, message: loaded.message, status: 'error' };
+    const launched = await sessionHost.launch(loaded.rom);
+    if (launched.status === 'ok') await library.markPlayed(game.value.id);
+    return launched;
   });
 
   ipcMain.handle(IPC_CHANNELS.startSession, async (_event, ...payload: unknown[]) => {

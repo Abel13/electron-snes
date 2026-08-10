@@ -2,16 +2,21 @@ import type { ConsoleInputMapping, InputProfile } from '@platform/input';
 import { validateConsoleInputMapping, validateInputProfile } from '@platform/input';
 
 export const IPC_CHANNELS = {
+  importGame: 'pixel-core:import-game',
+  listLibrary: 'pixel-core:list-library',
   getInputConfiguration: 'pixel-core:get-input-configuration',
   getHostVersion: 'pixel-core:host-version',
   loadRom: 'pixel-core:load-rom',
   pauseSession: 'pixel-core:pause-session',
   resumeSession: 'pixel-core:resume-session',
   saveInputProfile: 'pixel-core:save-input-profile',
+  selectGameArtwork: 'pixel-core:select-game-artwork',
   selectRom: 'pixel-core:select-rom',
   setSessionInput: 'pixel-core:set-session-input',
   startSession: 'pixel-core:start-session',
+  startLibraryGame: 'pixel-core:start-library-game',
   stopSession: 'pixel-core:stop-session',
+  updateFavorite: 'pixel-core:update-favorite',
 } as const;
 
 export const SESSION_EVENT_CHANNELS = {
@@ -84,17 +89,46 @@ export type LoadRomResponse =
 export interface PixelCoreApi {
   getInputConfiguration(): Promise<InputConfigurationResponse>;
   getHostVersion(): Promise<HostVersionResponse>;
+  importGame(): Promise<ImportGameResponse>;
+  listLibrary(): Promise<LibraryResponse>;
   loadRom(selectionId: string): Promise<LoadRomResponse>;
   pauseSession(): Promise<SessionCommandResponse>;
   resumeSession(): Promise<SessionCommandResponse>;
   saveInputProfile(profile: InputProfile): Promise<InputProfileResponse>;
+  selectGameArtwork(gameId: string): Promise<LibraryMutationResponse>;
   selectRom(): Promise<SelectRomResponse>;
   setSessionInput(input: SessionInputPayload): Promise<SessionCommandResponse>;
   startSession(selectionId: string): Promise<SessionCommandResponse>;
+  startLibraryGame(gameId: string): Promise<SessionCommandResponse>;
   stopSession(): Promise<SessionCommandResponse>;
   subscribeSessionAudio(listener: (frame: SessionAudioFrame) => void): () => void;
   subscribeSessionVideo(listener: (frame: SessionVideoFrame) => void): () => void;
+  updateFavorite(gameId: string, favorite: boolean): Promise<LibraryMutationResponse>;
 }
+
+export interface LibraryGame {
+  readonly addedAt: string;
+  readonly artworkDataUrl?: string;
+  readonly extension: '.gb' | '.gbc';
+  readonly favorite: boolean;
+  readonly id: string;
+  readonly lastPlayedAt?: string;
+  readonly name: string;
+}
+
+export type LibraryResponse =
+  | { readonly games: readonly LibraryGame[]; readonly status: 'ready' }
+  | { readonly message: string; readonly status: 'error' };
+
+export type ImportGameResponse =
+  | { readonly status: 'cancelled' }
+  | { readonly game: LibraryGame; readonly status: 'imported' }
+  | { readonly message: string; readonly status: 'error' };
+
+export type LibraryMutationResponse =
+  | { readonly status: 'cancelled' }
+  | { readonly game: LibraryGame; readonly status: 'updated' }
+  | { readonly message: string; readonly status: 'error' };
 
 export interface SessionInputPayload {
   readonly actions: readonly string[];
@@ -135,6 +169,16 @@ export const hasRomSelectionIdPayload = (
   payload: readonly unknown[],
 ): payload is readonly [string] =>
   payload.length === 1 && typeof payload[0] === 'string' && /^[0-9a-f-]{36}$/i.test(payload[0]);
+
+export const hasLibraryGameIdPayload = hasRomSelectionIdPayload;
+
+export const hasFavoritePayload = (
+  payload: readonly unknown[],
+): payload is readonly [string, boolean] =>
+  payload.length === 2 &&
+  typeof payload[0] === 'string' &&
+  /^[0-9a-f-]{36}$/i.test(payload[0]) &&
+  typeof payload[1] === 'boolean';
 
 export const isSessionInputPayload = (value: unknown): value is SessionInputPayload =>
   isRecord(value) &&
@@ -237,6 +281,42 @@ export const isInputProfileResponse = (value: unknown): value is InputProfileRes
   ((value['status'] === 'saved' && validateInputProfile(value['profile']).ok) ||
     (value['status'] === 'error' && typeof value['message'] === 'string'));
 
+const isLibraryGame = (value: unknown): value is LibraryGame =>
+  isRecord(value) &&
+  Object.keys(value).every((key) =>
+    ['addedAt', 'artworkDataUrl', 'extension', 'favorite', 'id', 'lastPlayedAt', 'name'].includes(
+      key,
+    ),
+  ) &&
+  typeof value['addedAt'] === 'string' &&
+  (value['extension'] === '.gb' || value['extension'] === '.gbc') &&
+  typeof value['favorite'] === 'boolean' &&
+  typeof value['id'] === 'string' &&
+  typeof value['name'] === 'string' &&
+  (value['lastPlayedAt'] === undefined || typeof value['lastPlayedAt'] === 'string') &&
+  (value['artworkDataUrl'] === undefined ||
+    (typeof value['artworkDataUrl'] === 'string' &&
+      value['artworkDataUrl'].startsWith('data:image/')));
+
+export const isLibraryResponse = (value: unknown): value is LibraryResponse =>
+  isRecord(value) &&
+  ((value['status'] === 'ready' &&
+    Array.isArray(value['games']) &&
+    value['games'].every(isLibraryGame)) ||
+    (value['status'] === 'error' && typeof value['message'] === 'string'));
+
+export const isImportGameResponse = (value: unknown): value is ImportGameResponse =>
+  isRecord(value) &&
+  (value['status'] === 'cancelled' ||
+    (value['status'] === 'imported' && isLibraryGame(value['game'])) ||
+    (value['status'] === 'error' && typeof value['message'] === 'string'));
+
+export const isLibraryMutationResponse = (value: unknown): value is LibraryMutationResponse =>
+  isRecord(value) &&
+  (value['status'] === 'cancelled' ||
+    (value['status'] === 'updated' && isLibraryGame(value['game'])) ||
+    (value['status'] === 'error' && typeof value['message'] === 'string'));
+
 const isSessionAudioEvent = (value: unknown): value is SessionAudioEvent =>
   isRecord(value) &&
   Object.keys(value).length === 3 &&
@@ -248,6 +328,17 @@ export const createPixelCoreApi = (
   invoke: IpcInvoker,
   subscribe: IpcSubscriber = () => () => undefined,
 ): PixelCoreApi => ({
+  async importGame(): Promise<ImportGameResponse> {
+    const response = await invoke(IPC_CHANNELS.importGame);
+    if (!isImportGameResponse(response))
+      throw new Error('Received an invalid game import response.');
+    return response;
+  },
+  async listLibrary(): Promise<LibraryResponse> {
+    const response = await invoke(IPC_CHANNELS.listLibrary);
+    if (!isLibraryResponse(response)) throw new Error('Received an invalid library response.');
+    return response;
+  },
   async getInputConfiguration(): Promise<InputConfigurationResponse> {
     const response = await invoke(IPC_CHANNELS.getInputConfiguration);
     if (!isInputConfigurationResponse(response))
@@ -276,10 +367,28 @@ export const createPixelCoreApi = (
       throw new Error('Received an invalid input profile response.');
     return response;
   },
+  async selectGameArtwork(gameId: string): Promise<LibraryMutationResponse> {
+    const response = await invoke(IPC_CHANNELS.selectGameArtwork, gameId);
+    if (!isLibraryMutationResponse(response))
+      throw new Error('Received an invalid artwork response.');
+    return response;
+  },
   async setSessionInput(input: SessionInputPayload): Promise<SessionCommandResponse> {
     const response = await invoke(IPC_CHANNELS.setSessionInput, input);
     if (!isSessionCommandResponse(response))
       throw new Error('Received an invalid session input response.');
+    return response;
+  },
+  async startLibraryGame(gameId: string): Promise<SessionCommandResponse> {
+    const response = await invoke(IPC_CHANNELS.startLibraryGame, gameId);
+    if (!isSessionCommandResponse(response))
+      throw new Error('Received an invalid library session response.');
+    return response;
+  },
+  async updateFavorite(gameId: string, favorite: boolean): Promise<LibraryMutationResponse> {
+    const response = await invoke(IPC_CHANNELS.updateFavorite, gameId, favorite);
+    if (!isLibraryMutationResponse(response))
+      throw new Error('Received an invalid favorite response.');
     return response;
   },
   async pauseSession(): Promise<SessionCommandResponse> {

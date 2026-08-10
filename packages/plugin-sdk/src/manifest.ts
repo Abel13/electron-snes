@@ -6,6 +6,7 @@ const PLUGIN_ID_PATTERN = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0
 const PERMISSION_RESOURCE_PATTERN = /^[a-z][a-z0-9-]*(?::[a-z][a-z0-9-]*)*$/;
 const SEMVER_PATTERN =
   /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
+const LOCALE_PATTERN = /^[a-z]{2,3}(?:-[A-Z][a-z]{3})?(?:-(?:[A-Z]{2}|\d{3}))?$/;
 
 const MAX_CAPABILITIES = 64;
 const MAX_CAPABILITY_LENGTH = 64;
@@ -42,6 +43,26 @@ export const PluginManifestPermissionSchema = z.strictObject({
 
 export type PluginManifestPermission = z.infer<typeof PluginManifestPermissionSchema>;
 
+export const PluginLocalizationSchema = z
+  .strictObject({
+    defaultLocale: z.string().max(35).regex(LOCALE_PATTERN),
+    locales: z
+      .array(z.string().max(35).regex(LOCALE_PATTERN))
+      .min(1)
+      .max(32)
+      .refine(hasUniqueValues),
+  })
+  .superRefine((localization, context) => {
+    if (!localization.locales.includes(localization.defaultLocale))
+      context.addIssue({
+        code: 'custom',
+        message: 'The default locale must occur in the locales list.',
+        path: ['defaultLocale'],
+      });
+  });
+
+export type PluginLocalization = z.infer<typeof PluginLocalizationSchema>;
+
 export const PluginManifestSchema = z
   .strictObject({
     apiVersion: z.number().int().positive(),
@@ -51,6 +72,7 @@ export const PluginManifestSchema = z
       .max(MAX_CAPABILITIES)
       .refine(hasUniqueValues),
     id: z.string().max(MAX_PLUGIN_ID_LENGTH).regex(PLUGIN_ID_PATTERN),
+    localization: PluginLocalizationSchema.optional(),
     name: z.string().trim().min(1).max(MAX_PLUGIN_NAME_LENGTH),
     permissions: z
       .array(PluginManifestPermissionSchema)

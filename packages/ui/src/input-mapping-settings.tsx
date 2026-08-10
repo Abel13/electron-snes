@@ -10,6 +10,13 @@ export interface InputMappingEntryOption {
 }
 
 export interface InputMappingSettingsProps {
+  readonly copy?: {
+    readonly consoleAction: string;
+    readonly disconnected: string;
+    readonly gameControls: string;
+    readonly inputSettings: string;
+    readonly playerOneDevice: string;
+  };
   readonly devices: readonly InputMappingDeviceOption[];
   readonly entries: readonly InputMappingEntryOption[];
   readonly onDeviceChange: (fingerprint: string) => void;
@@ -18,6 +25,13 @@ export interface InputMappingSettingsProps {
 }
 
 export const InputMappingSettings = ({
+  copy = {
+    consoleAction: 'console action',
+    disconnected: 'Disconnected device',
+    gameControls: 'Game controls',
+    inputSettings: 'Input settings',
+    playerOneDevice: 'Player one device',
+  },
   devices,
   entries,
   onDeviceChange,
@@ -29,31 +43,31 @@ export const InputMappingSettings = ({
   );
   return (
     <details className="pixelcore-input-settings">
-      <summary>Input settings</summary>
+      <summary>{copy.inputSettings}</summary>
       <label>
-        Player one device
+        {copy.playerOneDevice}
         <select
           onChange={(event) => onDeviceChange(event.currentTarget.value)}
           value={selectedDeviceFingerprint}
         >
           {!selectedAvailable && selectedDeviceFingerprint !== '' ? (
-            <option value={selectedDeviceFingerprint}>Disconnected device</option>
+            <option value={selectedDeviceFingerprint}>{copy.disconnected}</option>
           ) : null}
           {devices.map((device) => (
             <option key={device.fingerprint} value={device.fingerprint}>
               {device.label}
-              {device.connected ? '' : ' (disconnected)'}
+              {device.connected ? '' : ` (${copy.disconnected})`}
             </option>
           ))}
         </select>
       </label>
       <fieldset>
-        <legend>Game controls</legend>
+        <legend>{copy.gameControls}</legend>
         {entries.map((entry) => (
           <label key={entry.normalizedAction}>
             {entry.normalizedAction}
             <select
-              aria-label={`${entry.normalizedAction} console action`}
+              aria-label={`${entry.normalizedAction} ${copy.consoleAction}`}
               onChange={(event) =>
                 onMappingChange(entry.normalizedAction, event.currentTarget.value)
               }

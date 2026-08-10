@@ -1,3 +1,2 @@
-export {};
-export { LocalGameLibrary } from './local-game-library.js';
-export type { LocalGame, RegisterLocalGame } from './local-game-library.js';
+export { LocalGameLibrary, queryLocalGames } from './local-game-library.js';
+export type { LibraryCollection, LocalGame, RegisterLocalGame } from './local-game-library.js';
