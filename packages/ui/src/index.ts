@@ -5,3 +5,9 @@ export type {
   EmulatorAudioFrameData,
   EmulatorAudioPlayerOptions,
 } from './emulator-audio-player.js';
+export { InputMappingSettings } from './input-mapping-settings.js';
+export type {
+  InputMappingDeviceOption,
+  InputMappingEntryOption,
+  InputMappingSettingsProps,
+} from './input-mapping-settings.js';
