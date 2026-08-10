@@ -3,7 +3,7 @@ import type { BrowserWindow as ElectronBrowserWindow, OpenDialogOptions } from '
 import { copyFile, mkdir, readFile, readdir, stat } from 'node:fs/promises';
 import { basename, dirname, extname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 
 import { createSecureWindowOptions } from './electron-security.js';
 import { InputProfileRepository } from '@platform/input';
@@ -28,6 +28,7 @@ import { JsonFileStorage } from './json-file-storage.js';
 import { loadSelectedRom } from './rom-loader.js';
 import { createRomSelectionStore } from './rom-selection.js';
 import { createDesktopSessionHost } from './session-host.js';
+import { CartridgeSaveStore } from './cartridge-save-store.js';
 
 const { app, BrowserWindow, dialog, ipcMain } = electron;
 
@@ -35,6 +36,8 @@ const currentDirectory = dirname(fileURLToPath(import.meta.url));
 const romSelections = createRomSelectionStore();
 const officialEmulator = resolveOfficialEmulatorPlugin('org.pixelcore.sameboy');
 const officialConsole = resolveOfficialConsolePlugin('org.pixelcore.game-boy-family');
+let stopActiveSession: (() => Promise<void>) | undefined;
+let quitAfterSaveFlush = false;
 
 if (officialEmulator === undefined || officialConsole === undefined)
   throw new Error('The official Game Boy runtime plugins are unavailable.');
@@ -59,6 +62,9 @@ app.whenReady().then(() => {
   const library = new LocalGameLibrary(libraryStorage, randomUUID, () => new Date().toISOString());
   const romDirectory = join(app.getPath('documents'), 'PixelCore', 'ROMs');
   const artworkDirectory = join(app.getPath('userData'), 'artwork');
+  const cartridgeSaves = new CartridgeSaveStore(
+    join(app.getPath('userData'), 'saves', 'cartridge'),
+  );
   const inputProfiles = new InputProfileRepository(
     new JsonFileStorage(join(app.getPath('userData'), 'preferences.json')),
   );
@@ -264,6 +270,8 @@ app.whenReady().then(() => {
   });
 
   const sessionHost = createDesktopSessionHost(officialEmulator, {
+    loadCartridgeSave: (key) => cartridgeSaves.read(key),
+    persistCartridgeSave: (key, bytes) => cartridgeSaves.write(key, bytes),
     sendAudio: (frame) =>
       mainWindow?.webContents.send(SESSION_EVENT_CHANNELS.audio, {
         channels: frame.channels,
@@ -277,6 +285,9 @@ app.whenReady().then(() => {
         width: frame.width,
       }),
   });
+  stopActiveSession = async () => {
+    await sessionHost.stop();
+  };
 
   ipcMain.handle(IPC_CHANNELS.startLibraryGame, async (_event, ...payload: unknown[]) => {
     if (!hasLibraryGameIdPayload(payload))
@@ -298,7 +309,7 @@ app.whenReady().then(() => {
     const loaded = await loadSelectedRom(selection.id, romSelections, readFile);
     if (loaded.status !== 'loaded')
       return { code: loaded.code, message: loaded.message, status: 'error' };
-    const launched = await sessionHost.launch(loaded.rom);
+    const launched = await sessionHost.launch(loaded.rom, identifyRom(loaded.rom.bytes));
     if (launched.status === 'ok') await library.markPlayed(game.value.id);
     return launched;
   });
@@ -308,7 +319,7 @@ app.whenReady().then(() => {
       throw new Error('The start-session IPC channel requires one opaque selection ID.');
     const loaded = await loadSelectedRom(payload[0], romSelections, readFile);
     return loaded.status === 'loaded'
-      ? sessionHost.launch(loaded.rom)
+      ? sessionHost.launch(loaded.rom, identifyRom(loaded.rom.bytes))
       : { code: loaded.code, message: loaded.message, status: 'error' };
   });
 
@@ -346,8 +357,21 @@ app.whenReady().then(() => {
   });
 });
 
+app.on('before-quit', (event) => {
+  if (quitAfterSaveFlush || stopActiveSession === undefined) return;
+  event.preventDefault();
+  const stop = stopActiveSession;
+  stopActiveSession = undefined;
+  void stop().finally(() => {
+    quitAfterSaveFlush = true;
+    app.quit();
+  });
+});
+
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit();
   }
 });
+
+const identifyRom = (bytes: Uint8Array): string => createHash('sha256').update(bytes).digest('hex');

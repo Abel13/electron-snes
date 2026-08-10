@@ -153,3 +153,44 @@ size_t sameboy_copy_audio(int16_t *output, const size_t maximum_frames)
 
     return copied_frames;
 }
+
+EMSCRIPTEN_KEEPALIVE
+size_t sameboy_battery_size(void)
+{
+    if (gameboy == NULL) {
+        return 0;
+    }
+    const int size = GB_save_battery_size(gameboy);
+    return size > 0 ? (size_t)size : 0;
+}
+
+EMSCRIPTEN_KEEPALIVE
+int sameboy_battery_dirty(void)
+{
+    return gameboy != NULL && GB_get_battery_dirty(gameboy);
+}
+
+EMSCRIPTEN_KEEPALIVE
+int sameboy_load_battery(const uint8_t *buffer, const size_t size)
+{
+    if (gameboy == NULL || buffer == NULL || size == 0) {
+        return 0;
+    }
+    GB_load_battery_from_buffer(gameboy, buffer, size);
+    GB_clear_battery_dirty(gameboy);
+    return 1;
+}
+
+EMSCRIPTEN_KEEPALIVE
+size_t sameboy_copy_battery(uint8_t *output, const size_t size)
+{
+    const size_t required = sameboy_battery_size();
+    if (output == NULL || required == 0 || size < required) {
+        return 0;
+    }
+    if (GB_save_battery_to_buffer(gameboy, output, required) != 0) {
+        return 0;
+    }
+    GB_clear_battery_dirty(gameboy);
+    return required;
+}

@@ -2,7 +2,11 @@ import { readFile } from 'node:fs/promises';
 import { parentPort } from 'node:worker_threads';
 import { WASI } from 'node:wasi';
 
-import type { EmulatorOperationResult, EmulatorSessionStatus } from '@platform/emulator-sdk';
+import type {
+  EmulatorOperationResult,
+  EmulatorSessionStatus,
+  EmulatorStopResult,
+} from '@platform/emulator-sdk';
 
 import { loadSameBoyWasmFromBytes } from './sameboy-wasm.js';
 import type { SameBoyWorkerMessage, SameBoyWorkerRequest } from './sameboy-worker-protocol.js';
@@ -29,16 +33,17 @@ const wasm = await loadSameBoyWasmFromBytes(
 let hasRom = false;
 let status: EmulatorSessionStatus = 'idle';
 let timer: ReturnType<typeof setTimeout> | undefined;
+let framesSinceSaveCheck = 0;
 
 port.on('message', (request: SameBoyWorkerRequest) => {
   void handle(request);
 });
 
 const handle = async (request: SameBoyWorkerRequest): Promise<void> => {
-  let result: EmulatorOperationResult;
+  let result: EmulatorOperationResult | EmulatorStopResult;
   switch (request.type) {
     case 'load-rom':
-      result = loadRom(request.rom.extension, request.rom.bytes);
+      result = loadRom(request.rom.extension, request.rom.bytes, request.cartridgeSave?.bytes);
       break;
     case 'start':
       result = start();
@@ -58,16 +63,29 @@ const handle = async (request: SameBoyWorkerRequest): Promise<void> => {
     case 'stop':
       stopClock();
       status = 'stopped';
-      result = ok();
+      result = stop();
       break;
     case 'set-input':
       result = setInput(request.input.playerPortId, request.input.actions);
       break;
   }
-  post({ id: request.id, result, status, type: 'result' });
+  const transfer =
+    request.type === 'stop' &&
+    result.status === 'ok' &&
+    'cartridgeSave' in result &&
+    result.cartridgeSave !== undefined
+      ? [result.cartridgeSave.bytes.buffer].filter(
+          (buffer): buffer is ArrayBuffer => buffer instanceof ArrayBuffer,
+        )
+      : undefined;
+  post({ id: request.id, result, status, type: 'result' }, transfer);
 };
 
-const loadRom = (extension: string, bytes: Uint8Array): EmulatorOperationResult => {
+const loadRom = (
+  extension: string,
+  bytes: Uint8Array,
+  cartridgeSave?: Uint8Array,
+): EmulatorOperationResult => {
   if ((extension !== '.gb' && extension !== '.gbc') || bytes.byteLength === 0)
     return {
       code: 'invalid-rom',
@@ -82,8 +100,27 @@ const loadRom = (extension: string, bytes: Uint8Array): EmulatorOperationResult 
   } finally {
     wasm.release(address);
   }
+  if (cartridgeSave !== undefined && cartridgeSave.byteLength > 0) {
+    const saveAddress = wasm.allocate(cartridgeSave.byteLength);
+    try {
+      wasm.write(saveAddress, cartridgeSave);
+      if (!wasm.loadBattery(saveAddress, cartridgeSave.byteLength))
+        return {
+          code: 'invalid-rom',
+          message: 'SameBoy could not load the cartridge save.',
+          status: 'error',
+        };
+    } finally {
+      wasm.release(saveAddress);
+    }
+  }
   hasRom = true;
+  framesSinceSaveCheck = 0;
   return ok();
+};
+const stop = (): EmulatorStopResult => {
+  const bytes = hasRom ? wasm.readBattery() : undefined;
+  return bytes === undefined ? ok() : { cartridgeSave: { bytes }, status: 'ok' };
 };
 const start = (): EmulatorOperationResult => {
   if (!hasRom) return invalid('A ROM must be loaded before starting SameBoy.');
@@ -115,6 +152,16 @@ const runFrame = (): void => {
   const audioBuffer = samples.buffer;
   if (samples.length > 0 && audioBuffer instanceof ArrayBuffer)
     post({ channels: 2, sampleRate: 48000, samples, type: 'audio' }, [audioBuffer]);
+  framesSinceSaveCheck += 1;
+  if (framesSinceSaveCheck >= 60) {
+    framesSinceSaveCheck = 0;
+    if (wasm.isBatteryDirty()) {
+      const bytes = wasm.readBattery();
+      const buffer = bytes?.buffer;
+      if (bytes !== undefined && buffer instanceof ArrayBuffer)
+        post({ save: { bytes }, type: 'cartridge-save' }, [buffer]);
+    }
+  }
   scheduleFrame();
 };
 const stopClock = (): void => {

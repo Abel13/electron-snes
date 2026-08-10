@@ -1,5 +1,6 @@
 import type {
   EmulatorAudioFrame,
+  EmulatorCartridgeSave,
   EmulatorInput,
   EmulatorOperationResult,
   EmulatorPluginDefinition,
@@ -12,6 +13,7 @@ import type {
 
 export interface EmulatorSessionOutputs {
   readonly onAudio?: (frame: EmulatorAudioFrame) => void;
+  readonly onCartridgeSave?: (save: EmulatorCartridgeSave) => Promise<void> | void;
   readonly onVideo?: (frame: EmulatorVideoFrame) => void;
 }
 
@@ -30,7 +32,10 @@ export class EmulatorSessionController {
     return this.#status;
   }
 
-  public async launch(rom: EmulatorRom): Promise<EmulatorOperationResult> {
+  public async launch(
+    rom: EmulatorRom,
+    cartridgeSave?: EmulatorCartridgeSave,
+  ): Promise<EmulatorOperationResult> {
     if (this.#session !== undefined) return invalidState('An emulator session is already active.');
 
     this.#status = 'starting';
@@ -45,10 +50,11 @@ export class EmulatorSessionController {
     this.#session = session;
     this.#unsubscribe = [
       session.subscribeAudio((frame) => this.publishAudio(frame)),
+      session.subscribeCartridgeSave((save) => this.publishCartridgeSave(save)),
       session.subscribeVideo((frame) => this.publishVideo(frame)),
     ];
 
-    const loaded = await session.loadRom(rom);
+    const loaded = await session.loadRom(rom, cartridgeSave);
     if (loaded.status === 'error') return this.failLaunch(loaded);
 
     const started = await session.start();
@@ -95,6 +101,15 @@ export class EmulatorSessionController {
       return result;
     }
 
+    if (result.cartridgeSave !== undefined) {
+      try {
+        await this.outputs.onCartridgeSave?.(result.cartridgeSave);
+      } catch {
+        this.#status = 'failed';
+        return unexpected('The cartridge save could not be persisted.');
+      }
+    }
+
     this.dispose();
     this.#status = 'stopped';
     return result;
@@ -119,6 +134,14 @@ export class EmulatorSessionController {
       this.outputs.onAudio?.(frame);
     } catch {
       // Renderer output failures must not stop an emulator session.
+    }
+  }
+
+  private publishCartridgeSave(save: EmulatorCartridgeSave): void {
+    try {
+      void Promise.resolve(this.outputs.onCartridgeSave?.(save)).catch(() => undefined);
+    } catch {
+      // A periodic persistence failure must not stop emulation; stop performs a final checked flush.
     }
   }
 

@@ -2,6 +2,7 @@ export { defineEmulator, validateEmulatorPlugin } from './emulator.js';
 export type {
   EmulatorAudioFrame,
   EmulatorCapabilities,
+  EmulatorCartridgeSave,
   EmulatorCoreDefinition,
   EmulatorInput,
   EmulatorOperationFailure,
@@ -11,6 +12,8 @@ export type {
   EmulatorRom,
   EmulatorSession,
   EmulatorSessionStatus,
+  EmulatorStopResult,
+  EmulatorStopSuccess,
   EmulatorVideoFrame,
   UnsubscribeEmulatorOutput,
 } from './emulator.js';

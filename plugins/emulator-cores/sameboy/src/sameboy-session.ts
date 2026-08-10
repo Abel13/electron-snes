@@ -1,5 +1,6 @@
 import type {
   EmulatorAudioFrame,
+  EmulatorCartridgeSave,
   EmulatorInput,
   EmulatorOperationResult,
   EmulatorRom,
@@ -30,6 +31,7 @@ interface WorkerPort {
 class SameBoyWorkerSession implements EmulatorSession {
   readonly #audioListeners = new Set<(frame: EmulatorAudioFrame) => void>();
   readonly #pending = new Map<string, (result: EmulatorOperationResult) => void>();
+  readonly #cartridgeSaveListeners = new Set<(save: EmulatorCartridgeSave) => void>();
   readonly #videoListeners = new Set<(frame: EmulatorVideoFrame) => void>();
   #requestId = 0;
   #status: EmulatorSessionStatus = 'idle';
@@ -44,8 +46,15 @@ class SameBoyWorkerSession implements EmulatorSession {
     return this.#status;
   }
 
-  loadRom(rom: EmulatorRom): Promise<EmulatorOperationResult> {
-    return this.request({ rom, type: 'load-rom' });
+  loadRom(
+    rom: EmulatorRom,
+    cartridgeSave?: EmulatorCartridgeSave,
+  ): Promise<EmulatorOperationResult> {
+    return this.request({
+      ...(cartridgeSave === undefined ? {} : { cartridgeSave }),
+      rom,
+      type: 'load-rom',
+    });
   }
 
   pause(): Promise<EmulatorOperationResult> {
@@ -73,6 +82,13 @@ class SameBoyWorkerSession implements EmulatorSession {
   subscribeAudio(listener: (frame: EmulatorAudioFrame) => void): UnsubscribeEmulatorOutput {
     this.#audioListeners.add(listener);
     return () => this.#audioListeners.delete(listener);
+  }
+
+  subscribeCartridgeSave(
+    listener: (save: EmulatorCartridgeSave) => void,
+  ): UnsubscribeEmulatorOutput {
+    this.#cartridgeSaveListeners.add(listener);
+    return () => this.#cartridgeSaveListeners.delete(listener);
   }
 
   subscribeVideo(listener: (frame: EmulatorVideoFrame) => void): UnsubscribeEmulatorOutput {
@@ -109,6 +125,11 @@ class SameBoyWorkerSession implements EmulatorSession {
         width: message.width,
       };
       for (const listener of this.#videoListeners) listener(frame);
+      return;
+    }
+
+    if (message.type === 'cartridge-save') {
+      for (const listener of this.#cartridgeSaveListeners) listener(message.save);
       return;
     }
 
