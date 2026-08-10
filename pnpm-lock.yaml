@@ -59,6 +59,9 @@ importers:
       '@platform/library':
         specifier: workspace:*
         version: link:../../packages/library
+      '@platform/official-plugins':
+        specifier: workspace:*
+        version: link:../../packages/official-plugins
       '@platform/plugin-sdk':
         specifier: workspace:*
         version: link:../../packages/plugin-sdk
@@ -183,6 +186,15 @@ importers:
       '@platform/shared':
         specifier: workspace:*
         version: link:../shared
+
+  packages/official-plugins:
+    dependencies:
+      '@platform/emulator-sdk':
+        specifier: workspace:*
+        version: link:../emulator-sdk
+      '@platform/plugin-emulator-sameboy':
+        specifier: workspace:*
+        version: link:../../plugins/emulator-cores/sameboy
 
   packages/plugin-sdk:
     dependencies:
