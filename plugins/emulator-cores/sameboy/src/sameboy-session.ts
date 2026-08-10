@@ -8,120 +8,66 @@ import type {
   EmulatorVideoFrame,
   UnsubscribeEmulatorOutput,
 } from '@platform/emulator-sdk';
+import { Worker } from 'node:worker_threads';
 
-import { loadSameBoyWasm } from './sameboy-wasm.js';
+import type {
+  SameBoyWorkerCommand,
+  SameBoyWorkerMessage,
+  SameBoyWorkerRequest,
+} from './sameboy-worker-protocol.js';
 
-const supportedExtensions = new Set(['.gb', '.gbc']);
+export const createSameBoySession = async (): Promise<EmulatorSession> =>
+  new SameBoyWorkerSession(new Worker(new URL('./sameboy-worker.js', import.meta.url)));
 
-const inputButtons: Readonly<Record<string, number>> = {
-  a: 4,
-  b: 5,
-  down: 3,
-  left: 1,
-  right: 0,
-  select: 6,
-  start: 7,
-  up: 2,
-};
+interface WorkerPort {
+  on(event: 'message', listener: (message: SameBoyWorkerMessage) => void): void;
+  on(event: 'error', listener: () => void): void;
+  on(event: 'exit', listener: (code: number) => void): void;
+  postMessage(message: SameBoyWorkerRequest, transferList?: readonly ArrayBuffer[]): void;
+  terminate(): Promise<number>;
+}
 
-export const createSameBoySession = async (): Promise<EmulatorSession> => {
-  const wasm = await loadSameBoyWasm();
-  return new SameBoySession(wasm);
-};
-
-class SameBoySession implements EmulatorSession {
+class SameBoyWorkerSession implements EmulatorSession {
   readonly #audioListeners = new Set<(frame: EmulatorAudioFrame) => void>();
+  readonly #pending = new Map<string, (result: EmulatorOperationResult) => void>();
   readonly #videoListeners = new Set<(frame: EmulatorVideoFrame) => void>();
-  #hasRom = false;
+  #requestId = 0;
   #status: EmulatorSessionStatus = 'idle';
 
-  constructor(private readonly wasm: Awaited<ReturnType<typeof loadSameBoyWasm>>) {}
+  constructor(private readonly worker: WorkerPort) {
+    worker.on('message', this.onMessage);
+    worker.on('error', this.onFailure);
+    worker.on('exit', this.onExit);
+  }
 
   getStatus(): EmulatorSessionStatus {
     return this.#status;
   }
 
-  async loadRom(rom: EmulatorRom): Promise<EmulatorOperationResult> {
-    if (!supportedExtensions.has(rom.extension.toLowerCase()) || rom.bytes.byteLength === 0) {
-      return {
-        code: 'invalid-rom',
-        message: 'SameBoy supports non-empty .gb and .gbc ROMs.',
-        status: 'error',
-      };
-    }
-
-    const address = this.wasm.allocate(rom.bytes.byteLength);
-    try {
-      this.wasm.write(address, rom.bytes);
-      if (!this.wasm.loadRom(address, rom.bytes.byteLength)) {
-        return {
-          code: 'invalid-rom',
-          message: 'SameBoy could not load this ROM.',
-          status: 'error',
-        };
-      }
-    } finally {
-      this.wasm.release(address);
-    }
-
-    this.#hasRom = true;
-    return { status: 'ok' };
+  loadRom(rom: EmulatorRom): Promise<EmulatorOperationResult> {
+    return this.request({ rom, type: 'load-rom' });
   }
 
-  async pause(): Promise<EmulatorOperationResult> {
-    if (this.#status !== 'running') {
-      return invalidState('A running SameBoy session is required to pause.');
-    }
-
-    this.#status = 'paused';
-    return { status: 'ok' };
+  pause(): Promise<EmulatorOperationResult> {
+    return this.request({ type: 'pause' });
   }
 
-  async resume(): Promise<EmulatorOperationResult> {
-    if (this.#status !== 'paused') {
-      return invalidState('A paused SameBoy session is required to resume.');
-    }
-
-    this.#status = 'running';
-    this.emitFrame();
-    return { status: 'ok' };
+  resume(): Promise<EmulatorOperationResult> {
+    return this.request({ type: 'resume' });
   }
 
-  async setInput(input: EmulatorInput): Promise<EmulatorOperationResult> {
-    if (input.playerPortId !== 'player-one') {
-      return invalidState('SameBoy supports only the player-one port.');
-    }
-
-    for (const action of input.actions) {
-      const button = inputButtons[action];
-      if (button !== undefined) {
-        this.wasm.setButton(button, true);
-      }
-    }
-
-    return { status: 'ok' };
+  setInput(input: EmulatorInput): Promise<EmulatorOperationResult> {
+    return this.request({ input, type: 'set-input' });
   }
 
-  async start(): Promise<EmulatorOperationResult> {
-    if (!this.#hasRom) {
-      return invalidState('A ROM must be loaded before starting SameBoy.');
-    }
-    if (this.#status !== 'idle' && this.#status !== 'stopped') {
-      return invalidState('SameBoy can start only from an idle or stopped state.');
-    }
-
-    this.#status = 'running';
-    this.emitFrame();
-    return { status: 'ok' };
+  start(): Promise<EmulatorOperationResult> {
+    return this.request({ type: 'start' });
   }
 
   async stop(): Promise<EmulatorOperationResult> {
-    if (this.#status === 'stopped') {
-      return { status: 'ok' };
-    }
-
-    this.#status = 'stopped';
-    return { status: 'ok' };
+    const result = await this.request({ type: 'stop' });
+    if (result.status === 'ok') await this.worker.terminate();
+    return result;
   }
 
   subscribeAudio(listener: (frame: EmulatorAudioFrame) => void): UnsubscribeEmulatorOutput {
@@ -134,28 +80,49 @@ class SameBoySession implements EmulatorSession {
     return () => this.#videoListeners.delete(listener);
   }
 
-  private emitFrame(): void {
-    if (this.#status !== 'running') {
+  private readonly onExit = (code: number): void => {
+    if (code !== 0 && this.#status !== 'stopped')
+      this.fail('The SameBoy worker stopped unexpectedly.');
+  };
+
+  private readonly onFailure = (): void => this.fail('The SameBoy worker failed.');
+
+  private readonly onMessage = (message: SameBoyWorkerMessage): void => {
+    if (message.type === 'result') {
+      this.#status = message.status;
+      const resolve = this.#pending.get(message.id);
+      if (resolve) {
+        this.#pending.delete(message.id);
+        resolve(message.result);
+      }
       return;
     }
 
-    this.wasm.runFrame();
-    const pixels = this.wasm.readFrame();
     const frame: EmulatorVideoFrame = {
-      height: 144,
+      height: message.height,
       pixelFormat: 'rgba8888',
-      pixels,
-      width: 160,
+      pixels: message.pixels,
+      width: message.width,
     };
+    for (const listener of this.#videoListeners) listener(frame);
+  };
 
-    for (const listener of this.#videoListeners) {
-      listener(frame);
+  private fail(message: string): void {
+    this.#status = 'failed';
+    for (const resolve of this.#pending.values()) {
+      resolve({ code: 'unexpected', message, status: 'error' });
     }
+    this.#pending.clear();
+  }
+
+  private request(
+    command: SameBoyWorkerCommand,
+    transferList?: readonly ArrayBuffer[],
+  ): Promise<EmulatorOperationResult> {
+    const id = `sameboy-${this.#requestId++}`;
+    return new Promise((resolve) => {
+      this.#pending.set(id, resolve);
+      this.worker.postMessage({ ...command, id } as SameBoyWorkerRequest, transferList);
+    });
   }
 }
-
-const invalidState = (message: string): EmulatorOperationResult => ({
-  code: 'invalid-state',
-  message,
-  status: 'error',
-});
