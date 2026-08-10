@@ -15,6 +15,8 @@ const isJsonValue = (value: unknown): value is JsonValue => {
 const failure = (message: string): Result<never> => err({ code: 'unexpected', message });
 
 export class JsonFileStorage implements JsonStoragePort {
+  private mutations: Promise<void> = Promise.resolve();
+
   public constructor(private readonly filePath: string) {}
 
   public async list(domain: JsonStorageDomain): Promise<Result<JsonObject>> {
@@ -31,11 +33,13 @@ export class JsonFileStorage implements JsonStoragePort {
   }
 
   public async remove(domain: JsonStorageDomain, key: string): Promise<Result<void>> {
-    const data = await this.readData();
-    if (!data.ok) return data;
-    const domainData = { ...(data.value[domain] ?? {}) };
-    delete domainData[key];
-    return this.writeData({ ...data.value, [domain]: domainData });
+    return this.mutate(async () => {
+      const data = await this.readData();
+      if (!data.ok) return data;
+      const domainData = { ...(data.value[domain] ?? {}) };
+      delete domainData[key];
+      return this.writeData({ ...data.value, [domain]: domainData });
+    });
   }
 
   public async write(
@@ -43,12 +47,23 @@ export class JsonFileStorage implements JsonStoragePort {
     key: string,
     value: JsonValue,
   ): Promise<Result<void>> {
-    const data = await this.readData();
-    if (!data.ok) return data;
-    return this.writeData({
-      ...data.value,
-      [domain]: { ...(data.value[domain] ?? {}), [key]: value },
+    return this.mutate(async () => {
+      const data = await this.readData();
+      if (!data.ok) return data;
+      return this.writeData({
+        ...data.value,
+        [domain]: { ...(data.value[domain] ?? {}), [key]: value },
+      });
     });
+  }
+
+  private mutate(operation: () => Promise<Result<void>>): Promise<Result<void>> {
+    const mutation = this.mutations.then(operation);
+    this.mutations = mutation.then(
+      () => undefined,
+      () => undefined,
+    );
+    return mutation;
   }
 
   private async readData(): Promise<Result<StorageData>> {

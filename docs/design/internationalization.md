@@ -33,6 +33,10 @@ require an application restart.
 The preference belongs to user preferences, never plugin configuration. It must not
 change game audio, ROM content, save data, or game metadata.
 
+The desktop host persists the selected locale in the `user-preferences/global` entry
+of Electron's `preferences.json`. The renderer accesses it only through validated IPC;
+`localStorage` is accepted solely as a one-time migration source.
+
 ## Catalog rules
 
 - English is the canonical catalog and defines the complete official key set.

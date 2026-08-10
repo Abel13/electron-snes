@@ -84,6 +84,8 @@ const en = {
     statusStarting: 'Starting',
     stop: 'Exit game',
     tryAgain: 'Try again',
+    preferencesWarningTitle: 'Preferences not saved',
+    preferencesWarningMessage: 'Your changes remain active, but could not be stored.',
     volume: 'Volume',
   },
 };
@@ -156,6 +158,8 @@ const pt = {
     statusStarting: 'Iniciando',
     stop: 'Sair do jogo',
     tryAgain: 'Tentar novamente',
+    preferencesWarningTitle: 'Preferências não salvas',
+    preferencesWarningMessage: 'As alterações continuam ativas, mas não puderam ser salvas.',
     volume: 'Volume',
   },
 };
@@ -227,28 +231,21 @@ const zh = {
     statusStarting: '正在启动',
     stop: '退出游戏',
     tryAgain: '重试',
+    preferencesWarningTitle: '偏好设置未保存',
+    preferencesWarningMessage: '更改仍然有效，但无法保存。',
     volume: '音量',
   },
 };
 
 export const OFFICIAL_CATALOGS = { 'en-US': en, 'pt-BR': pt, 'zh-CN': zh } as const;
-const persistedLocale =
-  typeof window === 'undefined'
-    ? undefined
-    : (window.localStorage.getItem('pixelcore.locale') ?? undefined);
-
 void i18n.use(initReactI18next).init({
   fallbackLng: 'en-US',
   interpolation: { escapeValue: true },
-  lng: resolveLocale(
-    persistedLocale,
-    typeof navigator === 'undefined' ? 'en-US' : navigator.language,
-  ),
+  lng: resolveLocale(undefined, typeof navigator === 'undefined' ? 'en-US' : navigator.language),
   resources: OFFICIAL_CATALOGS,
 });
 
 export const setLocale = async (locale: SupportedLocale): Promise<void> => {
-  if (typeof window !== 'undefined') window.localStorage.setItem('pixelcore.locale', locale);
   await i18n.changeLanguage(locale);
   if (typeof document !== 'undefined') document.documentElement.lang = locale;
 };

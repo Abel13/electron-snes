@@ -19,6 +19,7 @@ import {
   SESSION_EVENT_CHANNELS,
   createHostVersionResponse,
   hasFavoritePayload,
+  hasGlobalPreferencesPayload,
   hasLibraryGameIdPayload,
   hasNoIpcPayload,
   hasInputProfilePayload,
@@ -26,6 +27,7 @@ import {
   hasSessionInputPayload,
 } from './ipc.js';
 import { JsonFileStorage } from './json-file-storage.js';
+import { GlobalPreferencesRepository } from './global-preferences.js';
 import { loadSelectedRom } from './rom-loader.js';
 import { createRomSelectionStore } from './rom-selection.js';
 import { createDesktopSessionHost } from './session-host.js';
@@ -78,9 +80,9 @@ app.whenReady().then(() => {
   const cartridgeSaves = new CartridgeSaveStore(
     join(app.getPath('userData'), 'saves', 'cartridge'),
   );
-  const inputProfiles = new InputProfileRepository(
-    new JsonFileStorage(join(app.getPath('userData'), 'preferences.json')),
-  );
+  const preferencesStorage = new JsonFileStorage(join(app.getPath('userData'), 'preferences.json'));
+  const inputProfiles = new InputProfileRepository(preferencesStorage);
+  const globalPreferences = new GlobalPreferencesRepository(preferencesStorage);
 
   const toLibraryGame = async (game: LocalGame) => {
     let artworkDataUrl: string | undefined;
@@ -277,6 +279,24 @@ app.whenReady().then(() => {
       },
       ...(loaded.value === undefined ? {} : { profile: loaded.value }),
     };
+  });
+
+  ipcMain.handle(IPC_CHANNELS.getGlobalPreferences, async (_event, ...payload: unknown[]) => {
+    if (!hasNoIpcPayload(payload))
+      throw new Error('The global-preferences channel does not accept a payload.');
+    const loaded = await globalPreferences.load();
+    return loaded.ok
+      ? { ...(loaded.value === undefined ? {} : { preferences: loaded.value }), status: 'ready' }
+      : { message: loaded.error.message, status: 'error' };
+  });
+
+  ipcMain.handle(IPC_CHANNELS.saveGlobalPreferences, async (_event, ...payload: unknown[]) => {
+    if (!hasGlobalPreferencesPayload(payload))
+      throw new Error('The save-global-preferences channel requires valid preferences.');
+    const saved = await globalPreferences.save(payload[0]);
+    return saved.ok
+      ? { preferences: payload[0], status: 'saved' }
+      : { message: saved.error.message, status: 'error' };
   });
 
   ipcMain.handle(IPC_CHANNELS.saveInputProfile, async (_event, ...payload: unknown[]) => {

@@ -3,8 +3,11 @@ import { describe, expect, it } from 'vitest';
 import {
   IPC_CHANNELS,
   createPixelCoreApi,
+  hasGlobalPreferencesPayload,
   hasNoIpcPayload,
   isHostVersionResponse,
+  isGlobalPreferencesLoadResponse,
+  isGlobalPreferencesSaveResponse,
   isConsolePluginsResponse,
   isLibraryResponse,
   isSelectRomResponse,
@@ -12,6 +15,46 @@ import {
 } from './ipc.js';
 
 describe('IPC boundary contracts', () => {
+  const globalPreferences = {
+    locale: 'en-US',
+    uiAudioMuted: false,
+    uiAudioVolume: 0.22,
+    version: 1,
+  } as const;
+
+  it('validates global preference payloads and responses strictly', async () => {
+    expect(hasGlobalPreferencesPayload([globalPreferences])).toBe(true);
+    expect(hasGlobalPreferencesPayload([{ ...globalPreferences, uiAudioVolume: 2 }])).toBe(false);
+    expect(
+      isGlobalPreferencesLoadResponse({ preferences: globalPreferences, status: 'ready' }),
+    ).toBe(true);
+    expect(isGlobalPreferencesLoadResponse({ status: 'ready' })).toBe(true);
+    expect(
+      isGlobalPreferencesSaveResponse({ preferences: globalPreferences, status: 'saved' }),
+    ).toBe(true);
+    expect(
+      isGlobalPreferencesSaveResponse({
+        preferences: globalPreferences,
+        status: 'saved',
+        extra: true,
+      }),
+    ).toBe(false);
+    const api = createPixelCoreApi(async (channel, payload) => {
+      if (channel === IPC_CHANNELS.getGlobalPreferences)
+        return { preferences: globalPreferences, status: 'ready' };
+      expect(channel).toBe(IPC_CHANNELS.saveGlobalPreferences);
+      expect(payload).toEqual(globalPreferences);
+      return { preferences: globalPreferences, status: 'saved' };
+    });
+    await expect(api.getGlobalPreferences()).resolves.toEqual({
+      preferences: globalPreferences,
+      status: 'ready',
+    });
+    await expect(api.saveGlobalPreferences(globalPreferences)).resolves.toEqual({
+      preferences: globalPreferences,
+      status: 'saved',
+    });
+  });
   it('accepts only an exact host-version response', () => {
     expect(isHostVersionResponse({ version: '0.1.0' })).toBe(true);
     expect(isHostVersionResponse({ version: '0.1.0', extra: true })).toBe(false);

@@ -9,6 +9,7 @@
   },
   "include": [
     "src/console-catalog.ts",
+    "src/global-preferences.ts",
     "src/input-prompt-assets.ts",
     "src/ipc.ts",
     "src/localization.ts",

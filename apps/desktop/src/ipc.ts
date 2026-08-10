@@ -1,16 +1,19 @@
 import type { ConsoleInputMapping, InputProfile } from '@platform/input';
 import { validateConsoleInputMapping, validateInputProfile } from '@platform/input';
+import { isGlobalPreferences, type GlobalPreferences } from './global-preferences.js';
 
 export const IPC_CHANNELS = {
   importGame: 'pixel-core:import-game',
   listLibrary: 'pixel-core:list-library',
   listConsolePlugins: 'pixel-core:list-console-plugins',
   getInputConfiguration: 'pixel-core:get-input-configuration',
+  getGlobalPreferences: 'pixel-core:get-global-preferences',
   getHostVersion: 'pixel-core:host-version',
   loadRom: 'pixel-core:load-rom',
   pauseSession: 'pixel-core:pause-session',
   resumeSession: 'pixel-core:resume-session',
   saveInputProfile: 'pixel-core:save-input-profile',
+  saveGlobalPreferences: 'pixel-core:save-global-preferences',
   selectGameArtwork: 'pixel-core:select-game-artwork',
   selectRom: 'pixel-core:select-rom',
   setSessionInput: 'pixel-core:set-session-input',
@@ -88,6 +91,7 @@ export type LoadRomResponse =
   | { readonly rom: LoadedRom; readonly status: 'loaded' };
 
 export interface PixelCoreApi {
+  getGlobalPreferences(): Promise<GlobalPreferencesLoadResponse>;
   getInputConfiguration(): Promise<InputConfigurationResponse>;
   getHostVersion(): Promise<HostVersionResponse>;
   importGame(): Promise<ImportGameResponse>;
@@ -97,6 +101,7 @@ export interface PixelCoreApi {
   pauseSession(): Promise<SessionCommandResponse>;
   resumeSession(): Promise<SessionCommandResponse>;
   saveInputProfile(profile: InputProfile): Promise<InputProfileResponse>;
+  saveGlobalPreferences(preferences: GlobalPreferences): Promise<GlobalPreferencesSaveResponse>;
   selectGameArtwork(gameId: string): Promise<LibraryMutationResponse>;
   selectRom(): Promise<SelectRomResponse>;
   setSessionInput(input: SessionInputPayload): Promise<SessionCommandResponse>;
@@ -148,6 +153,14 @@ export interface InputConfigurationResponse {
 
 export type InputProfileResponse =
   | { readonly profile: InputProfile; readonly status: 'saved' }
+  | { readonly message: string; readonly status: 'error' };
+
+export type GlobalPreferencesLoadResponse =
+  | { readonly preferences?: GlobalPreferences; readonly status: 'ready' }
+  | { readonly message: string; readonly status: 'error' };
+
+export type GlobalPreferencesSaveResponse =
+  | { readonly preferences: GlobalPreferences; readonly status: 'saved' }
   | { readonly message: string; readonly status: 'error' };
 
 export type IpcInvoker = (channel: IpcChannel, ...payload: readonly unknown[]) => Promise<unknown>;
@@ -207,6 +220,33 @@ export const hasInputProfilePayload = (
   payload: readonly unknown[],
 ): payload is readonly [InputProfile] =>
   payload.length === 1 && validateInputProfile(payload[0]).ok;
+
+export const hasGlobalPreferencesPayload = (
+  payload: readonly unknown[],
+): payload is readonly [GlobalPreferences] =>
+  payload.length === 1 && isGlobalPreferences(payload[0]);
+
+export const isGlobalPreferencesLoadResponse = (
+  value: unknown,
+): value is GlobalPreferencesLoadResponse =>
+  isRecord(value) &&
+  ((value['status'] === 'ready' &&
+    Object.keys(value).every((key) => key === 'status' || key === 'preferences') &&
+    (value['preferences'] === undefined || isGlobalPreferences(value['preferences']))) ||
+    (value['status'] === 'error' &&
+      Object.keys(value).length === 2 &&
+      typeof value['message'] === 'string'));
+
+export const isGlobalPreferencesSaveResponse = (
+  value: unknown,
+): value is GlobalPreferencesSaveResponse =>
+  isRecord(value) &&
+  ((value['status'] === 'saved' &&
+    Object.keys(value).length === 2 &&
+    isGlobalPreferences(value['preferences'])) ||
+    (value['status'] === 'error' &&
+      Object.keys(value).length === 2 &&
+      typeof value['message'] === 'string'));
 
 export const createHostVersionResponse = (version: string): HostVersionResponse => ({
   version,
@@ -341,6 +381,12 @@ export const createPixelCoreApi = (
   invoke: IpcInvoker,
   subscribe: IpcSubscriber = () => () => undefined,
 ): PixelCoreApi => ({
+  async getGlobalPreferences(): Promise<GlobalPreferencesLoadResponse> {
+    const response = await invoke(IPC_CHANNELS.getGlobalPreferences);
+    if (!isGlobalPreferencesLoadResponse(response))
+      throw new Error('Received an invalid global preferences response.');
+    return response;
+  },
   async importGame(): Promise<ImportGameResponse> {
     const response = await invoke(IPC_CHANNELS.importGame);
     if (!isImportGameResponse(response))
@@ -384,6 +430,14 @@ export const createPixelCoreApi = (
     const response = await invoke(IPC_CHANNELS.saveInputProfile, profile);
     if (!isInputProfileResponse(response))
       throw new Error('Received an invalid input profile response.');
+    return response;
+  },
+  async saveGlobalPreferences(
+    preferences: GlobalPreferences,
+  ): Promise<GlobalPreferencesSaveResponse> {
+    const response = await invoke(IPC_CHANNELS.saveGlobalPreferences, preferences);
+    if (!isGlobalPreferencesSaveResponse(response))
+      throw new Error('Received an invalid global preferences save response.');
     return response;
   },
   async selectGameArtwork(gameId: string): Promise<LibraryMutationResponse> {

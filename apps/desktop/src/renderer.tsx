@@ -33,10 +33,17 @@ import {
 } from '@platform/ui';
 import { BrowserUiAudioService } from '@platform/ui-audio';
 import type { LibraryGame, PixelCoreApi, SessionVideoFrame } from './ipc.js';
-import i18n, { setLocale, type SupportedLocale } from './localization.js';
+import { setLocale, type SupportedLocale } from './localization.js';
 import { buildConsoleCatalog } from './console-catalog.js';
 import './renderer.css';
 import { kenneyInputPromptAssets } from './input-prompt-assets.js';
+import {
+  clearLegacyGlobalPreferences,
+  createDefaultGlobalPreferences,
+  readLegacyGlobalPreferences,
+  type GlobalPreferenceLocale,
+  type GlobalPreferences,
+} from './global-preferences.js';
 
 declare global {
   interface Window {
@@ -73,6 +80,7 @@ const uiAudio = new BrowserUiAudioService({
   'toggle-on': soundUrl('toggle'),
   warning: soundUrl('warning'),
 });
+const defaultGlobalPreferences = createDefaultGlobalPreferences(navigator.language);
 
 type ProductStatus = 'error' | 'loading' | 'paused' | 'ready' | 'running' | 'starting' | 'stopped';
 type AppScreen = 'home' | 'library';
@@ -89,12 +97,13 @@ const App = (): React.JSX.Element => {
   const [availableConsoleIds, setAvailableConsoleIds] = useState<readonly string[]>([]);
   const [games, setGames] = useState<readonly LibraryGame[]>([]);
   const [selectedGameId, setSelectedGameId] = useState<string>();
-  const [uiAudioMuted, setUiAudioMuted] = useState(
-    () => localStorage.getItem('pixelcore.uiAudioMuted') === 'true',
+  const [preferenceLocale, setPreferenceLocale] = useState<GlobalPreferenceLocale>(
+    defaultGlobalPreferences.locale,
   );
-  const [uiAudioVolume, setUiAudioVolume] = useState(() =>
-    Number(localStorage.getItem('pixelcore.uiAudioVolume') ?? '0.22'),
-  );
+  const [uiAudioMuted, setUiAudioMuted] = useState(defaultGlobalPreferences.uiAudioMuted);
+  const [uiAudioVolume, setUiAudioVolume] = useState(defaultGlobalPreferences.uiAudioVolume);
+  const [globalPreferencesReady, setGlobalPreferencesReady] = useState(false);
+  const [globalPreferencesWarning, setGlobalPreferencesWarning] = useState(false);
   const audio = useRef(new EmulatorAudioPlayer());
   const keyboard = useRef(new KeyboardInputAdapter());
   const gamepad = useRef(new GamepadInputAdapter());
@@ -109,6 +118,7 @@ const App = (): React.JSX.Element => {
   const carousel = useRef<ConsoleCarouselHandle>(null);
   const consoleLibrary = useRef<ConsoleLibraryHandle>(null);
   const globalSettings = useRef<GlobalSettingsMenuHandle>(null);
+  const skipGlobalPreferencesSave = useRef(true);
 
   const consoles = useMemo(
     () =>
@@ -179,11 +189,79 @@ const App = (): React.JSX.Element => {
 
   useEffect(() => {
     uiAudio.setPreferences({ muted: uiAudioMuted, volume: uiAudioVolume });
-    localStorage.setItem('pixelcore.uiAudioMuted', String(uiAudioMuted));
-    localStorage.setItem('pixelcore.uiAudioVolume', String(uiAudioVolume));
-  }, [uiAudioMuted, uiAudioVolume]);
+    if (!globalPreferencesReady) return;
+    if (skipGlobalPreferencesSave.current) {
+      skipGlobalPreferencesSave.current = false;
+      return;
+    }
+    const preferences: GlobalPreferences = {
+      locale: preferenceLocale,
+      uiAudioMuted,
+      uiAudioVolume,
+      version: 1,
+    };
+    void window.pixelCore.saveGlobalPreferences(preferences).then((response) => {
+      if (response.status === 'error') {
+        console.warn(
+          JSON.stringify({ code: 'global-preferences-save-failed', message: response.message }),
+        );
+        setGlobalPreferencesWarning(true);
+      } else setGlobalPreferencesWarning(false);
+    });
+  }, [globalPreferencesReady, preferenceLocale, uiAudioMuted, uiAudioVolume]);
 
   useEffect(() => {
+    void window.pixelCore
+      .getGlobalPreferences()
+      .then(async (response) => {
+        let preferences: GlobalPreferences;
+        if (response.status === 'ready' && response.preferences !== undefined) {
+          preferences = response.preferences;
+        } else {
+          const legacy = readLegacyGlobalPreferences(localStorage, navigator.language);
+          preferences = legacy.preferences;
+          if (response.status === 'error') {
+            console.warn(
+              JSON.stringify({ code: 'global-preferences-load-failed', message: response.message }),
+            );
+            setGlobalPreferencesWarning(true);
+          } else {
+            const saved = await window.pixelCore.saveGlobalPreferences(preferences);
+            if (saved.status === 'saved') clearLegacyGlobalPreferences(localStorage, legacy.keys);
+            else {
+              console.warn(
+                JSON.stringify({
+                  code: 'global-preferences-migration-failed',
+                  message: saved.message,
+                }),
+              );
+              setGlobalPreferencesWarning(true);
+            }
+          }
+        }
+        setPreferenceLocale(preferences.locale);
+        setUiAudioMuted(preferences.uiAudioMuted);
+        setUiAudioVolume(preferences.uiAudioVolume);
+        uiAudio.setPreferences({
+          muted: preferences.uiAudioMuted,
+          volume: preferences.uiAudioVolume,
+        });
+        await setLocale(preferences.locale as SupportedLocale);
+      })
+      .catch((error: unknown) => {
+        console.warn(
+          JSON.stringify({
+            code: 'global-preferences-load-failed',
+            message: error instanceof Error ? error.message : 'Unknown preference error.',
+          }),
+        );
+        setGlobalPreferencesWarning(true);
+      })
+      .finally(() => setGlobalPreferencesReady(true));
+  }, []);
+
+  useEffect(() => {
+    if (!globalPreferencesReady) return;
     const unsubscribeVideo = window.pixelCore.subscribeSessionVideo(setFrame);
     const unsubscribeAudio = window.pixelCore.subscribeSessionAudio((audioFrame) =>
       audio.current.enqueue(audioFrame),
@@ -213,7 +291,7 @@ const App = (): React.JSX.Element => {
       unsubscribeVideo();
       audio.current.stop();
     };
-  }, []);
+  }, [globalPreferencesReady]);
 
   useEffect(() => {
     void window.pixelCore.getInputConfiguration().then((configuration) => {
@@ -281,7 +359,10 @@ const App = (): React.JSX.Element => {
             if (currentNavigation.has(action) && !previousNavigation.has(action)) {
               if (screenRef.current === 'home' && globalSettingsOpenRef.current)
                 globalSettings.current?.move(direction);
-              else if (screenRef.current === 'home' && (direction === 'left' || direction === 'right'))
+              else if (
+                screenRef.current === 'home' &&
+                (direction === 'left' || direction === 'right')
+              )
                 carousel.current?.move(direction);
               else if (screenRef.current === 'library') consoleLibrary.current?.move(direction);
               else if (screenRef.current !== 'home' && moveDirectionalFocus(direction))
@@ -523,66 +604,76 @@ const App = (): React.JSX.Element => {
   if (status === 'running' || status === 'paused' || status === 'starting') {
     return (
       <InputPromptProvider assetMap={kenneyInputPromptAssets} scheme={inputPromptScheme}>
-      <main className="pc-session-view">
-        <ParticleField />
-        <header className="pc-session-header">
-          <button className="pc-ghost-button" onClick={() => void runAction('stop')} type="button">
-            <Icon name="archive" /> {t('backLibrary')}
-          </button>
-          <span className={`pc-status pc-status-${status}`}>
-            <i />{' '}
-            {t(
-              status === 'paused'
-                ? 'statusPaused'
-                : status === 'starting'
-                  ? 'statusStarting'
-                  : 'statusRunning',
-            )}
-          </span>
-        </header>
-        <section className="pc-session-stage">
-          <div className="pc-session-screen">
-            <EmulatorVideoCanvas {...(frame === undefined ? {} : { frame })} label={message} />
-          </div>
-          <aside className="pc-session-panel">
-            <p className="pc-eyebrow">{t('nowPlaying')}</p>
-            <h1>{selectedGame?.name ?? message}</h1>
-            <p>{message}</p>
-            <div className="pc-session-actions">
-              {status === 'paused' ? (
-                <button
-                  className="pc-primary-button"
-                  onClick={() => void runAction('resume')}
-                  type="button"
-                >
-                  <Icon name="gamepad" /> {t('resume')}
-                </button>
-              ) : (
-                <button
-                  className="pc-primary-button"
-                  disabled={status !== 'running'}
-                  onClick={() => void runAction('pause')}
-                  type="button"
-                >
-                  {t('pause')}
-                </button>
+        <main className="pc-session-view">
+          <ParticleField />
+          <header className="pc-session-header">
+            <button
+              className="pc-ghost-button"
+              onClick={() => void runAction('stop')}
+              type="button"
+            >
+              <Icon name="archive" /> {t('backLibrary')}
+            </button>
+            <span className={`pc-status pc-status-${status}`}>
+              <i />{' '}
+              {t(
+                status === 'paused'
+                  ? 'statusPaused'
+                  : status === 'starting'
+                    ? 'statusStarting'
+                    : 'statusRunning',
               )}
-              <button
-                className="pc-ghost-button"
-                onClick={() => void runAction('stop')}
-                type="button"
-              >
-                {t('stop')}
-              </button>
+            </span>
+          </header>
+          <section className="pc-session-stage">
+            <div className="pc-session-screen">
+              <EmulatorVideoCanvas {...(frame === undefined ? {} : { frame })} label={message} />
             </div>
-            <div className="pc-control-hint">
-              <span><InputPrompt action="navigate-all" label={t('settingsMoveHint')} /></span>
-              <span><InputPromptGroup actions={['primary', 'secondary']} label={t('gameControls')} /></span>
-              <span><InputPromptGroup actions={['start', 'select']} label={t('gameControls')} /></span>
-            </div>
-          </aside>
-        </section>
-      </main>
+            <aside className="pc-session-panel">
+              <p className="pc-eyebrow">{t('nowPlaying')}</p>
+              <h1>{selectedGame?.name ?? message}</h1>
+              <p>{message}</p>
+              <div className="pc-session-actions">
+                {status === 'paused' ? (
+                  <button
+                    className="pc-primary-button"
+                    onClick={() => void runAction('resume')}
+                    type="button"
+                  >
+                    <Icon name="gamepad" /> {t('resume')}
+                  </button>
+                ) : (
+                  <button
+                    className="pc-primary-button"
+                    disabled={status !== 'running'}
+                    onClick={() => void runAction('pause')}
+                    type="button"
+                  >
+                    {t('pause')}
+                  </button>
+                )}
+                <button
+                  className="pc-ghost-button"
+                  onClick={() => void runAction('stop')}
+                  type="button"
+                >
+                  {t('stop')}
+                </button>
+              </div>
+              <div className="pc-control-hint">
+                <span>
+                  <InputPrompt action="navigate-all" label={t('settingsMoveHint')} />
+                </span>
+                <span>
+                  <InputPromptGroup actions={['primary', 'secondary']} label={t('gameControls')} />
+                </span>
+                <span>
+                  <InputPromptGroup actions={['start', 'select']} label={t('gameControls')} />
+                </span>
+              </div>
+            </aside>
+          </section>
+        </main>
       </InputPromptProvider>
     );
   }
@@ -590,80 +681,96 @@ const App = (): React.JSX.Element => {
   if (screen === 'home')
     return (
       <InputPromptProvider assetMap={kenneyInputPromptAssets} scheme={inputPromptScheme}>
-      <>
-        <ConsoleCarousel
-          copy={{
-            available: t('available'),
-            chooseSystem: t('chooseSystem'),
-            comingSoon: t('comingSoon'),
-            confirm: t('confirmSystem'),
-            formats: t('formats'),
-            next: t('nextSystem'),
-            position: (current, total) => t('systemPosition', { current, total }),
-            previous: t('previousSystem'),
-            unavailable: (name) => t('unavailableSystem', { name }),
-          }}
-          items={consoles}
-          logoUrl={logoUrl}
-          onConfirm={(item) => {
-            if (item.availability === 'coming-soon') {
-              uiAudio.play('warning');
-              return;
-            }
-            uiAudio.play('select');
-            setGlobalSettingsOpen(false);
-            setScreen('library');
-          }}
-          onFocusSound={() => uiAudio.play('focus')}
-          ref={carousel}
-        />
-        <button
-          aria-label={t('globalSettings')}
-          className="pc-global-settings-button"
-          onClick={() => {
-            setGlobalSettings(!globalSettingsOpenRef.current);
-          }}
-          type="button"
-        >
-          <span className="pc-global-settings-icon"><Icon name="settings" /></span>
-          <span className="pc-global-settings-copy">
-            <strong>{t('globalSettings')}</strong>
-            <small><InputPrompt action="settings" label={t('globalSettings')} /></small>
-          </span>
-        </button>
-        {globalSettingsOpen ? (
-          <GlobalSettingsMenu
+        <>
+          <ConsoleCarousel
             copy={{
-              adjustHint: t('settingsAdjustHint'),
-              close: t('close'),
-              closeHint: t('settingsCloseHint'),
-              confirmHint: t('settingsConfirmHint'),
-              language: t('interfaceLanguage'),
-              muted: t('muted'),
-              moveHint: t('settingsMoveHint'),
-              sounds: t('feedbackSounds'),
-              soundsOn: t('soundsOn'),
-              title: t('globalSettings'),
-              volume: t('volume'),
+              available: t('available'),
+              chooseSystem: t('chooseSystem'),
+              comingSoon: t('comingSoon'),
+              confirm: t('confirmSystem'),
+              formats: t('formats'),
+              next: t('nextSystem'),
+              position: (current, total) => t('systemPosition', { current, total }),
+              previous: t('previousSystem'),
+              unavailable: (name) => t('unavailableSystem', { name }),
             }}
-            locale={i18n.language}
-            locales={[
-              { label: 'English', value: 'en-US' },
-              { label: 'Português (Brasil)', value: 'pt-BR' },
-              { label: '简体中文', value: 'zh-CN' },
-            ]}
-            muted={uiAudioMuted}
-            onAdjust={() => uiAudio.play('adjust')}
-            onClose={() => setGlobalSettings(false)}
-            onLocaleChange={(locale) => void setLocale(locale as SupportedLocale)}
-            onMutedChange={setUiAudioMuted}
-            onNavigate={() => uiAudio.play('focus')}
-            onVolumeChange={setUiAudioVolume}
-            ref={globalSettings}
-            volume={uiAudioVolume}
+            items={consoles}
+            logoUrl={logoUrl}
+            onConfirm={(item) => {
+              if (item.availability === 'coming-soon') {
+                uiAudio.play('warning');
+                return;
+              }
+              uiAudio.play('select');
+              setGlobalSettingsOpen(false);
+              setScreen('library');
+            }}
+          onFocusSound={() => uiAudio.play('focus')}
+            ref={carousel}
           />
-        ) : null}
-      </>
+          <button
+            aria-label={t('globalSettings')}
+            className="pc-global-settings-button"
+            onClick={() => {
+              setGlobalSettings(!globalSettingsOpenRef.current);
+            }}
+            type="button"
+          >
+            <span className="pc-global-settings-icon">
+              <Icon name="settings" />
+            </span>
+            <span className="pc-global-settings-copy">
+              <strong>{t('globalSettings')}</strong>
+              <small>
+                <InputPrompt action="settings" label={t('globalSettings')} />
+              </small>
+            </span>
+          </button>
+          {globalSettingsOpen ? (
+            <GlobalSettingsMenu
+              copy={{
+                adjustHint: t('settingsAdjustHint'),
+                close: t('close'),
+                closeHint: t('settingsCloseHint'),
+                confirmHint: t('settingsConfirmHint'),
+                language: t('interfaceLanguage'),
+                muted: t('muted'),
+                moveHint: t('settingsMoveHint'),
+                sounds: t('feedbackSounds'),
+                soundsOn: t('soundsOn'),
+                title: t('globalSettings'),
+                volume: t('volume'),
+              }}
+              locale={preferenceLocale}
+              locales={[
+                { label: 'English', value: 'en-US' },
+                { label: 'Português (Brasil)', value: 'pt-BR' },
+                { label: '简体中文', value: 'zh-CN' },
+              ]}
+              muted={uiAudioMuted}
+              onAdjust={() => uiAudio.play('adjust')}
+              onClose={() => setGlobalSettings(false)}
+              onLocaleChange={(locale) => {
+                const supportedLocale = locale as GlobalPreferenceLocale;
+                setPreferenceLocale(supportedLocale);
+                void setLocale(supportedLocale as SupportedLocale);
+              }}
+              onMutedChange={setUiAudioMuted}
+              onNavigate={() => uiAudio.play('focus')}
+              onVolumeChange={setUiAudioVolume}
+              ref={globalSettings}
+              volume={uiAudioVolume}
+            />
+          ) : null}
+          {globalPreferencesWarning ? (
+            <aside className="pc-toast" role="status">
+              <div>
+                <strong>{t('preferencesWarningTitle')}</strong>
+                <span>{t('preferencesWarningMessage')}</span>
+              </div>
+            </aside>
+          ) : null}
+        </>
       </InputPromptProvider>
     );
 
@@ -676,74 +783,74 @@ const App = (): React.JSX.Element => {
     );
   return (
     <InputPromptProvider assetMap={kenneyInputPromptAssets} scheme={inputPromptScheme}>
-    <>
-      {consoles[0] === undefined ? null : (
-        <ConsoleLibrary
-          artworkFor={(game) => game.artworkDataUrl ?? defaultArtworkUrl}
-          cartridgeUrl={cartridgeUrl}
-          console={consoles[0]}
-          copy={{
-            addGame: t('addGame'),
-            artwork: t('artwork'),
-            backSystems: t('backSystems'),
-            emptyCategory: t('emptyCategory'),
-            favorite: t('favoriteGame'),
-            favorites: t('favorites'),
-            library: t('library'),
-            playHint: t('playHint'),
-            recent: t('recent'),
-            removeFavorite: t('removeFavorite'),
-            settings: t('settings'),
-          }}
-          games={games.filter((game) => consoles[0]?.extensions.includes(game.extension))}
-          logoUrl={logoUrl}
-          onAddGame={() => void importGame()}
-          onArtwork={(game) => void selectArtwork(game as LibraryGame)}
-          onBack={() => {
-            setScreen('home');
-            uiAudio.play('back');
-          }}
-          onBackFeedback={() => uiAudio.play('back')}
-          onCategoryChange={() => uiAudio.play('focus')}
-          onDetail={() => uiAudio.play('select')}
-          onFavorite={(game) => void toggleFavorite(game as LibraryGame)}
-          onPlay={(game) => void launchGame(game as LibraryGame)}
-          onSelect={(game) => setSelectedGameId(game.id)}
-          onSelectionChange={() => uiAudio.play('focus')}
-          ref={consoleLibrary}
-        >
-          {profile === undefined ? null : (
-            <InputMappingSettings
-              copy={{
-                consoleAction: t('consoleAction'),
-                disconnected: t('disconnected'),
-                gameControls: t('gameControls'),
-                inputSettings: t('inputSettings'),
-                playerOneDevice: t('playerOneDevice'),
-              }}
-              devices={devices}
-              entries={profile.mapping.entries}
-              onDeviceChange={(deviceFingerprint) =>
-                persistProfile({ ...profile, deviceFingerprint })
-              }
-              onMappingChange={changeMapping}
-              selectedDeviceFingerprint={profile.deviceFingerprint}
-            />
-          )}
-        </ConsoleLibrary>
-      )}
-      {status === 'error' ? (
-        <aside className="pc-toast" role="alert">
-          <div>
-            <strong>{t('errorTitle')}</strong>
-            <span>{message}</span>
-          </div>
-          <button onClick={() => void refreshLibrary()} type="button">
-            {t('tryAgain')}
-          </button>
-        </aside>
-      ) : null}
-    </>
+      <>
+        {consoles[0] === undefined ? null : (
+          <ConsoleLibrary
+            artworkFor={(game) => game.artworkDataUrl ?? defaultArtworkUrl}
+            cartridgeUrl={cartridgeUrl}
+            console={consoles[0]}
+            copy={{
+              addGame: t('addGame'),
+              artwork: t('artwork'),
+              backSystems: t('backSystems'),
+              emptyCategory: t('emptyCategory'),
+              favorite: t('favoriteGame'),
+              favorites: t('favorites'),
+              library: t('library'),
+              playHint: t('playHint'),
+              recent: t('recent'),
+              removeFavorite: t('removeFavorite'),
+              settings: t('settings'),
+            }}
+            games={games.filter((game) => consoles[0]?.extensions.includes(game.extension))}
+            logoUrl={logoUrl}
+            onAddGame={() => void importGame()}
+            onArtwork={(game) => void selectArtwork(game as LibraryGame)}
+            onBack={() => {
+              setScreen('home');
+              uiAudio.play('back');
+            }}
+            onBackFeedback={() => uiAudio.play('back')}
+            onCategoryChange={() => uiAudio.play('focus')}
+            onDetail={() => uiAudio.play('select')}
+            onFavorite={(game) => void toggleFavorite(game as LibraryGame)}
+            onPlay={(game) => void launchGame(game as LibraryGame)}
+            onSelect={(game) => setSelectedGameId(game.id)}
+            onSelectionChange={() => uiAudio.play('focus')}
+            ref={consoleLibrary}
+          >
+            {profile === undefined ? null : (
+              <InputMappingSettings
+                copy={{
+                  consoleAction: t('consoleAction'),
+                  disconnected: t('disconnected'),
+                  gameControls: t('gameControls'),
+                  inputSettings: t('inputSettings'),
+                  playerOneDevice: t('playerOneDevice'),
+                }}
+                devices={devices}
+                entries={profile.mapping.entries}
+                onDeviceChange={(deviceFingerprint) =>
+                  persistProfile({ ...profile, deviceFingerprint })
+                }
+                onMappingChange={changeMapping}
+                selectedDeviceFingerprint={profile.deviceFingerprint}
+              />
+            )}
+          </ConsoleLibrary>
+        )}
+        {status === 'error' ? (
+          <aside className="pc-toast" role="alert">
+            <div>
+              <strong>{t('errorTitle')}</strong>
+              <span>{message}</span>
+            </div>
+            <button onClick={() => void refreshLibrary()} type="button">
+              {t('tryAgain')}
+            </button>
+          </aside>
+        ) : null}
+      </>
     </InputPromptProvider>
   );
 };
