@@ -79,4 +79,16 @@ describe('EmulatorSessionController', () => {
 
     await expect(controller.launch(rom)).resolves.toMatchObject({ code: 'invalid-state' });
   });
+
+  it('forwards normalized input only to an active session', async () => {
+    const session = createSession();
+    const controller = new EmulatorSessionController(createPlugin(session));
+    const input = { actions: ['primary'], playerPortId: 'player-one' };
+
+    await expect(controller.setInput(input)).resolves.toMatchObject({ code: 'invalid-state' });
+    await controller.launch(rom);
+    await expect(controller.setInput(input)).resolves.toEqual({ status: 'ok' });
+
+    expect(session.setInput).toHaveBeenCalledWith(input);
+  });
 });

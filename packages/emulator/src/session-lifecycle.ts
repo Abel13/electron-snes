@@ -1,5 +1,6 @@
 import type {
   EmulatorAudioFrame,
+  EmulatorInput,
   EmulatorOperationResult,
   EmulatorPluginDefinition,
   EmulatorRom,
@@ -73,6 +74,13 @@ export class EmulatorSessionController {
     const result = await session.resume();
     if (result.status === 'ok') this.#status = session.getStatus();
     return result;
+  }
+
+  public async setInput(input: EmulatorInput): Promise<EmulatorOperationResult> {
+    const session = this.#session;
+    if (session === undefined)
+      return invalidState('An active emulator session is required for input.');
+    return session.setInput(input);
   }
 
   public async stop(): Promise<EmulatorOperationResult> {

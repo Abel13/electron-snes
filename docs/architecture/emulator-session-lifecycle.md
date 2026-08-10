@@ -6,7 +6,7 @@
 
 The controller creates one session, subscribes to its renderer-safe video and audio outputs, loads the provided ROM bytes, then starts emulation. A load or start failure stops the temporary session, removes output subscriptions, and returns the original typed emulator failure.
 
-The controller exposes pause, resume, and stop only for an active session. A successful stop unsubscribes outputs and releases the controller for another launch. A session creation exception becomes a stable `unexpected` operation result without leaking the exception.
+The controller exposes normalized input, pause, resume, and stop only for an active session. A successful stop unsubscribes outputs and releases the controller for another launch. A session creation exception becomes a stable `unexpected` operation result without leaking the exception.
 
 ## Output isolation
 
