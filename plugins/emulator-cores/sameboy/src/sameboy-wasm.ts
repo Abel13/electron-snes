@@ -20,14 +20,11 @@ export interface SameBoyWasm {
   write(address: number, bytes: Uint8Array): void;
 }
 
-export const loadSameBoyWasm = async (): Promise<SameBoyWasm> => {
-  const response = await fetch(new URL('../wasm/sameboy.wasm', import.meta.url));
-  if (!response.ok) {
-    throw new Error('The SameBoy WebAssembly module is unavailable.');
-  }
-
-  const bytes = await response.arrayBuffer();
-  const { instance } = await WebAssembly.instantiate(bytes, {});
+export const loadSameBoyWasmFromBytes = async (
+  bytes: BufferSource,
+  imports: WebAssembly.Imports = {},
+): Promise<SameBoyWasm> => {
+  const { instance } = await WebAssembly.instantiate(bytes, imports);
   const exports = instance.exports as SameBoyWasmExports;
   const requiredFunctions = [
     exports.malloc,
