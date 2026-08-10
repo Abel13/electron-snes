@@ -15,10 +15,22 @@ export interface ConsolePlayerPort {
   readonly inputActions: readonly ConsoleInputActionId[];
 }
 
+export interface ConsoleInputMappingEntry {
+  readonly consoleAction: ConsoleInputActionId;
+  readonly normalizedAction: string;
+}
+
+export interface ConsoleInputMapping {
+  readonly entries: readonly ConsoleInputMappingEntry[];
+  readonly playerPortId: string;
+  readonly version: 1;
+}
+
 export interface ConsoleDefinition {
   readonly capabilities: readonly string[];
   readonly id: string;
   readonly inputActions: readonly ConsoleInputAction[];
+  readonly inputMapping: ConsoleInputMapping;
   readonly playerPorts: readonly ConsolePlayerPort[];
   readonly supportedRomExtensions: readonly string[];
 }
@@ -124,6 +136,7 @@ export const validateConsolePlugin = (input: unknown): ConsolePluginValidationRe
   const capabilities = definition['capabilities'];
   const id = definition['id'];
   const inputActions = definition['inputActions'];
+  const inputMapping = definition['inputMapping'];
   const playerPorts = definition['playerPorts'];
   const supportedRomExtensions = definition['supportedRomExtensions'];
   const diagnostics: ConsolePluginDiagnostic[] = [];
@@ -241,6 +254,50 @@ export const validateConsolePlugin = (input: unknown): ConsolePluginValidationRe
         diagnostic(['console', 'playerPorts'], 'Player port identifiers must be unique.'),
       );
     }
+  }
+
+  if (
+    !isRecord(inputMapping) ||
+    inputMapping['version'] !== 1 ||
+    !Array.isArray(inputMapping['entries'])
+  ) {
+    diagnostics.push(
+      diagnostic(['console', 'inputMapping'], 'A version 1 input mapping is required.'),
+    );
+  } else {
+    const entries = inputMapping['entries'];
+    const normalizedActions: string[] = [];
+    const consoleActions: string[] = [];
+    for (const [index, entry] of entries.entries()) {
+      if (
+        !isRecord(entry) ||
+        !isIdentifier(entry['normalizedAction']) ||
+        !isIdentifier(entry['consoleAction'])
+      ) {
+        diagnostics.push(
+          diagnostic(
+            ['console', 'inputMapping', 'entries', index],
+            'Input mapping entries must contain kebab-case action identifiers.',
+          ),
+        );
+        continue;
+      }
+      normalizedActions.push(entry['normalizedAction']);
+      consoleActions.push(entry['consoleAction']);
+    }
+    if (
+      !isIdentifier(inputMapping['playerPortId']) ||
+      entries.length === 0 ||
+      !hasUniqueValues(normalizedActions) ||
+      !hasUniqueValues(consoleActions) ||
+      consoleActions.some((action) => !actionIds.includes(action))
+    )
+      diagnostics.push(
+        diagnostic(
+          ['console', 'inputMapping'],
+          'The input mapping must reference unique declared console actions.',
+        ),
+      );
   }
 
   if (diagnostics.length > 0) {

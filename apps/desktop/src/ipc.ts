@@ -1,9 +1,15 @@
+import type { ConsoleInputMapping, InputProfile } from '@platform/input';
+import { validateConsoleInputMapping, validateInputProfile } from '@platform/input';
+
 export const IPC_CHANNELS = {
+  getInputConfiguration: 'pixel-core:get-input-configuration',
   getHostVersion: 'pixel-core:host-version',
   loadRom: 'pixel-core:load-rom',
   pauseSession: 'pixel-core:pause-session',
   resumeSession: 'pixel-core:resume-session',
+  saveInputProfile: 'pixel-core:save-input-profile',
   selectRom: 'pixel-core:select-rom',
+  setSessionInput: 'pixel-core:set-session-input',
   startSession: 'pixel-core:start-session',
   stopSession: 'pixel-core:stop-session',
 } as const;
@@ -76,16 +82,33 @@ export type LoadRomResponse =
   | { readonly rom: LoadedRom; readonly status: 'loaded' };
 
 export interface PixelCoreApi {
+  getInputConfiguration(): Promise<InputConfigurationResponse>;
   getHostVersion(): Promise<HostVersionResponse>;
   loadRom(selectionId: string): Promise<LoadRomResponse>;
   pauseSession(): Promise<SessionCommandResponse>;
   resumeSession(): Promise<SessionCommandResponse>;
+  saveInputProfile(profile: InputProfile): Promise<InputProfileResponse>;
   selectRom(): Promise<SelectRomResponse>;
+  setSessionInput(input: SessionInputPayload): Promise<SessionCommandResponse>;
   startSession(selectionId: string): Promise<SessionCommandResponse>;
   stopSession(): Promise<SessionCommandResponse>;
   subscribeSessionAudio(listener: (frame: SessionAudioFrame) => void): () => void;
   subscribeSessionVideo(listener: (frame: SessionVideoFrame) => void): () => void;
 }
+
+export interface SessionInputPayload {
+  readonly actions: readonly string[];
+  readonly playerPortId: string;
+}
+
+export interface InputConfigurationResponse {
+  readonly mapping: ConsoleInputMapping;
+  readonly profile?: InputProfile;
+}
+
+export type InputProfileResponse =
+  | { readonly profile: InputProfile; readonly status: 'saved' }
+  | { readonly message: string; readonly status: 'error' };
 
 export type IpcInvoker = (channel: IpcChannel, ...payload: readonly unknown[]) => Promise<unknown>;
 export type IpcSubscriber = (
@@ -112,6 +135,28 @@ export const hasRomSelectionIdPayload = (
   payload: readonly unknown[],
 ): payload is readonly [string] =>
   payload.length === 1 && typeof payload[0] === 'string' && /^[0-9a-f-]{36}$/i.test(payload[0]);
+
+export const isSessionInputPayload = (value: unknown): value is SessionInputPayload =>
+  isRecord(value) &&
+  Object.keys(value).length === 2 &&
+  typeof value['playerPortId'] === 'string' &&
+  /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/.test(value['playerPortId']) &&
+  Array.isArray(value['actions']) &&
+  value['actions'].length <= 32 &&
+  value['actions'].every(
+    (action) => typeof action === 'string' && /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/.test(action),
+  ) &&
+  new Set(value['actions']).size === value['actions'].length;
+
+export const hasSessionInputPayload = (
+  payload: readonly unknown[],
+): payload is readonly [SessionInputPayload] =>
+  payload.length === 1 && isSessionInputPayload(payload[0]);
+
+export const hasInputProfilePayload = (
+  payload: readonly unknown[],
+): payload is readonly [InputProfile] =>
+  payload.length === 1 && validateInputProfile(payload[0]).ok;
 
 export const createHostVersionResponse = (version: string): HostVersionResponse => ({
   version,
@@ -180,6 +225,18 @@ export const isSessionCommandResponse = (value: unknown): value is SessionComman
         value['code'] === 'unexpected') &&
       typeof value['message'] === 'string'));
 
+export const isInputConfigurationResponse = (
+  value: unknown,
+): value is InputConfigurationResponse => {
+  if (!isRecord(value) || !validateConsoleInputMapping(value['mapping']).ok) return false;
+  return value['profile'] === undefined || validateInputProfile(value['profile']).ok;
+};
+
+export const isInputProfileResponse = (value: unknown): value is InputProfileResponse =>
+  isRecord(value) &&
+  ((value['status'] === 'saved' && validateInputProfile(value['profile']).ok) ||
+    (value['status'] === 'error' && typeof value['message'] === 'string'));
+
 const isSessionAudioEvent = (value: unknown): value is SessionAudioEvent =>
   isRecord(value) &&
   Object.keys(value).length === 3 &&
@@ -191,6 +248,12 @@ export const createPixelCoreApi = (
   invoke: IpcInvoker,
   subscribe: IpcSubscriber = () => () => undefined,
 ): PixelCoreApi => ({
+  async getInputConfiguration(): Promise<InputConfigurationResponse> {
+    const response = await invoke(IPC_CHANNELS.getInputConfiguration);
+    if (!isInputConfigurationResponse(response))
+      throw new Error('Received an invalid input configuration response.');
+    return response;
+  },
   async getHostVersion(): Promise<HostVersionResponse> {
     const response = await invoke(IPC_CHANNELS.getHostVersion);
 
@@ -205,6 +268,18 @@ export const createPixelCoreApi = (
     if (!isLoadRomResponse(response)) {
       throw new Error('Received an invalid ROM loading response from the PixelCore host.');
     }
+    return response;
+  },
+  async saveInputProfile(profile: InputProfile): Promise<InputProfileResponse> {
+    const response = await invoke(IPC_CHANNELS.saveInputProfile, profile);
+    if (!isInputProfileResponse(response))
+      throw new Error('Received an invalid input profile response.');
+    return response;
+  },
+  async setSessionInput(input: SessionInputPayload): Promise<SessionCommandResponse> {
+    const response = await invoke(IPC_CHANNELS.setSessionInput, input);
+    if (!isSessionCommandResponse(response))
+      throw new Error('Received an invalid session input response.');
     return response;
   },
   async pauseSession(): Promise<SessionCommandResponse> {

@@ -95,10 +95,9 @@ const start = (): EmulatorOperationResult => {
 };
 const setInput = (portId: string, actions: readonly string[]): EmulatorOperationResult => {
   if (portId !== 'player-one') return invalid('SameBoy supports only the player-one port.');
-  for (const action of actions) {
-    const button = inputButtons[action];
-    if (button !== undefined) wasm.setButton(button, true);
-  }
+  const pressed = new Set(actions);
+  for (const [action, button] of Object.entries(inputButtons))
+    wasm.setButton(button, pressed.has(action));
   return ok();
 };
 const scheduleFrame = (): void => {

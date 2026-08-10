@@ -19,7 +19,9 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@platform/console-sdk": "workspace:*",
     "@platform/emulator-sdk": "workspace:*",
+    "@platform/plugin-console-game-boy-family": "workspace:*",
     "@platform/plugin-emulator-sameboy": "workspace:*"
   }
 }

@@ -3,6 +3,8 @@ export type {
   ConsoleDefinition,
   ConsoleInputAction,
   ConsoleInputActionId,
+  ConsoleInputMapping,
+  ConsoleInputMappingEntry,
   ConsolePlayerPort,
   ConsolePluginDefinition,
   ConsolePluginDiagnostic,
