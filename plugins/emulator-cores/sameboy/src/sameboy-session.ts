@@ -21,7 +21,7 @@ export const createSameBoySession = async (): Promise<EmulatorSession> =>
 
 interface WorkerPort {
   on(event: 'message', listener: (message: SameBoyWorkerMessage) => void): void;
-  on(event: 'error', listener: () => void): void;
+  on(event: 'error', listener: (error: Error) => void): void;
   on(event: 'exit', listener: (code: number) => void): void;
   postMessage(message: SameBoyWorkerRequest, transferList?: readonly ArrayBuffer[]): void;
   terminate(): Promise<number>;
@@ -85,7 +85,10 @@ class SameBoyWorkerSession implements EmulatorSession {
       this.fail('The SameBoy worker stopped unexpectedly.');
   };
 
-  private readonly onFailure = (): void => this.fail('The SameBoy worker failed.');
+  private readonly onFailure = (error: Error): void => {
+    console.error('The SameBoy worker failed.', error);
+    this.fail('The SameBoy worker failed.');
+  };
 
   private readonly onMessage = (message: SameBoyWorkerMessage): void => {
     if (message.type === 'result') {

@@ -1,5 +1,5 @@
-import { app, BrowserWindow, dialog, ipcMain } from 'electron';
-import type { OpenDialogOptions } from 'electron';
+import electron from 'electron';
+import type { BrowserWindow as ElectronBrowserWindow, OpenDialogOptions } from 'electron';
 import { readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -17,6 +17,8 @@ import { loadSelectedRom } from './rom-loader.js';
 import { createRomSelectionStore } from './rom-selection.js';
 import { createDesktopSessionHost } from './session-host.js';
 
+const { app, BrowserWindow, dialog, ipcMain } = electron;
+
 const currentDirectory = dirname(fileURLToPath(import.meta.url));
 const romSelections = createRomSelectionStore();
 const officialEmulator = resolveOfficialEmulatorPlugin('org.pixelcore.sameboy');
@@ -25,13 +27,15 @@ if (officialEmulator === undefined) {
   throw new Error('The official SameBoy emulator plugin is unavailable.');
 }
 
-const createMainWindow = (): BrowserWindow => {
-  const window = new BrowserWindow(createSecureWindowOptions(join(currentDirectory, 'preload.js')));
+const createMainWindow = (): ElectronBrowserWindow => {
+  const window = new BrowserWindow(
+    createSecureWindowOptions(join(currentDirectory, 'preload.cjs')),
+  );
 
   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   window.webContents.on('will-navigate', (event) => event.preventDefault());
   window.once('ready-to-show', () => window.show());
-  void window.loadFile(join(currentDirectory, 'renderer', 'index.html'));
+  void window.loadFile(join(currentDirectory, 'renderer', 'renderer', 'index.html'));
 
   return window;
 };
@@ -82,8 +86,18 @@ app.whenReady().then(() => {
   });
 
   const sessionHost = createDesktopSessionHost(officialEmulator, {
-    sendAudio: (frame) => mainWindow?.webContents.send(SESSION_EVENT_CHANNELS.audio, frame),
-    sendVideo: (frame) => mainWindow?.webContents.send(SESSION_EVENT_CHANNELS.video, frame),
+    sendAudio: (frame) =>
+      mainWindow?.webContents.send(SESSION_EVENT_CHANNELS.audio, {
+        channels: frame.channels,
+        sampleRate: frame.sampleRate,
+        samples: frame.samples.buffer,
+      }),
+    sendVideo: (frame) =>
+      mainWindow?.webContents.send(SESSION_EVENT_CHANNELS.video, {
+        height: frame.height,
+        pixels: frame.pixels.buffer,
+        width: frame.width,
+      }),
   });
 
   ipcMain.handle(IPC_CHANNELS.startSession, async (_event, ...payload: unknown[]) => {

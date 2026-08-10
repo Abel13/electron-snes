@@ -46,9 +46,21 @@ export interface SessionAudioFrame {
   readonly samples: Float32Array;
 }
 
+interface SessionAudioEvent {
+  readonly channels: 1 | 2;
+  readonly sampleRate: number;
+  readonly samples: ArrayBuffer;
+}
+
 export interface SessionVideoFrame {
   readonly height: number;
   readonly pixels: Uint8Array;
+  readonly width: number;
+}
+
+interface SessionVideoEvent {
+  readonly height: number;
+  readonly pixels: ArrayBuffer;
   readonly width: number;
 }
 
@@ -83,6 +95,16 @@ export type IpcSubscriber = (
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const isArrayBuffer = (value: unknown): value is ArrayBuffer =>
+  Object.prototype.toString.call(value) === '[object ArrayBuffer]';
+
+const isSessionVideoEvent = (value: unknown): value is SessionVideoEvent =>
+  isRecord(value) &&
+  Object.keys(value).length === 3 &&
+  typeof value['height'] === 'number' &&
+  isArrayBuffer(value['pixels']) &&
+  typeof value['width'] === 'number';
 
 export const hasNoIpcPayload = (payload: readonly unknown[]): boolean => payload.length === 0;
 
@@ -158,19 +180,12 @@ export const isSessionCommandResponse = (value: unknown): value is SessionComman
         value['code'] === 'unexpected') &&
       typeof value['message'] === 'string'));
 
-export const isSessionAudioFrame = (value: unknown): value is SessionAudioFrame =>
+const isSessionAudioEvent = (value: unknown): value is SessionAudioEvent =>
   isRecord(value) &&
   Object.keys(value).length === 3 &&
   (value['channels'] === 1 || value['channels'] === 2) &&
   typeof value['sampleRate'] === 'number' &&
-  value['samples'] instanceof Float32Array;
-
-export const isSessionVideoFrame = (value: unknown): value is SessionVideoFrame =>
-  isRecord(value) &&
-  Object.keys(value).length === 3 &&
-  typeof value['height'] === 'number' &&
-  value['pixels'] instanceof Uint8Array &&
-  typeof value['width'] === 'number';
+  isArrayBuffer(value['samples']);
 
 export const createPixelCoreApi = (
   invoke: IpcInvoker,
@@ -227,10 +242,22 @@ export const createPixelCoreApi = (
   },
   subscribeSessionAudio: (listener) =>
     subscribe(SESSION_EVENT_CHANNELS.audio, (payload) => {
-      if (isSessionAudioFrame(payload)) listener(payload);
+      if (isSessionAudioEvent(payload)) {
+        listener({
+          channels: payload.channels,
+          sampleRate: payload.sampleRate,
+          samples: new Float32Array(payload.samples),
+        });
+      }
     }),
   subscribeSessionVideo: (listener) =>
     subscribe(SESSION_EVENT_CHANNELS.video, (payload) => {
-      if (isSessionVideoFrame(payload)) listener(payload);
+      if (isSessionVideoEvent(payload)) {
+        listener({
+          height: payload.height,
+          pixels: new Uint8Array(payload.pixels),
+          width: payload.width,
+        });
+      }
     }),
 });

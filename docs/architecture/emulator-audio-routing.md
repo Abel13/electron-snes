@@ -4,7 +4,7 @@ Official emulator plugins emit decoded game audio as renderer-safe PCM frames. A
 
 ## SameBoy route
 
-The SameBoy bridge receives the core sample callback at 48 kHz, stores stereo PCM in a bounded in-memory ring buffer, converts it to normalized floating-point samples, and transfers it from the worker with video frames. When the buffer is full, the newest callback sample is dropped rather than blocking emulation.
+The SameBoy bridge receives the core sample callback at 48 kHz, stores stereo PCM in a bounded in-memory ring buffer, converts it to normalized floating-point samples, and transfers it from the worker with video frames. The WebAssembly loader invokes the module's static constructors once before creating a session; this initializes the core's band-limited mixer and is required for non-silent PCM output. When the buffer is full, the newest callback sample is dropped rather than blocking emulation.
 
 The worker session publishes these frames through `EmulatorSession.subscribeAudio`. This boundary lets the desktop composition layer subscribe without importing a concrete core into React.
 

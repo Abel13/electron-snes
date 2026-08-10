@@ -14,6 +14,6 @@ The initial declaration sets `saveStates`, `rewind`, and `fastForward` to `false
 
 ## Build and licensing
 
-The plugin vendors the source for SameBoy `v1.0.3` at commit `208ba4afabffab9edde416f2dbb8ae459e34adb8`, licensed under Expat. `scripts/build-wasm.sh` compiles a checked-in runtime artifact with the pinned `emscripten/emsdk:4.0.12` Docker image. This produces one WebAssembly binary for all desktop targets.
+The plugin vendors the source for SameBoy `v1.0.3` at commit `208ba4afabffab9edde416f2dbb8ae459e34adb8`, licensed under Expat. It also embeds SameBoy's Expat-licensed fast CGB boot ROM as a generated C header, with attribution in `NOTICE.md`. This establishes the CGB post-boot state without requiring or distributing proprietary firmware. `scripts/build-wasm.sh` compiles a checked-in runtime artifact with the pinned `emscripten/emsdk:4.0.12` Docker image. The build explicitly invokes static constructors when the module is instantiated so SameBoy's band-limited audio mixer is initialized. This produces one WebAssembly binary for all desktop targets.
 
-The platform ships no ROMs, boot ROMs, saves, or save states. User ROMs are introduced only through the explicit file-selection boundary in issue `#20`.
+The platform ships no commercial ROMs, proprietary boot ROMs, saves, or save states. User ROMs are introduced only through the explicit file-selection boundary in issue `#20`.

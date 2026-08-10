@@ -1,6 +1,8 @@
-import { contextBridge, ipcRenderer } from 'electron';
+import electron from 'electron';
 
 import { createPixelCoreApi } from './ipc.js';
+
+const { contextBridge, ipcRenderer } = electron;
 
 contextBridge.exposeInMainWorld(
   'pixelCore',

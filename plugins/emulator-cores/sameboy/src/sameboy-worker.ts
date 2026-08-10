@@ -24,6 +24,7 @@ const wasi = new WASI({ version: 'preview1' });
 const wasm = await loadSameBoyWasmFromBytes(
   await readFile(new URL('../wasm/sameboy.wasm', import.meta.url)),
   { wasi_snapshot_preview1: wasi.wasiImport },
+  (instance) => wasi.initialize(instance),
 );
 let hasRom = false;
 let status: EmulatorSessionStatus = 'idle';

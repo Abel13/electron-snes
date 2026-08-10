@@ -10,7 +10,7 @@ PixelCore needs its first real emulator core for the Game Boy and Game Boy Color
 
 ## Decision
 
-Use SameBoy `v1.0.3`, pinned to commit `208ba4afabffab9edde416f2dbb8ae459e34adb8`, as an official `emulator-core` plugin. Vendor its Expat-licensed core source with attribution and compile a narrow bridge to a portable WebAssembly module using the pinned `emscripten/emsdk:4.0.12` Docker image.
+Use SameBoy `v1.0.3`, pinned to commit `208ba4afabffab9edde416f2dbb8ae459e34adb8`, as an official `emulator-core` plugin. Vendor its Expat-licensed core source with attribution, embed its Expat-licensed fast CGB boot ROM with separate attribution, and compile a narrow bridge to a portable WebAssembly module using the pinned `emscripten/emsdk:4.0.12` Docker image. Invoke the WASM static constructors during module initialization so the band-limited audio mixer is available before emulation begins.
 
 The adapter implements only the public `@platform/emulator-sdk` contract. It accepts ROM bytes, normalized Game Boy actions, and emits RGBA frames. It exposes no filesystem, Electron, renderer, or physical controller API.
 
@@ -23,5 +23,7 @@ The adapter implements only the public `@platform/emulator-sdk` contract. It acc
 ## Consequences
 
 - SameBoy updates require an explicit plugin change, provenance review, license review, and regenerated WASM artifact.
+- The embedded CGB boot implementation is open source and does not replace support for a user-provided proprietary boot ROM in a future explicit feature.
+- WASM output must retain and invoke static constructors whenever upstream code relies on them for runtime tables or mixer initialization.
 - The WebAssembly module stays usable from a dedicated worker; worker scheduling is deliberately implemented by issue `#22`.
 - Advanced capabilities remain disabled until their storage and user-experience requirements are implemented.
