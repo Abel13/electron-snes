@@ -70,6 +70,15 @@ before runtime packaging.
 | `sound.back` | `sounds/default/close.wav` | Candidate master, 6 s. This file semantically represents return, cancel, or close; edit it to two matched 70-100 ms return variations before use. |
 | `sound.open` | `sounds/default/open.wav` | Candidate master, 1 s. Edit to one 120-180 ms opening cue before use. |
 | `sound.toggle` | `sounds/default/toggle.wav` | Candidate master, 1 s. Derive distinct 60-90 ms on and off assets before use. |
+| `sound.adjust` | `sounds/default/adjust.wav` | Candidate master. Produce two matched 35-50 ms runtime variations before use. |
+| `sound.favorite.add` | `sounds/default/favorite-add.wav` | Candidate master. Edit to one 150-220 ms positive cue before use. |
+| `sound.favorite.remove` | `sounds/default/favorite-remove.wav` | Candidate master. Edit to one 150-220 ms release cue before use. |
+| `sound.success` | `sounds/default/success.wav` | Candidate master. Edit to one 180-260 ms completion cue before use. |
+| `sound.warning` | `sounds/default/warning.wav` | Candidate master. Edit to one 220-320 ms recoverable-problem cue before use. |
+| `sound.error` | `sounds/default/error.wav` | Candidate master. Edit to one 250-350 ms failure cue before use. |
+| `sound.launch` | `sounds/default/launch.wav` | Candidate master. Edit to one 350-500 ms game-session transition before use. |
+| `sound.pause` | `sounds/default/pause.wav` | Candidate master. Edit to one 150-220 ms pause cue before use. |
+| `sound.resume` | `sounds/default/resume.wav` | Candidate master. Edit to one 150-220 ms resume cue before use. |
 
 Future runtime OGG exports must retain a documented source-to-runtime mapping in
 this table when packaging is introduced. Candidate masters must not be wired into
