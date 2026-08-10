@@ -111,6 +111,32 @@ body {
   line-height: 1.6;
   font-size: 15px;
 }
+.pixelcore-session-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.pixelcore-input-settings {
+  margin-top: 18px;
+  color: #dce5ff;
+}
+.pixelcore-input-settings summary {
+  cursor: pointer;
+}
+.pixelcore-input-settings label,
+.pixelcore-input-settings fieldset {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+}
+.pixelcore-input-settings fieldset {
+  grid-template-columns: repeat(2, minmax(120px, 1fr));
+  border: 1px solid #87b6ff33;
+}
+.pixelcore-input-settings select {
+  min-height: 32px;
+}
 .pixelcore-app-shell footer {
   margin-top: -28px;
 }
