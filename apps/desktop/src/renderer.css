@@ -1,0 +1,145 @@
+:root {
+  color: #f4f7ff;
+  background: #050711;
+  font-family: 'Avenir Next', 'Segoe UI', sans-serif;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  min-width: 320px;
+}
+.pixelcore-app-shell {
+  min-height: 100vh;
+  overflow: hidden;
+  position: relative;
+  padding: 30px clamp(24px, 5vw, 84px);
+  background:
+    radial-gradient(circle at 65% 36%, #172666 0, transparent 32%),
+    radial-gradient(circle at 23% 90%, #37145b 0, transparent 37%), #050711;
+}
+.pixelcore-app-shell header,
+.pixelcore-app-shell footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: relative;
+  z-index: 1;
+  color: #b9c4e1;
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+.pixelcore-app-shell header p {
+  margin: 0;
+}
+.pixelcore-app-shell header span {
+  letter-spacing: 0;
+  color: #e3e9fa;
+}
+.pixelcore-app-shell header i {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22e1de;
+  box-shadow: 0 0 15px #22e1de;
+}
+.pixelcore-app-shell section {
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) minmax(240px, 0.75fr);
+  align-items: center;
+  gap: clamp(36px, 8vw, 130px);
+  min-height: calc(100vh - 150px);
+  max-width: 1140px;
+  margin: auto;
+  position: relative;
+  z-index: 1;
+}
+.pixelcore-display {
+  padding: clamp(16px, 3vw, 34px);
+  border-radius: 32px;
+  background: linear-gradient(135deg, #b953f5, #247bf3 48%, #15dbd1);
+  box-shadow: 0 0 80px #246bf855;
+  transform: rotate(-2deg);
+}
+.pixelcore-video-frame {
+  position: relative;
+  aspect-ratio: 160/144;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  border-radius: 17px;
+  background: repeating-linear-gradient(0deg, #090d19 0 2px, #0c1021 2px 4px);
+  box-shadow:
+    inset 0 0 0 2px #ffffff17,
+    inset 0 0 55px #091642;
+}
+.pixelcore-video-canvas {
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+}
+.pixelcore-video-placeholder {
+  position: absolute;
+  color: #c8d5fb;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: center;
+}
+.pixelcore-copy > p {
+  color: #b9c4e1;
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+.pixelcore-copy h1 {
+  margin: 10px 0 18px;
+  font-size: clamp(38px, 5vw, 76px);
+  font-weight: 500;
+  line-height: 0.97;
+  letter-spacing: -0.065em;
+}
+.pixelcore-copy small {
+  color: #aeb9d6;
+  line-height: 1.6;
+  font-size: 15px;
+}
+.pixelcore-app-shell footer {
+  margin-top: -28px;
+}
+.pixelcore-app-shell footer b {
+  color: #22e1de;
+}
+.pixelcore-orbit {
+  position: absolute;
+  border: 1px solid #87b6ff22;
+  border-radius: 50%;
+}
+.pixelcore-orbit.one {
+  width: 70vw;
+  height: 70vw;
+  left: -43vw;
+  top: -23vw;
+}
+.pixelcore-orbit.two {
+  width: 55vw;
+  height: 55vw;
+  right: -36vw;
+  bottom: -29vw;
+}
+@media (max-width: 720px) {
+  .pixelcore-app-shell {
+    padding: 24px;
+  }
+  .pixelcore-app-shell section {
+    grid-template-columns: 1fr;
+    gap: 42px;
+    padding: 55px 0;
+  }
+  .pixelcore-app-shell footer {
+    margin-top: 0;
+  }
+}

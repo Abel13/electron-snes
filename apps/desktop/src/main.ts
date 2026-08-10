@@ -23,7 +23,7 @@ const createMainWindow = (): BrowserWindow => {
   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   window.webContents.on('will-navigate', (event) => event.preventDefault());
   window.once('ready-to-show', () => window.show());
-  void window.loadURL('about:blank');
+  void window.loadFile(join(currentDirectory, 'renderer', 'index.html'));
 
   return window;
 };
