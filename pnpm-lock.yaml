@@ -189,9 +189,15 @@ importers:
 
   packages/official-plugins:
     dependencies:
+      '@platform/console-sdk':
+        specifier: workspace:*
+        version: link:../console-sdk
       '@platform/emulator-sdk':
         specifier: workspace:*
         version: link:../emulator-sdk
+      '@platform/plugin-console-game-boy-family':
+        specifier: workspace:*
+        version: link:../../plugins/consoles/game-boy-family
       '@platform/plugin-emulator-sameboy':
         specifier: workspace:*
         version: link:../../plugins/emulator-cores/sameboy
