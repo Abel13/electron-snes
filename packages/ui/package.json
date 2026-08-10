@@ -19,6 +19,12 @@
   },
   "dependencies": {
     "@platform/shared": "workspace:*",
-    "@platform/ui-contracts": "workspace:*"
+    "@platform/ui-contracts": "workspace:*",
+    "react": "19.2.3"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.7",
+    "@types/react-dom": "19.2.3",
+    "react-dom": "19.2.3"
   }
 }
