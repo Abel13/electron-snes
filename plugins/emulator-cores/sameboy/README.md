@@ -8,7 +8,10 @@ It accepts user-provided `.gb` and `.gbc` ROMs. It never includes ROMs, saves, s
 
 Run `pnpm --filter @platform/plugin-emulator-sameboy build:wasm`. The command uses the fixed `emscripten/emsdk:4.0.12` Docker image and writes `wasm/sameboy.wasm`.
 
-The bridge is intentionally limited to ROM buffers, normalized buttons, video frames, and audio setup. The plugin runs it inside a Node worker thread; storage and renderer presentation belong to their respective platform domains.
+The bridge is intentionally limited to ROM buffers, normalized buttons, video/audio
+frames, and opaque battery RAM/RTC buffers. The plugin runs it inside a Node worker
+thread; it never receives a save path. Atomic storage and renderer presentation belong to
+their respective platform domains.
 
 ## Upstream attribution
 

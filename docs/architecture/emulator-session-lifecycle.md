@@ -4,10 +4,21 @@
 
 ## Launch sequence
 
-The controller creates one session, subscribes to its renderer-safe video and audio outputs, loads the provided ROM bytes, then starts emulation. A load or start failure stops the temporary session, removes output subscriptions, and returns the original typed emulator failure.
+The controller creates one session, subscribes to its renderer-safe video, audio, and
+cartridge-save outputs, loads the provided ROM bytes and optional battery payload, then
+starts emulation. A load or start failure stops the temporary session, removes output
+subscriptions, and returns the original typed emulator failure.
 
-The controller exposes normalized input, pause, resume, and stop only for an active session. A successful stop unsubscribes outputs and releases the controller for another launch. A session creation exception becomes a stable `unexpected` operation result without leaking the exception.
+The controller exposes normalized input, pause, resume, and stop only for an active
+session. Stop awaits the host's final cartridge-save persistence before releasing the
+session. A session creation exception becomes a stable `unexpected` operation result
+without leaking the exception.
 
 ## Output isolation
 
-Video and audio callbacks are injected by the host composition layer. An output callback failure is ignored so a presentation issue cannot halt gameplay. The desktop host is responsible for selecting an eligible plugin and later adapting these callbacks to renderer IPC; React never imports an emulator plugin or lifecycle implementation.
+Video, audio, and cartridge-save callbacks are injected by the host composition layer.
+Presentation callback failures cannot halt gameplay. Periodic save failures are retried by
+the final checked flush, which reports failure rather than silently claiming a clean stop.
+The desktop host is responsible for selecting an eligible plugin, adapting renderer-safe
+outputs to IPC, and persisting save bytes; React never imports an emulator plugin or
+lifecycle implementation. See `cartridge-saves.md`.
