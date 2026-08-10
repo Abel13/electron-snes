@@ -28,7 +28,9 @@ if (officialEmulator === undefined) {
 }
 
 const createMainWindow = (): ElectronBrowserWindow => {
-  const window = new BrowserWindow(createSecureWindowOptions(join(currentDirectory, 'preload.cjs')));
+  const window = new BrowserWindow(
+    createSecureWindowOptions(join(currentDirectory, 'preload.cjs')),
+  );
 
   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   window.webContents.on('will-navigate', (event) => event.preventDefault());
