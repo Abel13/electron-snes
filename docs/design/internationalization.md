@@ -2,18 +2,16 @@
 
 ## Delivery boundary
 
-PixelCore plans internationalization now and implements it during Phase 4: Product
-Experience, together with the final layout. Phase 3 remains focused exclusively on
-universal input and introduces no localization dependency, runtime contract, catalog,
-or translated component.
+PixelCore implements internationalization in Phase 4: Product Experience together
+with the final layout. Phase 3 remained focused exclusively on universal input.
 
 The initial official locales are:
 
-| Locale | Purpose |
-| --- | --- |
+| Locale  | Purpose                                     |
+| ------- | ------------------------------------------- |
 | `en-US` | Canonical source locale and final fallback. |
-| `pt-BR` | Brazilian Portuguese. |
-| `zh-CN` | Simplified Chinese. |
+| `pt-BR` | Brazilian Portuguese.                       |
+| `zh-CN` | Simplified Chinese.                         |
 
 Traditional Chinese is not part of the initial release. `zh-TW`, `zh-HK`, and
 `zh-Hant` must not be treated as `zh-CN`; they fall back to `en-US` until supported as
@@ -69,7 +67,7 @@ screen-reader names, and every loading, empty, error, warning, and confirmation 
 
 ## Plugin localization
 
-Phase 4 adds an optional, additive manifest v1 field:
+Phase 4 adds the optional, additive manifest v1 field:
 
 ```json
 {
@@ -102,9 +100,9 @@ Game titles, descriptions, genres, artwork, ROM data, save files, and save state
 not translated by this system. Localized game metadata remains the responsibility of a
 future metadata provider and its explicit contracts.
 
-## Phase 4 backlog
+## Phase 4 delivery
 
-Implementation remains split into independently reviewable issues:
+Implementation is tracked in independently reviewable issues:
 
 1. `Build localization foundation`
 2. `Extend plugin localization`

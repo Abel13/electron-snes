@@ -22,3 +22,17 @@ arquivos de imagem:
 
 Os valores concretos e os tokens implementados pertencem à futura implementação do
 design system. Consulte [Brand](brand.md) para a aplicação dos masters visuais.
+
+## Tokens implementados
+
+A experiência Phase 4 materializa os tokens como propriedades CSS `--pc-*` no desktop:
+
+- superfícies `bg`, `surface` e `surface-strong`;
+- texto `text` e `muted`;
+- acentos `cyan`, `blue` e `violet`;
+- bordas `line` e `line-bright`;
+- raios `sm`, `md` e `lg`;
+- sombra elevada `shadow`.
+
+Motion usa apenas transform e opacity para entradas, foco e transição de sessão. O
+fallback de movimento reduzido desativa partículas e animações decorativas.
