@@ -1166,6 +1166,25 @@ summary:focus-visible {
   stroke-linejoin: round;
   stroke-width: 1.6;
 }
+.pc-prompt-asset {
+  align-items: center;
+  background: rgba(4, 9, 24, 0.88);
+  border: 1px solid rgba(43, 220, 224, 0.38);
+  border-radius: 9px;
+  box-shadow: 0 0 13px color-mix(in srgb, var(--console-accent, #2bdce0) 18%, transparent);
+  display: inline-flex;
+  height: 32px;
+  justify-content: center;
+  padding: 3px;
+  width: 32px;
+}
+.pc-prompt-asset img {
+  display: block;
+  height: 100%;
+  max-width: 100%;
+  object-fit: contain;
+  width: 100%;
+}
 .pc-prompt-dpad {
   position: relative;
   display: grid;

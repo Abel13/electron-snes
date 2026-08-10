@@ -7,5 +7,11 @@
     "moduleResolution": "Bundler",
     "noEmit": true
   },
-  "include": ["src/console-catalog.ts", "src/ipc.ts", "src/localization.ts", "src/renderer.tsx"]
+  "include": [
+    "src/console-catalog.ts",
+    "src/input-prompt-assets.ts",
+    "src/ipc.ts",
+    "src/localization.ts",
+    "src/renderer.tsx"
+  ]
 }

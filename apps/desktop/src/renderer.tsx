@@ -36,6 +36,7 @@ import type { LibraryGame, PixelCoreApi, SessionVideoFrame } from './ipc.js';
 import i18n, { setLocale, type SupportedLocale } from './localization.js';
 import { buildConsoleCatalog } from './console-catalog.js';
 import './renderer.css';
+import { kenneyInputPromptAssets } from './input-prompt-assets.js';
 
 declare global {
   interface Window {
@@ -521,7 +522,7 @@ const App = (): React.JSX.Element => {
 
   if (status === 'running' || status === 'paused' || status === 'starting') {
     return (
-      <InputPromptProvider scheme={inputPromptScheme}>
+      <InputPromptProvider assetMap={kenneyInputPromptAssets} scheme={inputPromptScheme}>
       <main className="pc-session-view">
         <ParticleField />
         <header className="pc-session-header">
@@ -588,7 +589,7 @@ const App = (): React.JSX.Element => {
 
   if (screen === 'home')
     return (
-      <InputPromptProvider scheme={inputPromptScheme}>
+      <InputPromptProvider assetMap={kenneyInputPromptAssets} scheme={inputPromptScheme}>
       <>
         <ConsoleCarousel
           copy={{
@@ -674,7 +675,7 @@ const App = (): React.JSX.Element => {
       </main>
     );
   return (
-    <InputPromptProvider scheme={inputPromptScheme}>
+    <InputPromptProvider assetMap={kenneyInputPromptAssets} scheme={inputPromptScheme}>
     <>
       {consoles[0] === undefined ? null : (
         <ConsoleLibrary

@@ -34,7 +34,7 @@ export type {
 export type { GlobalSettingsLocaleOption, GlobalSettingsMenuCopy, GlobalSettingsMenuHandle, GlobalSettingsMenuProps } from './global-settings-menu.js';
 export type { FocusDirection } from './directional-focus.js';
 export type { IconName } from './icons.js';
-export type { InputPromptAction, InputPromptProviderProps, InputPromptScheme } from './input-prompts.js';
+export type { InputPromptAction, InputPromptAsset, InputPromptAssetMap, InputPromptProviderProps, InputPromptScheme } from './input-prompts.js';
 export type {
   LibraryGameView,
   LibraryShellProps,

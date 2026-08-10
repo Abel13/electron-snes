@@ -1,4 +1,4 @@
-import { createContext, useContext, type ReactNode } from 'react';
+import { createContext, useContext, useState, type ReactNode } from 'react';
 
 export type InputPromptScheme = 'desktop' | 'playstation' | 'xbox';
 
@@ -14,15 +14,37 @@ export type InputPromptAction =
   | 'settings'
   | 'start';
 
+export interface InputPromptAsset {
+  readonly src: string;
+}
+
+export type InputPromptAssetMap = Readonly<
+  Record<
+    InputPromptScheme,
+    Readonly<Partial<Record<InputPromptAction, readonly InputPromptAsset[]>>>
+  >
+>;
+
 export interface InputPromptProviderProps {
+  readonly assetMap?: InputPromptAssetMap;
   readonly children: ReactNode;
   readonly scheme: InputPromptScheme;
 }
 
-const InputPromptContext = createContext<InputPromptScheme>('desktop');
+interface InputPromptContextValue {
+  readonly assetMap: InputPromptAssetMap | undefined;
+  readonly scheme: InputPromptScheme;
+}
+
+const InputPromptContext = createContext<InputPromptContextValue>({
+  assetMap: undefined,
+  scheme: 'desktop',
+});
 
 export const InputPromptProvider = (props: InputPromptProviderProps): React.JSX.Element => (
-  <InputPromptContext.Provider value={props.scheme}>{props.children}</InputPromptContext.Provider>
+  <InputPromptContext.Provider value={{ assetMap: props.assetMap, scheme: props.scheme }}>
+    {props.children}
+  </InputPromptContext.Provider>
 );
 
 interface PromptToken {
@@ -71,20 +93,66 @@ const prompts: Record<InputPromptScheme, Record<InputPromptAction, readonly Prom
 
 const PromptGlyph = ({ token }: { readonly token: PromptToken }): React.JSX.Element => {
   if (token.kind === 'mouse')
-    return <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M8 3h8a4 4 0 0 1 4 4v8a8 8 0 0 1-16 0V7a4 4 0 0 1 4-4Zm4 0v6m-8 2h16" /></svg>;
+    return (
+      <svg aria-hidden="true" viewBox="0 0 24 24">
+        <path d="M8 3h8a4 4 0 0 1 4 4v8a8 8 0 0 1-16 0V7a4 4 0 0 1 4-4Zm4 0v6m-8 2h16" />
+      </svg>
+    );
   if (token.kind === 'dpad')
-    return <span className="pc-prompt-dpad" aria-hidden="true"><i /><b>{token.text}</b></span>;
-  return <span aria-hidden="true" className={`pc-prompt-${token.kind}`}>{token.text}</span>;
+    return (
+      <span className="pc-prompt-dpad" aria-hidden="true">
+        <i />
+        <b>{token.text}</b>
+      </span>
+    );
+  return (
+    <span aria-hidden="true" className={`pc-prompt-${token.kind}`}>
+      {token.text}
+    </span>
+  );
+};
+
+const PromptAsset = (props: {
+  readonly asset: InputPromptAsset;
+  readonly fallback: PromptToken;
+}): React.JSX.Element => {
+  const [failed, setFailed] = useState(false);
+  if (failed) return <PromptGlyph token={props.fallback} />;
+  return (
+    <span className="pc-prompt-asset">
+      <img
+        aria-hidden="true"
+        src={props.asset.src}
+        onError={() => {
+          setFailed(true);
+        }}
+      />
+    </span>
+  );
 };
 
 export const InputPrompt = (props: {
   readonly action: InputPromptAction;
   readonly label: string;
 }): React.JSX.Element => {
-  const scheme = useContext(InputPromptContext);
+  const { assetMap, scheme } = useContext(InputPromptContext);
+  const tokens = prompts[scheme][props.action];
+  const assets = assetMap?.[scheme][props.action];
   return (
-    <span aria-label={props.label} className="pc-input-prompt" key={`${scheme}-${props.action}`} role="img">
-      {prompts[scheme][props.action].map((token, index) => <PromptGlyph key={index} token={token} />)}
+    <span
+      aria-label={props.label}
+      className="pc-input-prompt"
+      key={`${scheme}-${props.action}`}
+      role="img"
+    >
+      {tokens.map((token, index) => {
+        const selectedAsset = assets?.[index];
+        return selectedAsset ? (
+          <PromptAsset asset={selectedAsset} fallback={token} key={selectedAsset.src} />
+        ) : (
+          <PromptGlyph key={index} token={token} />
+        );
+      })}
     </span>
   );
 };
@@ -94,6 +162,8 @@ export const InputPromptGroup = (props: {
   readonly label: string;
 }): React.JSX.Element => (
   <span className="pc-input-prompt-group">
-    {props.actions.map((action) => <InputPrompt action={action} key={action} label={props.label} />)}
+    {props.actions.map((action) => (
+      <InputPrompt action={action} key={action} label={props.label} />
+    ))}
   </span>
 );

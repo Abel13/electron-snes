@@ -19,3 +19,18 @@ A classificação afeta apenas a apresentação. Ela não altera perfis, atribui
 - Desconexão preserva o último esquema até uma nova interação válida.
 
 Os prompts devem manter dimensões estáveis durante a troca, possuir rótulo acessível e respeitar `prefers-reduced-motion`. Novas famílias devem ser adicionadas por classificação declarativa sem introduzir conhecimento de consoles no core ou na UI de produto.
+
+## Registry de assets
+
+O composition root do desktop fornece um `InputPromptAssetMap` tipado ao
+`InputPromptProvider`. Telas solicitam somente ações semânticas e não importam
+marcas de controles nem caminhos de assets.
+
+Os SVGs locais vêm do Kenney Input Prompts 1.5. Somente os arquivos usados pelos
+esquemas desktop, Xbox e PlayStation são versionados. As cores originais são
+preservadas; placa, borda, brilho e cor do console ativo pertencem ao CSS do
+PixelCore. Slots fixos evitam deslocamento ao trocar de dispositivo.
+
+Assets ausentes ou inválidos usam silenciosamente os glifos code-native
+existentes. Um novo prompt exige atualizar o registry tipado, seu teste de
+inventário e o aviso de licença. Downloads em runtime e CDN são proibidos.
