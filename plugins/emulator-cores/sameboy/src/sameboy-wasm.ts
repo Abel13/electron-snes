@@ -26,8 +26,10 @@ export interface SameBoyWasm {
 export const loadSameBoyWasmFromBytes = async (
   bytes: BufferSource,
   imports: WebAssembly.Imports = {},
+  initialize?: (instance: WebAssembly.Instance) => void,
 ): Promise<SameBoyWasm> => {
   const { instance } = await WebAssembly.instantiate(bytes, imports);
+  initialize?.(instance);
   const exports = instance.exports as SameBoyWasmExports;
   const requiredFunctions = [
     exports.malloc,

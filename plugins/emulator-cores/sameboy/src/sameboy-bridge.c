@@ -16,6 +16,36 @@ static int16_t audio_buffer[SAMEBOY_AUDIO_BUFFER_FRAMES * 2];
 static size_t audio_read_index;
 static size_t audio_write_index;
 
+static void sameboy_log_callback(GB_gameboy_t *gb, const char *string, GB_log_attributes_t attributes)
+{
+    (void)gb;
+    (void)string;
+    (void)attributes;
+}
+
+static uint32_t sameboy_rgb_encode_callback(GB_gameboy_t *gb, uint8_t red, uint8_t green, uint8_t blue)
+{
+    (void)gb;
+    return ((uint32_t)red << 16) | ((uint32_t)green << 8) | blue;
+}
+
+static void sameboy_skip_boot_rom(GB_gameboy_t *gb)
+{
+    gb->a = 0x11;
+    gb->f = 0x80;
+    gb->b = gb->c = 0x00;
+    gb->d = 0xff;
+    gb->e = 0x56;
+    gb->h = 0x00;
+    gb->l = 0x0d;
+    gb->sp = 0xfffe;
+    gb->pc = 0x0100;
+    GB_write_memory(gb, 0xff50, 1);
+    GB_write_memory(gb, 0xff26, 0x80);
+    GB_write_memory(gb, 0xff24, 0x77);
+    GB_write_memory(gb, 0xff25, 0xff);
+}
+
 static void sameboy_audio_callback(GB_gameboy_t *gb, GB_sample_t *sample)
 {
     (void)gb;
@@ -40,6 +70,8 @@ static void initialize(void)
     pixels = calloc(SAMEBOY_FRAME_WIDTH * SAMEBOY_FRAME_HEIGHT, sizeof(*pixels));
     rgba_pixels = calloc(SAMEBOY_FRAME_WIDTH * SAMEBOY_FRAME_HEIGHT * 4, sizeof(*rgba_pixels));
     GB_set_pixels_output(gameboy, pixels);
+    GB_set_log_callback(gameboy, sameboy_log_callback);
+    GB_set_rgb_encode_callback(gameboy, sameboy_rgb_encode_callback);
     GB_set_sample_rate(gameboy, 48000);
     GB_apu_set_sample_callback(gameboy, sameboy_audio_callback);
 }
@@ -53,6 +85,8 @@ int sameboy_load_rom(const uint8_t *rom, const size_t size)
 
     initialize();
     GB_load_rom_from_buffer(gameboy, rom, size);
+    GB_reset(gameboy);
+    sameboy_skip_boot_rom(gameboy);
     return 1;
 }
 
