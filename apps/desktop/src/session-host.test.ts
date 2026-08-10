@@ -40,6 +40,7 @@ const createPlugin = (): EmulatorPluginDefinition => {
     },
     stop: async () => ((status = 'stopped'), { status: 'ok' }),
     subscribeAudio: (listener) => ((audio = listener), () => (audio = undefined)),
+    subscribeCartridgeSave: () => () => undefined,
     subscribeVideo: (listener) => ((video = listener), () => (video = undefined)),
   };
   return {
@@ -67,17 +68,22 @@ describe('DesktopSessionHost', () => {
     const audio: Float32Array[] = [];
     const video: Uint8Array[] = [];
     const host = createDesktopSessionHost(createPlugin(), {
+      loadCartridgeSave: async () => undefined,
+      persistCartridgeSave: async () => undefined,
       sendAudio: (frame) => audio.push(frame.samples),
       sendVideo: (frame) => video.push(frame.pixels),
     });
 
     await expect(
-      host.launch({
-        bytes: new Uint8Array([1]),
-        extension: '.gbc',
-        name: 'fixture.gbc',
-        selectionId: 'opaque-id',
-      }),
+      host.launch(
+        {
+          bytes: new Uint8Array([1]),
+          extension: '.gbc',
+          name: 'fixture.gbc',
+          selectionId: 'opaque-id',
+        },
+        'a'.repeat(64),
+      ),
     ).resolves.toEqual({ sessionStatus: 'running', status: 'ok' });
     await expect(host.pause()).resolves.toEqual({ sessionStatus: 'paused', status: 'ok' });
     await expect(host.resume()).resolves.toEqual({ sessionStatus: 'running', status: 'ok' });
@@ -89,5 +95,32 @@ describe('DesktopSessionHost', () => {
     await expect(host.stop()).resolves.toEqual({ sessionStatus: 'stopped', status: 'ok' });
     expect(audio).toHaveLength(1);
     expect(video).toHaveLength(1);
+  });
+
+  it('loads and persists cartridge data using an opaque ROM identity', async () => {
+    const key = 'b'.repeat(64);
+    const restored = new Uint8Array([9, 8, 7]);
+    const persisted: Uint8Array[] = [];
+    const plugin = createPlugin();
+    const session = await plugin.createSession();
+    const originalStop = session.stop;
+    session.stop = async () => ({ cartridgeSave: { bytes: new Uint8Array([6, 5]) }, status: 'ok' });
+    const host = createDesktopSessionHost(plugin, {
+      loadCartridgeSave: async (saveKey) => (saveKey === key ? restored : undefined),
+      persistCartridgeSave: async (_saveKey, bytes) => {
+        persisted.push(bytes);
+      },
+      sendAudio: () => undefined,
+      sendVideo: () => undefined,
+    });
+
+    await host.launch(
+      { bytes: new Uint8Array([1]), extension: '.gb', name: 'save.gb', selectionId: 'id' },
+      key,
+    );
+    await host.stop();
+
+    expect(persisted).toEqual([new Uint8Array([6, 5])]);
+    session.stop = originalStop;
   });
 });

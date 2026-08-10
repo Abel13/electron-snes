@@ -22,5 +22,10 @@ describe('SameBoy worker protocol', () => {
 
     expectTypeOf(request.id).toEqualTypeOf<string>();
     expectTypeOf(message.pixels).toEqualTypeOf<Uint8Array>();
+    const saveMessage: SameBoyWorkerMessage = {
+      save: { bytes: new Uint8Array([1, 2]) },
+      type: 'cartridge-save',
+    };
+    expectTypeOf(saveMessage.save.bytes).toEqualTypeOf<Uint8Array>();
   });
 });
