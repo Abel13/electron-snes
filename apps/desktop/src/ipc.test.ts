@@ -5,6 +5,7 @@ import {
   createPixelCoreApi,
   hasNoIpcPayload,
   isHostVersionResponse,
+  isLibraryResponse,
   isSelectRomResponse,
   isSessionInputPayload,
 } from './ipc.js';
@@ -77,5 +78,25 @@ describe('IPC boundary contracts', () => {
       false,
     );
     expect(isSessionInputPayload({ actions: ['KeyZ'], playerPortId: 'player-one' })).toBe(false);
+  });
+
+  it('accepts renderer-safe library records and rejects filesystem paths', () => {
+    const game = {
+      addedAt: '2026-08-10T00:00:00.000Z',
+      extension: '.gbc',
+      favorite: true,
+      id: '3b343e5d-161a-41db-bd92-d2d1bd177ba8',
+      name: 'Local game',
+    };
+    expect(isLibraryResponse({ games: [game], status: 'ready' })).toBe(true);
+    expect(
+      isLibraryResponse({ games: [{ ...game, path: '/Users/private/game.gbc' }], status: 'ready' }),
+    ).toBe(false);
+    expect(
+      isLibraryResponse({
+        games: [{ ...game, artworkDataUrl: 'file:///private/cover.png' }],
+        status: 'ready',
+      }),
+    ).toBe(false);
   });
 });

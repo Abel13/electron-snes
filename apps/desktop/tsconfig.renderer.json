@@ -7,5 +7,5 @@
     "moduleResolution": "Bundler",
     "noEmit": true
   },
-  "include": ["src/renderer.tsx", "src/ipc.ts"]
+  "include": ["src/renderer.tsx", "src/localization.ts", "src/ipc.ts"]
 }

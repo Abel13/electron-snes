@@ -6,6 +6,17 @@ export type {
   EmulatorAudioPlayerOptions,
 } from './emulator-audio-player.js';
 export { InputMappingSettings } from './input-mapping-settings.js';
+export { Icon } from './icons.js';
+export { LibraryShell, ParticleField } from './product-shell.js';
+export { moveDirectionalFocus } from './directional-focus.js';
+export type { FocusDirection } from './directional-focus.js';
+export type { IconName } from './icons.js';
+export type {
+  LibraryGameView,
+  LibraryShellProps,
+  ProductCopy,
+  ProductView,
+} from './product-shell.js';
 export type {
   InputMappingDeviceOption,
   InputMappingEntryOption,
