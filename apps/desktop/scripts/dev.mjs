@@ -74,6 +74,16 @@ run('pnpm', [
   '--watch',
   '--preserveWatchOutput',
 ]);
+run('pnpm', [
+  '--filter',
+  '@platform/input',
+  'exec',
+  'tsc',
+  '-p',
+  'tsconfig.build.json',
+  '--watch',
+  '--preserveWatchOutput',
+]);
 
 await new Promise((resolve) => setTimeout(resolve, 1500));
 
