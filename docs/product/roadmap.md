@@ -30,6 +30,9 @@ Entregar o ciclo essencial de jogo.
 
 Permitir que dispositivos atuais funcionem naturalmente.
 
+Esta fase permanece dedicada a input e não introduz dependências, contratos ou mudanças
+de interface para internacionalização.
+
 - Teclado e Gamepad API.
 - Ações normalizadas independentes de hardware.
 - Mapeamento inicial para direcional, `A`, `B`, `Start` e `Select`, sem acoplar
@@ -45,6 +48,10 @@ Transformar a base jogável em uma experiência agradável.
 - Arte de jogos, metadados e estados de carregamento, vazio, erro e indisponibilidade.
 - Navegação controller-first, teclado e mouse.
 - Foco visível, acessibilidade e motion reduzido.
+- Layout final internacionalizado em `en-US`, `pt-BR` e `zh-CN`, com detecção do
+  sistema, preferência persistida e fallback para inglês.
+- Fundação de localização, suporte declarativo para plugins, catálogos oficiais e testes
+  de layouts traduzidos entregues em unidades independentes.
 
 ### 5. Ecossistema de plugins
 
