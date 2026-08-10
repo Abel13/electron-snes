@@ -24,6 +24,7 @@
     "@platform/input": "workspace:*",
     "@platform/integration-sdk": "workspace:*",
     "@platform/library": "workspace:*",
+    "@platform/official-plugins": "workspace:*",
     "@platform/plugin-sdk": "workspace:*",
     "@platform/shared": "workspace:*",
     "@platform/theme-sdk": "workspace:*",

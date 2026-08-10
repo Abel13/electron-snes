@@ -5,17 +5,25 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { createSecureWindowOptions } from './electron-security.js';
+import { resolveOfficialEmulatorPlugin } from '@platform/official-plugins';
 import {
   IPC_CHANNELS,
+  SESSION_EVENT_CHANNELS,
   createHostVersionResponse,
   hasNoIpcPayload,
   hasRomSelectionIdPayload,
 } from './ipc.js';
 import { loadSelectedRom } from './rom-loader.js';
 import { createRomSelectionStore } from './rom-selection.js';
+import { createDesktopSessionHost } from './session-host.js';
 
 const currentDirectory = dirname(fileURLToPath(import.meta.url));
 const romSelections = createRomSelectionStore();
+const officialEmulator = resolveOfficialEmulatorPlugin('org.pixelcore.sameboy');
+
+if (officialEmulator === undefined) {
+  throw new Error('The official SameBoy emulator plugin is unavailable.');
+}
 
 const createMainWindow = (): BrowserWindow => {
   const window = new BrowserWindow(createSecureWindowOptions(join(currentDirectory, 'preload.js')));
@@ -73,7 +81,32 @@ app.whenReady().then(() => {
     return loadSelectedRom(payload[0], romSelections, readFile);
   });
 
-  createMainWindow();
+  const sessionHost = createDesktopSessionHost(officialEmulator, {
+    sendAudio: (frame) => mainWindow?.webContents.send(SESSION_EVENT_CHANNELS.audio, frame),
+    sendVideo: (frame) => mainWindow?.webContents.send(SESSION_EVENT_CHANNELS.video, frame),
+  });
+
+  ipcMain.handle(IPC_CHANNELS.startSession, async (_event, ...payload: unknown[]) => {
+    if (!hasRomSelectionIdPayload(payload))
+      throw new Error('The start-session IPC channel requires one opaque selection ID.');
+    const loaded = await loadSelectedRom(payload[0], romSelections, readFile);
+    return loaded.status === 'loaded'
+      ? sessionHost.launch(loaded.rom)
+      : { code: loaded.code, message: loaded.message, status: 'error' };
+  });
+
+  for (const [channel, action] of [
+    [IPC_CHANNELS.pauseSession, () => sessionHost.pause()],
+    [IPC_CHANNELS.resumeSession, () => sessionHost.resume()],
+    [IPC_CHANNELS.stopSession, () => sessionHost.stop()],
+  ] as const) {
+    ipcMain.handle(channel, async (_event, ...payload: unknown[]) => {
+      if (!hasNoIpcPayload(payload)) throw new Error(`${channel} does not accept a payload.`);
+      return action();
+    });
+  }
+
+  const mainWindow = createMainWindow();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
