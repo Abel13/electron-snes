@@ -1,0 +1,82 @@
+import { describe, expect, it, vi } from 'vitest';
+import type {
+  EmulatorPluginDefinition,
+  EmulatorSession,
+  EmulatorSessionStatus,
+} from '@platform/emulator-sdk';
+
+import { EmulatorSessionController } from './session-lifecycle.js';
+
+const createSession = (): EmulatorSession => ({
+  getStatus: vi.fn((): EmulatorSessionStatus => 'running'),
+  loadRom: vi.fn(async () => ({ status: 'ok' as const })),
+  pause: vi.fn(async () => ({ status: 'ok' as const })),
+  resume: vi.fn(async () => ({ status: 'ok' as const })),
+  setInput: vi.fn(async () => ({ status: 'ok' as const })),
+  start: vi.fn(async () => ({ status: 'ok' as const })),
+  stop: vi.fn(async () => ({ status: 'ok' as const })),
+  subscribeAudio: vi.fn(() => () => undefined),
+  subscribeVideo: vi.fn(() => () => undefined),
+});
+
+const createPlugin = (session: EmulatorSession): EmulatorPluginDefinition => ({
+  createSession: async () => session,
+  emulator: {
+    capabilities: { fastForward: false, rewind: false, saveStates: false },
+    compatibleConsoleIds: ['org.pixelcore.game-boy-family'],
+    id: 'org.pixelcore.test-emulator',
+    supportedRomExtensions: ['.gb', '.gbc'],
+  },
+  manifest: {
+    apiVersion: 1,
+    capabilities: ['test-output'],
+    id: 'org.pixelcore.test-emulator',
+    name: 'Test Emulator',
+    permissions: [],
+    type: 'emulator-core',
+    version: '1.0.0',
+  },
+});
+
+const rom = { bytes: new Uint8Array([1]), extension: '.gb', name: 'test.gb' };
+
+describe('EmulatorSessionController', () => {
+  it('launches, pauses, resumes, and stops an injected session', async () => {
+    const session = createSession();
+    const controller = new EmulatorSessionController(createPlugin(session));
+
+    await expect(controller.launch(rom)).resolves.toEqual({ status: 'ok' });
+    await expect(controller.pause()).resolves.toEqual({ status: 'ok' });
+    await expect(controller.resume()).resolves.toEqual({ status: 'ok' });
+    await expect(controller.stop()).resolves.toEqual({ status: 'ok' });
+
+    expect(session.loadRom).toHaveBeenCalledWith(rom);
+    expect(session.start).toHaveBeenCalledOnce();
+    expect(controller.getStatus()).toBe('stopped');
+  });
+
+  it('stops and clears a session when ROM loading fails', async () => {
+    const session = createSession();
+    vi.mocked(session.loadRom).mockResolvedValue({
+      code: 'invalid-rom',
+      message: 'Invalid ROM.',
+      status: 'error',
+    });
+    const controller = new EmulatorSessionController(createPlugin(session));
+
+    await expect(controller.launch(rom)).resolves.toMatchObject({ code: 'invalid-rom' });
+
+    expect(session.start).not.toHaveBeenCalled();
+    expect(session.stop).toHaveBeenCalledOnce();
+    await expect(controller.launch(rom)).resolves.toMatchObject({ code: 'invalid-rom' });
+  });
+
+  it('does not allow a second active session', async () => {
+    const session = createSession();
+    const controller = new EmulatorSessionController(createPlugin(session));
+
+    await controller.launch(rom);
+
+    await expect(controller.launch(rom)).resolves.toMatchObject({ code: 'invalid-state' });
+  });
+});
