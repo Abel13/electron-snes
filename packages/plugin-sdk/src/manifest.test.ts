@@ -20,6 +20,22 @@ test('accepts a complete valid plugin manifest', () => {
   expect(result.success).toBe(true);
 });
 
+test('accepts optional plugin localization without breaking v1 manifests', () => {
+  expect(
+    PluginManifestSchema.safeParse({
+      ...validManifest,
+      localization: { defaultLocale: 'en-US', locales: ['en-US', 'pt-BR', 'zh-CN'] },
+    }).success,
+  ).toBe(true);
+  expect(PluginManifestSchema.safeParse(validManifest).success).toBe(true);
+  expect(
+    PluginManifestSchema.safeParse({
+      ...validManifest,
+      localization: { defaultLocale: 'en-US', locales: ['pt-BR', 'pt-BR'] },
+    }).success,
+  ).toBe(false);
+});
+
 test('rejects unknown root fields and invalid identity values', () => {
   expect(PluginManifestSchema.safeParse({ ...validManifest, extra: true }).success).toBe(false);
   expect(
