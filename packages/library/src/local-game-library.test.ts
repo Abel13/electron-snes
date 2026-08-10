@@ -32,12 +32,35 @@ describe('LocalGameLibrary', () => {
       value: {
         addedAt: '2026-08-09T00:00:00.000Z',
         extension: '.gb',
+        favorite: false,
         id: 'game-1',
         name: 'Pokemon Yellow',
         sourceKey: 'source-1',
       },
     });
     await expect(library.list()).resolves.toMatchObject({ ok: true, value: [{ id: 'game-1' }] });
+  });
+
+  it('updates favorites, artwork, and recent activity without exposing ROM bytes', async () => {
+    let index = 0;
+    const library = new LocalGameLibrary(
+      createStorage(),
+      () => 'game-1',
+      () => `2026-08-09T00:00:0${index++}.000Z`,
+    );
+    await library.add({ extension: '.gbc', name: 'Crystal', sourceKey: 'crystal.gbc' });
+    await expect(library.setFavorite('game-1', true)).resolves.toMatchObject({
+      ok: true,
+      value: { favorite: true },
+    });
+    await expect(library.setArtwork('game-1', 'game-1.png')).resolves.toMatchObject({
+      ok: true,
+      value: { artworkKey: 'game-1.png' },
+    });
+    await expect(library.markPlayed('game-1')).resolves.toMatchObject({
+      ok: true,
+      value: { lastPlayedAt: '2026-08-09T00:00:01.000Z' },
+    });
   });
 
   it('rejects duplicate local source references', async () => {
