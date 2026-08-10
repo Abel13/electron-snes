@@ -11,7 +11,14 @@ const createPlugin = (): EmulatorPluginDefinition => {
   let status: EmulatorSessionStatus = 'idle';
   let audio:
     ((frame: { channels: 2; sampleRate: number; samples: Float32Array }) => void) | undefined;
-  let video: ((frame: { height: number; pixels: Uint8Array; width: number }) => void) | undefined;
+  let video:
+    | ((frame: {
+        height: number;
+        pixelFormat: 'rgba8888';
+        pixels: Uint8Array;
+        width: number;
+      }) => void)
+    | undefined;
   const session: EmulatorSession = {
     getStatus: () => status,
     loadRom: async () => ({ status: 'ok' }),
@@ -20,7 +27,12 @@ const createPlugin = (): EmulatorPluginDefinition => {
     setInput: async () => ({ status: 'ok' }),
     start: async () => {
       status = 'running';
-      video?.({ height: 144, pixels: new Uint8Array(160 * 144 * 4), width: 160 });
+      video?.({
+        height: 144,
+        pixelFormat: 'rgba8888',
+        pixels: new Uint8Array(160 * 144 * 4),
+        width: 160,
+      });
       audio?.({ channels: 2, sampleRate: 48000, samples: new Float32Array([0, 0]) });
       return { status: 'ok' };
     },
