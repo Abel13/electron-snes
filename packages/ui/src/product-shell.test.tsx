@@ -23,6 +23,7 @@ describe('LibraryShell', () => {
       recent: 'Recent',
       search: 'Search',
       settings: 'Settings',
+      systems: 'Systems',
     };
     const markup = renderToStaticMarkup(
       <LibraryShell
@@ -37,6 +38,7 @@ describe('LibraryShell', () => {
         onLocaleChange={vi.fn()}
         onPlay={vi.fn()}
         onQueryChange={vi.fn()}
+        onSystems={vi.fn()}
         onViewChange={vi.fn()}
         query=""
         view="library"

@@ -5,6 +5,7 @@ import {
   createPixelCoreApi,
   hasNoIpcPayload,
   isHostVersionResponse,
+  isConsolePluginsResponse,
   isLibraryResponse,
   isSelectRomResponse,
   isSessionInputPayload,
@@ -21,6 +22,18 @@ describe('IPC boundary contracts', () => {
   it('accepts only an empty request payload for host version', () => {
     expect(hasNoIpcPayload([])).toBe(true);
     expect(hasNoIpcPayload(['untrusted'])).toBe(false);
+  });
+
+  it('accepts only renderer-safe unique console plugin identifiers', async () => {
+    expect(isConsolePluginsResponse({ ids: ['org.pixelcore.game-boy-family'] })).toBe(true);
+    expect(isConsolePluginsResponse({ ids: ['invalid', 'invalid'] })).toBe(false);
+    const api = createPixelCoreApi(async (channel) => {
+      expect(channel).toBe(IPC_CHANNELS.listConsolePlugins);
+      return { ids: ['org.pixelcore.game-boy-family'] };
+    });
+    await expect(api.listConsolePlugins()).resolves.toEqual({
+      ids: ['org.pixelcore.game-boy-family'],
+    });
   });
 
   it('accepts only an exact ROM-selection response without filesystem paths', () => {
