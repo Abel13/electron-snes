@@ -47,6 +47,21 @@ const createToneRom = (): Uint8Array => {
   return rom;
 };
 
+const createBatteryRom = (): Uint8Array => {
+  const rom = createToneRom();
+  rom[0x147] = 0x03;
+  rom[0x149] = 0x02;
+  rom.set(
+    [0xf3, 0x3e, 0x0a, 0xea, 0x00, 0x00, 0x3e, 0x42, 0xea, 0x00, 0xa0, 0xc3, 0x5b, 0x01],
+    0x150,
+  );
+  let headerChecksum = 0;
+  for (let address = 0x134; address <= 0x14c; address += 1)
+    headerChecksum = (headerChecksum - rom[address]! - 1) & 0xff;
+  rom[0x14d] = headerChecksum;
+  return rom;
+};
+
 describe('SameBoy WASM audio', () => {
   it('runs static constructors and emits normalized stereo PCM', async () => {
     const wasi = new WASI({ version: 'preview1' });
@@ -69,5 +84,38 @@ describe('SameBoy WASM audio', () => {
 
     expect(peak).toBeGreaterThan(0);
     expect(peak).toBeLessThanOrEqual(1);
+  });
+});
+
+describe('SameBoy WASM cartridge saves', () => {
+  it('exports dirty battery RAM and restores it after ROM initialization', async () => {
+    const wasi = new WASI({ version: 'preview1' });
+    const wasm = await loadSameBoyWasmFromBytes(
+      await readFile(new URL('../wasm/sameboy.wasm', import.meta.url)),
+      { wasi_snapshot_preview1: wasi.wasiImport },
+      (instance) => wasi.initialize(instance),
+    );
+    const rom = createBatteryRom();
+    const romAddress = wasm.allocate(rom.byteLength);
+    wasm.write(romAddress, rom);
+    expect(wasm.loadRom(romAddress, rom.byteLength)).toBe(true);
+    wasm.release(romAddress);
+    for (let frame = 0; frame < 240; frame += 1) wasm.runFrame();
+
+    expect(wasm.isBatteryDirty()).toBe(true);
+    const save = wasm.readBattery();
+    expect(save?.[0]).toBe(0x42);
+    expect(wasm.isBatteryDirty()).toBe(false);
+
+    const reloadedRomAddress = wasm.allocate(rom.byteLength);
+    wasm.write(reloadedRomAddress, rom);
+    expect(wasm.loadRom(reloadedRomAddress, rom.byteLength)).toBe(true);
+    wasm.release(reloadedRomAddress);
+    if (save === undefined) throw new Error('The fixture must expose battery RAM.');
+    const saveAddress = wasm.allocate(save.byteLength);
+    wasm.write(saveAddress, save);
+    expect(wasm.loadBattery(saveAddress, save.byteLength)).toBe(true);
+    wasm.release(saveAddress);
+    expect(wasm.readBattery()?.[0]).toBe(0x42);
   });
 });

@@ -12,6 +12,7 @@ const definition = defineEmulator({
     start: async () => ({ status: 'ok' as const }),
     stop: async () => ({ status: 'ok' as const }),
     subscribeAudio: () => () => undefined,
+    subscribeCartridgeSave: () => () => undefined,
     subscribeVideo: () => () => undefined,
   }),
   emulator: {

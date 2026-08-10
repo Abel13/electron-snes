@@ -41,6 +41,7 @@ const createFixturePlugin = (observedInputs: EmulatorInput[]): EmulatorPluginDef
       audioListener = listener;
       return () => (audioListener = undefined);
     },
+    subscribeCartridgeSave: () => () => undefined,
     subscribeVideo: (listener) => {
       videoListener = listener;
       return () => (videoListener = undefined);

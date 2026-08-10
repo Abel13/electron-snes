@@ -1,21 +1,35 @@
 import type {
   EmulatorInput,
+  EmulatorCartridgeSave,
   EmulatorOperationResult,
   EmulatorRom,
   EmulatorSessionStatus,
 } from '@platform/emulator-sdk';
 
 export type SameBoyWorkerRequest =
-  | { readonly id: string; readonly rom: EmulatorRom; readonly type: 'load-rom' }
+  | {
+      readonly cartridgeSave?: EmulatorCartridgeSave;
+      readonly id: string;
+      readonly rom: EmulatorRom;
+      readonly type: 'load-rom';
+    }
   | { readonly id: string; readonly type: 'pause' | 'resume' | 'start' | 'stop' }
   | { readonly id: string; readonly input: EmulatorInput; readonly type: 'set-input' };
 
 export type SameBoyWorkerCommand =
-  | { readonly rom: EmulatorRom; readonly type: 'load-rom' }
+  | {
+      readonly cartridgeSave?: EmulatorCartridgeSave;
+      readonly rom: EmulatorRom;
+      readonly type: 'load-rom';
+    }
   | { readonly type: 'pause' | 'resume' | 'start' | 'stop' }
   | { readonly input: EmulatorInput; readonly type: 'set-input' };
 
 export type SameBoyWorkerMessage =
+  | {
+      readonly save: EmulatorCartridgeSave;
+      readonly type: 'cartridge-save';
+    }
   | {
       readonly channels: 2;
       readonly sampleRate: 48000;

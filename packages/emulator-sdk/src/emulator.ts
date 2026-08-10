@@ -34,6 +34,10 @@ export interface EmulatorAudioFrame {
   readonly samples: Float32Array;
 }
 
+export interface EmulatorCartridgeSave {
+  readonly bytes: Uint8Array;
+}
+
 export interface EmulatorOperationSuccess {
   readonly status: 'ok';
 }
@@ -46,17 +50,29 @@ export interface EmulatorOperationFailure {
 
 export type EmulatorOperationResult = EmulatorOperationFailure | EmulatorOperationSuccess;
 
+export interface EmulatorStopSuccess extends EmulatorOperationSuccess {
+  readonly cartridgeSave?: EmulatorCartridgeSave;
+}
+
+export type EmulatorStopResult = EmulatorOperationFailure | EmulatorStopSuccess;
+
 export type UnsubscribeEmulatorOutput = () => void;
 
 export interface EmulatorSession {
   getStatus(): EmulatorSessionStatus;
-  loadRom(rom: EmulatorRom): Promise<EmulatorOperationResult>;
+  loadRom(
+    rom: EmulatorRom,
+    cartridgeSave?: EmulatorCartridgeSave,
+  ): Promise<EmulatorOperationResult>;
   pause(): Promise<EmulatorOperationResult>;
   resume(): Promise<EmulatorOperationResult>;
   setInput(input: EmulatorInput): Promise<EmulatorOperationResult>;
   start(): Promise<EmulatorOperationResult>;
-  stop(): Promise<EmulatorOperationResult>;
+  stop(): Promise<EmulatorStopResult>;
   subscribeAudio(listener: (frame: EmulatorAudioFrame) => void): UnsubscribeEmulatorOutput;
+  subscribeCartridgeSave(
+    listener: (save: EmulatorCartridgeSave) => void,
+  ): UnsubscribeEmulatorOutput;
   subscribeVideo(listener: (frame: EmulatorVideoFrame) => void): UnsubscribeEmulatorOutput;
 }
 

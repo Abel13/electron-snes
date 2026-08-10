@@ -20,4 +20,8 @@ Launching a ROM requires ordered creation, output subscription, loading, start, 
 
 ## Consequences
 
-The runtime domain owns reusable lifecycle behavior while plugin discovery and activation remain separate concerns. A future host composition adapter must supply approved plugin definitions and forward output safely. The controller does not add save states, input mapping, ROM selection, persistence, or plugin loading.
+The runtime domain owns reusable lifecycle behavior while plugin discovery and activation
+remain separate concerns. A host composition adapter supplies approved plugin definitions
+and forwards outputs safely. ADR 0028 extends this lifecycle with opaque cartridge-save
+coordination while keeping persistence in the host. The controller does not add save
+states, input mapping, ROM selection, filesystem persistence, or plugin loading.

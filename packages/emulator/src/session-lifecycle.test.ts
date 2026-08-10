@@ -16,6 +16,7 @@ const createSession = (): EmulatorSession => ({
   start: vi.fn(async () => ({ status: 'ok' as const })),
   stop: vi.fn(async () => ({ status: 'ok' as const })),
   subscribeAudio: vi.fn(() => () => undefined),
+  subscribeCartridgeSave: vi.fn(() => () => undefined),
   subscribeVideo: vi.fn(() => () => undefined),
 });
 
@@ -50,9 +51,28 @@ describe('EmulatorSessionController', () => {
     await expect(controller.resume()).resolves.toEqual({ status: 'ok' });
     await expect(controller.stop()).resolves.toEqual({ status: 'ok' });
 
-    expect(session.loadRom).toHaveBeenCalledWith(rom);
+    expect(session.loadRom).toHaveBeenCalledWith(rom, undefined);
     expect(session.start).toHaveBeenCalledOnce();
     expect(controller.getStatus()).toBe('stopped');
+  });
+
+  it('restores and flushes cartridge saves around the session lifecycle', async () => {
+    const session = createSession();
+    const restored = { bytes: new Uint8Array([1, 2]) };
+    const flushed = { bytes: new Uint8Array([3, 4]) };
+    vi.mocked(session.stop).mockResolvedValue({ cartridgeSave: flushed, status: 'ok' });
+    const persisted: Uint8Array[] = [];
+    const controller = new EmulatorSessionController(createPlugin(session), {
+      onCartridgeSave: (save) => {
+        persisted.push(save.bytes);
+      },
+    });
+
+    await controller.launch(rom, restored);
+    await expect(controller.stop()).resolves.toEqual({ cartridgeSave: flushed, status: 'ok' });
+
+    expect(session.loadRom).toHaveBeenCalledWith(rom, restored);
+    expect(persisted).toEqual([flushed.bytes]);
   });
 
   it('stops and clears a session when ROM loading fails', async () => {
