@@ -10,6 +10,7 @@ import { InputProfileRepository } from '@platform/input';
 import { LocalGameLibrary } from '@platform/library';
 import type { LocalGame } from '@platform/library';
 import {
+  listOfficialConsolePluginIds,
   resolveOfficialConsolePlugin,
   resolveOfficialEmulatorPlugin,
 } from '@platform/official-plugins';
@@ -49,8 +50,20 @@ const createMainWindow = (): ElectronBrowserWindow => {
 
   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   window.webContents.on('will-navigate', (event) => event.preventDefault());
+  window.webContents.on('did-fail-load', (_event, code, description, url) => {
+    console.error(`Renderer failed to load ${url}: ${code} ${description}`);
+  });
   window.once('ready-to-show', () => window.show());
-  void window.loadFile(join(currentDirectory, 'renderer', 'renderer', 'index.html'));
+  const developmentServerUrl = process.env['PIXELCORE_DEV_SERVER_URL'];
+  if (developmentServerUrl === undefined) {
+    void window.loadFile(join(currentDirectory, 'renderer', 'renderer', 'index.html'));
+  } else {
+    window.webContents.on('console-message', (_event, level, message) => {
+      console.log(`[renderer:${level}] ${message}`);
+    });
+    window.webContents.openDevTools({ mode: 'detach' });
+    void window.loadURL(`${developmentServerUrl}/renderer/index.html`);
+  }
 
   return window;
 };
@@ -120,6 +133,12 @@ app.whenReady().then(() => {
     } catch {
       return { message: 'The local game library could not be loaded.', status: 'error' };
     }
+  });
+
+  ipcMain.handle(IPC_CHANNELS.listConsolePlugins, (_event, ...payload: unknown[]) => {
+    if (!hasNoIpcPayload(payload))
+      throw new Error('The console plugin channel does not accept a payload.');
+    return { ids: listOfficialConsolePluginIds() };
   });
 
   ipcMain.handle(IPC_CHANNELS.importGame, async (event, ...payload: unknown[]) => {

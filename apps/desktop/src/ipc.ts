@@ -4,6 +4,7 @@ import { validateConsoleInputMapping, validateInputProfile } from '@platform/inp
 export const IPC_CHANNELS = {
   importGame: 'pixel-core:import-game',
   listLibrary: 'pixel-core:list-library',
+  listConsolePlugins: 'pixel-core:list-console-plugins',
   getInputConfiguration: 'pixel-core:get-input-configuration',
   getHostVersion: 'pixel-core:host-version',
   loadRom: 'pixel-core:load-rom',
@@ -91,6 +92,7 @@ export interface PixelCoreApi {
   getHostVersion(): Promise<HostVersionResponse>;
   importGame(): Promise<ImportGameResponse>;
   listLibrary(): Promise<LibraryResponse>;
+  listConsolePlugins(): Promise<ConsolePluginsResponse>;
   loadRom(selectionId: string): Promise<LoadRomResponse>;
   pauseSession(): Promise<SessionCommandResponse>;
   resumeSession(): Promise<SessionCommandResponse>;
@@ -104,6 +106,10 @@ export interface PixelCoreApi {
   subscribeSessionAudio(listener: (frame: SessionAudioFrame) => void): () => void;
   subscribeSessionVideo(listener: (frame: SessionVideoFrame) => void): () => void;
   updateFavorite(gameId: string, favorite: boolean): Promise<LibraryMutationResponse>;
+}
+
+export interface ConsolePluginsResponse {
+  readonly ids: readonly string[];
 }
 
 export interface LibraryGame {
@@ -305,6 +311,13 @@ export const isLibraryResponse = (value: unknown): value is LibraryResponse =>
     value['games'].every(isLibraryGame)) ||
     (value['status'] === 'error' && typeof value['message'] === 'string'));
 
+export const isConsolePluginsResponse = (value: unknown): value is ConsolePluginsResponse =>
+  isRecord(value) &&
+  Object.keys(value).length === 1 &&
+  Array.isArray(value['ids']) &&
+  value['ids'].every((id) => typeof id === 'string' && /^[a-z0-9]+(?:[.-][a-z0-9-]+)+$/.test(id)) &&
+  new Set(value['ids']).size === value['ids'].length;
+
 export const isImportGameResponse = (value: unknown): value is ImportGameResponse =>
   isRecord(value) &&
   (value['status'] === 'cancelled' ||
@@ -337,6 +350,12 @@ export const createPixelCoreApi = (
   async listLibrary(): Promise<LibraryResponse> {
     const response = await invoke(IPC_CHANNELS.listLibrary);
     if (!isLibraryResponse(response)) throw new Error('Received an invalid library response.');
+    return response;
+  },
+  async listConsolePlugins(): Promise<ConsolePluginsResponse> {
+    const response = await invoke(IPC_CHANNELS.listConsolePlugins);
+    if (!isConsolePluginsResponse(response))
+      throw new Error('Received an invalid console plugin response.');
     return response;
   },
   async getInputConfiguration(): Promise<InputConfigurationResponse> {

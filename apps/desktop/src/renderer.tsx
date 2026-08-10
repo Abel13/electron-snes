@@ -14,17 +14,19 @@ import {
 import {
   EmulatorAudioPlayer,
   EmulatorVideoCanvas,
+  ConsoleCarousel,
+  ConsoleLibrary,
   Icon,
   InputMappingSettings,
-  LibraryShell,
   moveDirectionalFocus,
   ParticleField,
-  type ProductCopy,
-  type ProductView,
+  type ConsoleCarouselHandle,
+  type ConsoleLibraryHandle,
 } from '@platform/ui';
 import { BrowserUiAudioService } from '@platform/ui-audio';
 import type { LibraryGame, PixelCoreApi, SessionVideoFrame } from './ipc.js';
 import i18n, { setLocale, type SupportedLocale } from './localization.js';
+import { buildConsoleCatalog } from './console-catalog.js';
 import './renderer.css';
 
 declare global {
@@ -34,7 +36,15 @@ declare global {
 }
 
 const logoUrl = new URL('../assets/brand/pixelcore-logo.png', import.meta.url).href;
+const iconUrl = new URL('../assets/brand/pixelcore-icon.png', import.meta.url).href;
 const defaultArtworkUrl = new URL('../assets/library/default-game-cover.png', import.meta.url).href;
+const cartridgeUrl = new URL('../assets/library/portable-cartridge.webp', import.meta.url).href;
+const consoleArtwork = {
+  'game-boy-family': new URL('../assets/consoles/game-boy-family.webp', import.meta.url).href,
+  'n64-era': new URL('../assets/consoles/n64-era.webp', import.meta.url).href,
+  'nes-era': new URL('../assets/consoles/nes-era.webp', import.meta.url).href,
+  'snes-era': new URL('../assets/consoles/snes-era.webp', import.meta.url).href,
+} as const;
 const soundUrl = (name: string): string =>
   new URL(`../assets/audio/${name}.wav`, import.meta.url).href;
 const uiAudio = new BrowserUiAudioService({
@@ -56,16 +66,19 @@ const uiAudio = new BrowserUiAudioService({
 });
 
 type ProductStatus = 'error' | 'loading' | 'paused' | 'ready' | 'running' | 'starting' | 'stopped';
+type AppScreen = 'home' | 'library';
 
 const App = (): React.JSX.Element => {
   const { t } = useTranslation();
   const [frame, setFrame] = useState<SessionVideoFrame>();
   const [message, setMessage] = useState(t('sessionReady'));
   const [status, setStatus] = useState<ProductStatus>('loading');
+  const [startupVisible, setStartupVisible] = useState(true);
+  const [screen, setScreen] = useState<AppScreen>('home');
+  const [globalSettingsOpen, setGlobalSettingsOpen] = useState(false);
+  const [availableConsoleIds, setAvailableConsoleIds] = useState<readonly string[]>([]);
   const [games, setGames] = useState<readonly LibraryGame[]>([]);
   const [selectedGameId, setSelectedGameId] = useState<string>();
-  const [view, setView] = useState<ProductView>('library');
-  const [query, setQuery] = useState('');
   const [uiAudioMuted, setUiAudioMuted] = useState(
     () => localStorage.getItem('pixelcore.uiAudioMuted') === 'true',
   );
@@ -80,43 +93,21 @@ const App = (): React.JSX.Element => {
   const [profile, setProfile] = useState<InputProfile>();
   const profileRef = useRef<InputProfile | undefined>(undefined);
   const statusRef = useRef<ProductStatus>(status);
+  const screenRef = useRef<AppScreen>(screen);
+  const carousel = useRef<ConsoleCarouselHandle>(null);
+  const consoleLibrary = useRef<ConsoleLibraryHandle>(null);
 
-  const copy: ProductCopy = {
-    addGame: t('addGame'),
-    allGames: t('allGames'),
-    archive: t('archive'),
-    artwork: t('artwork'),
-    emptyAction: t('emptyAction'),
-    emptyBody: t('emptyBody'),
-    emptyTitle: t('emptyTitle'),
-    favorites: t('favorites'),
-    interfaceLanguage: t('interfaceLanguage'),
-    language: t('language'),
-    library: t('library'),
-    localPrivate: t('localPrivate'),
-    play: t('play'),
-    ready: t('ready'),
-    readyToPlay: t('readyToPlay'),
-    recent: t('recent'),
-    search: t('search'),
-    settings: t('settings'),
-  };
+  const consoles = useMemo(
+    () =>
+      buildConsoleCatalog(
+        availableConsoleIds,
+        (key) => t(key),
+        (key) => consoleArtwork[key],
+      ),
+    [availableConsoleIds, t],
+  );
 
-  const visibleGames = useMemo(() => {
-    const normalized = query.trim().toLocaleLowerCase();
-    return [...games]
-      .filter((game) => {
-        if (view === 'favorites' && !game.favorite) return false;
-        if (view === 'recent' && game.lastPlayedAt === undefined) return false;
-        return normalized.length === 0 || game.name.toLocaleLowerCase().includes(normalized);
-      })
-      .sort((left, right) =>
-        view === 'recent'
-          ? (right.lastPlayedAt ?? '').localeCompare(left.lastPlayedAt ?? '')
-          : left.name.localeCompare(right.name),
-      );
-  }, [games, query, view]);
-  const selectedGame = games.find((game) => game.id === selectedGameId) ?? visibleGames[0];
+  const selectedGame = games.find((game) => game.id === selectedGameId) ?? games[0];
 
   const refreshLibrary = async (): Promise<void> => {
     const response = await window.pixelCore.listLibrary();
@@ -135,6 +126,9 @@ const App = (): React.JSX.Element => {
     statusRef.current = status;
   }, [status]);
   useEffect(() => {
+    screenRef.current = screen;
+  }, [screen]);
+  useEffect(() => {
     profileRef.current = profile;
   }, [profile]);
 
@@ -149,14 +143,27 @@ const App = (): React.JSX.Element => {
     const unsubscribeAudio = window.pixelCore.subscribeSessionAudio((audioFrame) =>
       audio.current.enqueue(audioFrame),
     );
-    void refreshLibrary().then(() => uiAudio.play('startup'));
+    void uiAudio.play('startup');
+    void refreshLibrary();
+    void window.pixelCore
+      .listConsolePlugins()
+      .then((response) => setAvailableConsoleIds(response.ids));
+    const startupTimer = window.setTimeout(
+      () => setStartupVisible(false),
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 450 : 2200,
+    );
     const handleFocus = (event: FocusEvent): void => {
-      if ((event.target as HTMLElement | null)?.matches('button, input, select, summary'))
+      const target = event.target as HTMLElement | null;
+      if (
+        target?.matches('button, input, select, summary') === true &&
+        target.closest('.pc-console-home') === null
+      )
         uiAudio.play('focus');
     };
     document.addEventListener('focusin', handleFocus);
     return () => {
       document.removeEventListener('focusin', handleFocus);
+      window.clearTimeout(startupTimer);
       unsubscribeAudio();
       unsubscribeVideo();
       audio.current.stop();
@@ -223,15 +230,25 @@ const App = (): React.JSX.Element => {
             ['move-left', 'left'],
             ['move-right', 'right'],
           ] as const) {
-            if (
-              currentNavigation.has(action) &&
-              !previousNavigation.has(action) &&
-              moveDirectionalFocus(direction)
-            )
-              uiAudio.play('focus');
+            if (currentNavigation.has(action) && !previousNavigation.has(action)) {
+              if (screenRef.current === 'home' && (direction === 'left' || direction === 'right'))
+                carousel.current?.move(direction);
+              else if (screenRef.current === 'library') consoleLibrary.current?.move(direction);
+              else if (screenRef.current !== 'home' && moveDirectionalFocus(direction))
+                uiAudio.play('focus');
+            }
           }
-          if (currentNavigation.has('primary') && !previousNavigation.has('primary'))
-            (document.activeElement as HTMLElement | null)?.click();
+          if (currentNavigation.has('primary') && !previousNavigation.has('primary')) {
+            if (screenRef.current === 'home') carousel.current?.confirm();
+            else if (screenRef.current === 'library') consoleLibrary.current?.confirm();
+            else (document.activeElement as HTMLElement | null)?.click();
+          }
+          if (
+            screenRef.current === 'library' &&
+            currentNavigation.has('secondary') &&
+            !previousNavigation.has('secondary')
+          )
+            consoleLibrary.current?.back();
           previousNavigation = currentNavigation;
         }
         const mapped =
@@ -268,6 +285,14 @@ const App = (): React.JSX.Element => {
         return;
       }
       if (!pressed || editable) return;
+      if (screenRef.current === 'home') return;
+      if (screenRef.current === 'library') {
+        if (event.code === 'Escape' || event.code === 'Backspace') {
+          event.preventDefault();
+          consoleLibrary.current?.back();
+        }
+        return;
+      }
       const direction = {
         ArrowDown: 'down',
         ArrowLeft: 'left',
@@ -367,7 +392,6 @@ const App = (): React.JSX.Element => {
     uiAudio.play(action === 'stop' ? 'back' : action);
     if (action === 'stop') {
       setFrame(undefined);
-      setView('library');
     }
   };
   const toggleFavorite = async (game: LibraryGame): Promise<void> => {
@@ -393,6 +417,36 @@ const App = (): React.JSX.Element => {
       uiAudio.play('error');
     }
   };
+
+  if (startupVisible) {
+    return (
+      <main className="pc-startup" aria-label="PixelCore">
+        <div className="pc-startup-atmosphere" aria-hidden="true">
+          <i />
+          <i />
+          <i />
+        </div>
+        <div className="pc-startup-particles" aria-hidden="true">
+          {Array.from({ length: 16 }, (_, index) => (
+            <i key={index} />
+          ))}
+        </div>
+        <section className="pc-startup-mark" aria-live="polite">
+          <div className="pc-startup-core">
+            <span className="pc-startup-orbit pc-startup-orbit-one" />
+            <span className="pc-startup-orbit pc-startup-orbit-two" />
+            <span className="pc-startup-orbit pc-startup-orbit-three" />
+            <img alt="" className="pc-startup-icon" src={iconUrl} />
+          </div>
+          <img alt="PixelCore" className="pc-startup-logo" src={logoUrl} />
+          <div className="pc-startup-signal" aria-hidden="true">
+            <span />
+          </div>
+          <p>Play. Preserve. Connect.</p>
+        </section>
+      </main>
+    );
+  }
 
   if (status === 'running' || status === 'paused' || status === 'starting') {
     return (
@@ -459,6 +513,89 @@ const App = (): React.JSX.Element => {
     );
   }
 
+  if (screen === 'home')
+    return (
+      <>
+        <ConsoleCarousel
+          copy={{
+            available: t('available'),
+            chooseSystem: t('chooseSystem'),
+            comingSoon: t('comingSoon'),
+            confirm: t('confirmSystem'),
+            formats: t('formats'),
+            next: t('nextSystem'),
+            position: (current, total) => t('systemPosition', { current, total }),
+            previous: t('previousSystem'),
+            unavailable: (name) => t('unavailableSystem', { name }),
+          }}
+          items={consoles}
+          logoUrl={logoUrl}
+          onConfirm={(item) => {
+            if (item.availability === 'coming-soon') {
+              uiAudio.play('warning');
+              return;
+            }
+            uiAudio.play('select');
+            setGlobalSettingsOpen(false);
+            setScreen('library');
+          }}
+          onFocusSound={() => uiAudio.play('focus')}
+          ref={carousel}
+        />
+        <button
+          aria-label={t('globalSettings')}
+          className="pc-global-settings-button"
+          onClick={() => {
+            setGlobalSettingsOpen((current) => !current);
+            uiAudio.play('open');
+          }}
+          type="button"
+        >
+          <Icon name="settings" />
+        </button>
+        {globalSettingsOpen ? (
+          <aside aria-label={t('globalSettings')} className="pc-global-settings">
+            <header>
+              <h2>{t('globalSettings')}</h2>
+              <button onClick={() => setGlobalSettingsOpen(false)} type="button">
+                ×
+              </button>
+            </header>
+            <label>
+              <span>{t('interfaceLanguage')}</span>
+              <select
+                value={i18n.language}
+                onChange={(event) => void setLocale(event.target.value as SupportedLocale)}
+              >
+                <option value="en-US">English</option>
+                <option value="pt-BR">Português (Brasil)</option>
+                <option value="zh-CN">简体中文</option>
+              </select>
+            </label>
+            <label className="pc-toggle-row">
+              <span>{t('muteUiSounds')}</span>
+              <input
+                checked={uiAudioMuted}
+                onChange={(event) => setUiAudioMuted(event.target.checked)}
+                type="checkbox"
+              />
+            </label>
+            <label className="pc-volume-row">
+              <span>{t('volume')}</span>
+              <input
+                max="1"
+                min="0"
+                onChange={(event) => setUiAudioVolume(Number(event.target.value))}
+                step="0.05"
+                type="range"
+                value={uiAudioVolume}
+              />
+            </label>
+          </aside>
+        ) : null}
+      </>
+    );
+
   if (status === 'loading')
     return (
       <main className="pc-state-page">
@@ -468,73 +605,61 @@ const App = (): React.JSX.Element => {
     );
   return (
     <>
-      <LibraryShell
-        artworkFor={(game) => game.artworkDataUrl ?? defaultArtworkUrl}
-        copy={copy}
-        games={visibleGames}
-        locale={i18n.language}
-        logoUrl={logoUrl}
-        onAddGame={() => void importGame()}
-        onArtwork={(game) => void selectArtwork(game as LibraryGame)}
-        onFavorite={(game) => void toggleFavorite(game as LibraryGame)}
-        onLocaleChange={(locale) => void setLocale(locale as SupportedLocale)}
-        onPlay={(game) => void launchGame(game as LibraryGame)}
-        onQueryChange={setQuery}
-        onViewChange={(nextView) => {
-          setView(nextView);
-          setQuery('');
-          uiAudio.play('select');
-        }}
-        query={query}
-        {...(selectedGame === undefined ? {} : { selectedGame })}
-        view={view}
-      >
-        <section className="pc-setting-card">
-          <p className="pc-eyebrow">{t('interfaceAudio')}</p>
-          <h2>{t('feedbackSounds')}</h2>
-          <label className="pc-toggle-row">
-            <span>{t('muteUiSounds')}</span>
-            <input
-              checked={uiAudioMuted}
-              onChange={(event) => {
-                setUiAudioMuted(event.target.checked);
-                uiAudio.play(event.target.checked ? 'toggle-off' : 'toggle-on');
+      {consoles[0] === undefined ? null : (
+        <ConsoleLibrary
+          artworkFor={(game) => game.artworkDataUrl ?? defaultArtworkUrl}
+          cartridgeUrl={cartridgeUrl}
+          console={consoles[0]}
+          copy={{
+            addGame: t('addGame'),
+            artwork: t('artwork'),
+            backSystems: t('backSystems'),
+            emptyCategory: t('emptyCategory'),
+            favorite: t('favoriteGame'),
+            favorites: t('favorites'),
+            library: t('library'),
+            playHint: t('playHint'),
+            recent: t('recent'),
+            removeFavorite: t('removeFavorite'),
+            settings: t('settings'),
+          }}
+          games={games.filter((game) => consoles[0]?.extensions.includes(game.extension))}
+          logoUrl={logoUrl}
+          onAddGame={() => void importGame()}
+          onArtwork={(game) => void selectArtwork(game as LibraryGame)}
+          onBack={() => {
+            setScreen('home');
+            uiAudio.play('back');
+          }}
+          onBackFeedback={() => uiAudio.play('back')}
+          onCategoryChange={() => uiAudio.play('focus')}
+          onDetail={() => uiAudio.play('select')}
+          onFavorite={(game) => void toggleFavorite(game as LibraryGame)}
+          onPlay={(game) => void launchGame(game as LibraryGame)}
+          onSelect={(game) => setSelectedGameId(game.id)}
+          onSelectionChange={() => uiAudio.play('focus')}
+          ref={consoleLibrary}
+        >
+          {profile === undefined ? null : (
+            <InputMappingSettings
+              copy={{
+                consoleAction: t('consoleAction'),
+                disconnected: t('disconnected'),
+                gameControls: t('gameControls'),
+                inputSettings: t('inputSettings'),
+                playerOneDevice: t('playerOneDevice'),
               }}
-              type="checkbox"
+              devices={devices}
+              entries={profile.mapping.entries}
+              onDeviceChange={(deviceFingerprint) =>
+                persistProfile({ ...profile, deviceFingerprint })
+              }
+              onMappingChange={changeMapping}
+              selectedDeviceFingerprint={profile.deviceFingerprint}
             />
-          </label>
-          <label className="pc-volume-row">
-            <span>{t('volume')}</span>
-            <input
-              aria-label={t('volume')}
-              max="1"
-              min="0"
-              onChange={(event) => setUiAudioVolume(Number(event.target.value))}
-              step="0.05"
-              type="range"
-              value={uiAudioVolume}
-            />
-          </label>
-        </section>
-        {profile === undefined ? null : (
-          <InputMappingSettings
-            copy={{
-              consoleAction: t('consoleAction'),
-              disconnected: t('disconnected'),
-              gameControls: t('gameControls'),
-              inputSettings: t('inputSettings'),
-              playerOneDevice: t('playerOneDevice'),
-            }}
-            devices={devices}
-            entries={profile.mapping.entries}
-            onDeviceChange={(deviceFingerprint) =>
-              persistProfile({ ...profile, deviceFingerprint })
-            }
-            onMappingChange={changeMapping}
-            selectedDeviceFingerprint={profile.deviceFingerprint}
-          />
-        )}
-      </LibraryShell>
+          )}
+        </ConsoleLibrary>
+      )}
       {status === 'error' ? (
         <aside className="pc-toast" role="alert">
           <div>

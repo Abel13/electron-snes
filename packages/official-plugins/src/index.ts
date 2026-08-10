@@ -13,6 +13,10 @@ const officialConsolePlugins = new Map<string, ConsolePluginDefinition>([
 export const resolveOfficialConsolePlugin = (id: string): ConsolePluginDefinition | undefined =>
   officialConsolePlugins.get(id);
 
+/** Lists validated official console plugin identifiers without exposing concrete definitions. */
+export const listOfficialConsolePluginIds = (): readonly string[] =>
+  [...officialConsolePlugins.keys()].sort();
+
 /** Resolves an audited official plugin without exposing plugin modules to an application host. */
 export const resolveOfficialEmulatorPlugin = (id: string): EmulatorPluginDefinition | undefined =>
   officialEmulatorPlugins.get(id);

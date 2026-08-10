@@ -31,6 +31,7 @@ export interface ProductCopy {
   readonly readyToPlay: string;
   readonly search: string;
   readonly settings: string;
+  readonly systems: string;
 }
 
 export interface LibraryShellProps {
@@ -46,6 +47,7 @@ export interface LibraryShellProps {
   readonly onLocaleChange: (locale: string) => void;
   readonly onPlay: (game: LibraryGameView) => void;
   readonly onQueryChange: (query: string) => void;
+  readonly onSystems: () => void;
   readonly onViewChange: (view: ProductView) => void;
   readonly query: string;
   readonly selectedGame?: LibraryGameView;
@@ -66,6 +68,10 @@ export const LibraryShell = (props: LibraryShellProps): React.JSX.Element => (
     <aside className="pc-sidebar">
       <img alt="PixelCore" className="pc-logo" src={props.logoUrl} />
       <nav aria-label={props.copy.library}>
+        <button className="pc-nav-button pc-systems-button" onClick={props.onSystems} type="button">
+          <Icon name="gamepad" />
+          <span>{props.copy.systems}</span>
+        </button>
         {navigation.map(({ icon, key }) => (
           <button
             aria-current={props.view === key ? 'page' : undefined}
