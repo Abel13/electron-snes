@@ -88,6 +88,7 @@ const consoleArtwork = {
 const soundUrl = (name: string): string =>
   new URL(`../assets/audio/${name}.wav`, import.meta.url).href;
 const uiAudio = new BrowserUiAudioService({
+  adjust: soundUrl('adjust'),
   back: soundUrl('close'),
   browse: soundUrl('browse'),
   error: soundUrl('error'),

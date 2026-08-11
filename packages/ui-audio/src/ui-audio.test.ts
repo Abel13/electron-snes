@@ -32,4 +32,18 @@ describe('BrowserUiAudioService', () => {
     service.play('browse');
     expect(create).toHaveBeenCalledTimes(3);
   });
+
+  it('rate-limits repeated setting adjustments', () => {
+    const play = vi.fn(async () => undefined);
+    const create = vi.fn(() => ({ currentTime: 0, pause: vi.fn(), play, preload: '', volume: 0 }));
+    let now = 100;
+    const service = new BrowserUiAudioService({ adjust: '/adjust.wav' }, create, () => now);
+    service.play('adjust');
+    service.play('adjust');
+    now = 174;
+    service.play('adjust');
+    now = 175;
+    service.play('adjust');
+    expect(create).toHaveBeenCalledTimes(2);
+  });
 });
