@@ -143,12 +143,20 @@ const SystemStatus = (): React.JSX.Element => {
   }, []);
   const time = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   return (
-    <aside className="pc-system-status" aria-label={`${time}${battery === undefined ? '' : `, ${battery.level}%`}`}>
+    <aside
+      className="pc-system-status"
+      aria-label={`${time}${battery === undefined ? '' : `, ${battery.level}%`}`}
+    >
       <time dateTime={now.toISOString()}>{time}</time>
       {battery === undefined ? null : (
         <span className="pc-system-battery" title={`${battery.level}%`}>
-          <i aria-hidden="true"><b style={{ width: `${battery.level}%` }} /></i>
-          <small>{battery.charging ? '+' : ''}{battery.level}%</small>
+          <i aria-hidden="true">
+            <b style={{ width: `${battery.level}%` }} />
+          </i>
+          <small>
+            {battery.charging ? '+' : ''}
+            {battery.level}%
+          </small>
         </span>
       )}
     </aside>
@@ -439,8 +447,7 @@ const ProductApp = (): React.JSX.Element => {
         let actions: readonly NormalizedInputAction[] = [];
         const assignedDescriptor = discovered.find(
           (device) =>
-            device.kind === 'gamepad' &&
-            device.fingerprint === currentProfile.deviceFingerprint,
+            device.kind === 'gamepad' && device.fingerprint === currentProfile.deviceFingerprint,
         );
         const selectedSnapshot =
           assignedDescriptor?.index === undefined
@@ -475,9 +482,7 @@ const ProductApp = (): React.JSX.Element => {
           const currentCapture = new Set(
             assignedGamepad === undefined ? [] : readPressedGamepadButtons(assignedGamepad),
           );
-          const inputEdges = [...currentCapture].filter(
-            (action) => !previousCapture.has(action),
-          );
+          const inputEdges = [...currentCapture].filter((action) => !previousCapture.has(action));
           const inputConsumed =
             screenRef.current === 'library' &&
             inputEdges.some(
@@ -874,7 +879,11 @@ const ProductApp = (): React.JSX.Element => {
               <Icon name="archive" /> {t('stop')}
             </button>
             <h1>{selectedGame?.name ?? message}</h1>
-            <span className="pc-session-controller" aria-label={sessionInputLabel} title={sessionInputLabel}>
+            <span
+              className="pc-session-controller"
+              aria-label={sessionInputLabel}
+              title={sessionInputLabel}
+            >
               <InputPrompt action="navigate-all" label={sessionInputLabel} />
               <small>{sessionInputLabel}</small>
             </span>
@@ -911,20 +920,36 @@ const ProductApp = (): React.JSX.Element => {
             {status === 'paused' && !exitConfirmationOpen ? (
               <div className="pc-session-overlay" role="dialog" aria-modal="true">
                 <strong>{t('statusPaused')}</strong>
-                <button className="pc-primary-button" onClick={() => void runAction('resume')} type="button">
+                <button
+                  className="pc-primary-button"
+                  onClick={() => void runAction('resume')}
+                  type="button"
+                >
                   <Icon name="gamepad" /> {t('continuePlaying')}
                 </button>
                 <InputPromptGroup actions={['primary', 'secondary']} label={t('gameControls')} />
               </div>
             ) : null}
             {exitConfirmationOpen ? (
-              <div className="pc-session-overlay pc-session-exit" role="alertdialog" aria-modal="true">
+              <div
+                className="pc-session-overlay pc-session-exit"
+                role="alertdialog"
+                aria-modal="true"
+              >
                 <strong>{t('exitQuestion')}</strong>
                 <div>
-                  <button className="pc-primary-button" onClick={() => void cancelSessionExit()} type="button">
+                  <button
+                    className="pc-primary-button"
+                    onClick={() => void cancelSessionExit()}
+                    type="button"
+                  >
                     {t('continuePlaying')}
                   </button>
-                  <button className="pc-ghost-button" onClick={() => void confirmSessionExit()} type="button">
+                  <button
+                    className="pc-ghost-button"
+                    onClick={() => void confirmSessionExit()}
+                    type="button"
+                  >
                     {t('exitToLibrary')}
                   </button>
                 </div>

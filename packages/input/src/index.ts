@@ -11,9 +11,18 @@ export type {
   InputDeviceSource,
   InputFrame,
 } from './devices.js';
-export { DEFAULT_GAMEPAD_BINDINGS, PLATFORM_GAMEPAD_BINDINGS, GamepadInputAdapter, RESERVED_GAMEPAD_BUTTON_INDEX, readPressedGamepadButtons } from './gamepad-adapter.js';
+export {
+  DEFAULT_GAMEPAD_BINDINGS,
+  PLATFORM_GAMEPAD_BINDINGS,
+  GamepadInputAdapter,
+  RESERVED_GAMEPAD_BUTTON_INDEX,
+  readPressedGamepadButtons,
+} from './gamepad-adapter.js';
 export type { GamepadBinding, GamepadPhysicalInput } from './gamepad-adapter.js';
-export { GamepadPromptActivityTracker, classifyGamepadPromptScheme } from './input-prompt-scheme.js';
+export {
+  GamepadPromptActivityTracker,
+  classifyGamepadPromptScheme,
+} from './input-prompt-scheme.js';
 export type { InputPromptScheme } from './input-prompt-scheme.js';
 export {
   DEFAULT_KEYBOARD_BINDINGS,

@@ -1,5 +1,9 @@
 export { EmulatorVideoCanvas, extractAmbientPalette } from './emulator-video-canvas.js';
-export type { EmulatorAmbientPalette, EmulatorVideoCanvasProps, EmulatorVideoFrameData } from './emulator-video-canvas.js';
+export type {
+  EmulatorAmbientPalette,
+  EmulatorVideoCanvasProps,
+  EmulatorVideoFrameData,
+} from './emulator-video-canvas.js';
 export { EmulatorAudioPlayer } from './emulator-audio-player.js';
 export type {
   EmulatorAudioFrameData,
@@ -11,7 +15,12 @@ export { InputPrompt, InputPromptGroup, InputPromptProvider } from './input-prom
 export { LibraryShell, ParticleField } from './product-shell.js';
 export { moveDirectionalFocus } from './directional-focus.js';
 export { ConsoleCarousel, rotateCarouselIndex } from './console-carousel.js';
-export { GlobalSettingsMenu, adjustSettingsVolume, cycleSettingsOption, moveSettingsIndex } from './global-settings-menu.js';
+export {
+  GlobalSettingsMenu,
+  adjustSettingsVolume,
+  cycleSettingsOption,
+  moveSettingsIndex,
+} from './global-settings-menu.js';
 export {
   ConsoleLibrary,
   getCarouselSlots,
@@ -31,10 +40,21 @@ export type {
   ConsoleLibraryHandle,
   ConsoleLibraryProps,
 } from './console-library.js';
-export type { GlobalSettingsLocaleOption, GlobalSettingsMenuCopy, GlobalSettingsMenuHandle, GlobalSettingsMenuProps } from './global-settings-menu.js';
+export type {
+  GlobalSettingsLocaleOption,
+  GlobalSettingsMenuCopy,
+  GlobalSettingsMenuHandle,
+  GlobalSettingsMenuProps,
+} from './global-settings-menu.js';
 export type { FocusDirection } from './directional-focus.js';
 export type { IconName } from './icons.js';
-export type { InputPromptAction, InputPromptAsset, InputPromptAssetMap, InputPromptProviderProps, InputPromptScheme } from './input-prompts.js';
+export type {
+  InputPromptAction,
+  InputPromptAsset,
+  InputPromptAssetMap,
+  InputPromptProviderProps,
+  InputPromptScheme,
+} from './input-prompts.js';
 export type {
   LibraryGameView,
   LibraryShellProps,

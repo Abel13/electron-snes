@@ -1,4 +1,12 @@
-import { forwardRef, useImperativeHandle, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
+import {
+  forwardRef,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+  type RefObject,
+} from 'react';
 import type { InputMappingSettingsHandle } from './input-mapping-settings.js';
 import type { ConsoleCatalogItem } from '@platform/ui-contracts';
 import { Icon } from './icons.js';
@@ -68,11 +76,7 @@ export const moveGameIndex = (
   return Math.max(0, Math.min(total - 1, next));
 };
 
-export const moveGameOffset = (
-  current: number,
-  offset: number,
-  total: number,
-): number => {
+export const moveGameOffset = (current: number, offset: number, total: number): number => {
   if (total <= 0) return 0;
   return Math.max(0, Math.min(total - 1, current + offset));
 };
@@ -266,10 +270,7 @@ export const ConsoleLibrary = forwardRef<ConsoleLibraryHandle, ConsoleLibraryPro
                   key={game.id}
                   onClick={() => {
                     if (offset === 0) confirm();
-                    else
-                      selectIndex(
-                        moveGameOffset(selectedIndex, offset, categoryGames.length),
-                      );
+                    else selectIndex(moveGameOffset(selectedIndex, offset, categoryGames.length));
                   }}
                   type="button"
                 >
@@ -302,8 +303,16 @@ export const ConsoleLibrary = forwardRef<ConsoleLibraryHandle, ConsoleLibraryPro
           )}
         </section>
         <footer className="pc-console-library-footer">
-          <span><InputPrompt action="navigate-vertical" label={categoryName} /> {categoryName}</span>
-          <span><InputPrompt action="navigate-horizontal" label={selectedGame?.name ?? props.console.name} /> {selectedGame?.name ?? props.console.name}</span>
+          <span>
+            <InputPrompt action="navigate-vertical" label={categoryName} /> {categoryName}
+          </span>
+          <span>
+            <InputPrompt
+              action="navigate-horizontal"
+              label={selectedGame?.name ?? props.console.name}
+            />{' '}
+            {selectedGame?.name ?? props.console.name}
+          </span>
           <span>
             {selectedGame === undefined ? '' : `${selectedIndex + 1} / ${categoryGames.length}`}
           </span>

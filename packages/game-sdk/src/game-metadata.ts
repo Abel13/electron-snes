@@ -62,8 +62,7 @@ export interface InvalidGameMetadataPluginDefinition {
 }
 
 export type GameMetadataPluginValidationResult =
-  | InvalidGameMetadataPluginDefinition
-  | ValidGameMetadataPluginDefinition;
+  InvalidGameMetadataPluginDefinition | ValidGameMetadataPluginDefinition;
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -122,10 +121,15 @@ const validateRecord = (
 
   const diagnostics: GameMetadataPluginDiagnostic[] = [];
   if (typeof value['id'] !== 'string' || !IDENTIFIER_PATTERN.test(value['id']))
-    diagnostics.push(diagnostic([...path, 'id'], 'A game metadata ID must be lowercase kebab-case.'));
+    diagnostics.push(
+      diagnostic([...path, 'id'], 'A game metadata ID must be lowercase kebab-case.'),
+    );
   if (typeof value['consoleId'] !== 'string' || !PLUGIN_ID_PATTERN.test(value['consoleId']))
     diagnostics.push(
-      diagnostic([...path, 'consoleId'], 'A metadata record must reference a reverse-DNS console ID.'),
+      diagnostic(
+        [...path, 'consoleId'],
+        'A metadata record must reference a reverse-DNS console ID.',
+      ),
     );
   if (!isProvenance(value['provenance']))
     diagnostics.push(
@@ -150,7 +154,10 @@ const validateRecord = (
   if (artwork !== undefined) {
     if (!Array.isArray(artwork) || artwork.length === 0 || !artwork.every(isArtworkReference))
       diagnostics.push(
-        diagnostic([...path, 'artwork'], 'Artwork must use safe package-relative asset references.'),
+        diagnostic(
+          [...path, 'artwork'],
+          'Artwork must use safe package-relative asset references.',
+        ),
       );
     else {
       const keys = artwork.map(({ kind, locale = '' }) => `${kind}:${locale}`);
@@ -168,9 +175,7 @@ export const defineGameMetadata = <TDefinition extends GameMetadataPluginDefinit
   definition: TDefinition,
 ): TDefinition => definition;
 
-export const validateGameMetadataPlugin = (
-  input: unknown,
-): GameMetadataPluginValidationResult => {
+export const validateGameMetadataPlugin = (input: unknown): GameMetadataPluginValidationResult => {
   if (!isRecord(input))
     return {
       diagnostics: [diagnostic([], 'A game metadata plugin definition must be an object.')],
@@ -182,8 +187,13 @@ export const validateGameMetadataPlugin = (
     return {
       diagnostics: manifestResult.error.issues.map((issue) =>
         diagnostic(
-          ['manifest', ...issue.path.filter((part): part is number | string =>
-            typeof part === 'number' || typeof part === 'string')],
+          [
+            'manifest',
+            ...issue.path.filter(
+              (part): part is number | string =>
+                typeof part === 'number' || typeof part === 'string',
+            ),
+          ],
           issue.message,
           'game-metadata-manifest-invalid',
         ),
@@ -216,10 +226,15 @@ export const validateGameMetadataPlugin = (
   const records = metadata['records'];
 
   if (!isLocale(defaultLocale))
-    diagnostics.push(diagnostic(['metadata', 'defaultLocale'], 'A valid default locale is required.'));
+    diagnostics.push(
+      diagnostic(['metadata', 'defaultLocale'], 'A valid default locale is required.'),
+    );
   if (typeof id !== 'string' || id !== manifestResult.data.id)
     diagnostics.push(
-      diagnostic(['metadata', 'id'], 'The metadata identifier must match the plugin manifest identifier.'),
+      diagnostic(
+        ['metadata', 'id'],
+        'The metadata identifier must match the plugin manifest identifier.',
+      ),
     );
 
   if (!Array.isArray(records) || records.length === 0) {
@@ -227,12 +242,16 @@ export const validateGameMetadataPlugin = (
       diagnostic(['metadata', 'records'], 'A metadata plugin must declare at least one record.'),
     );
   } else {
-    records.forEach((record, index) => diagnostics.push(...validateRecord(record, index, defaultLocale)));
+    records.forEach((record, index) =>
+      diagnostics.push(...validateRecord(record, index, defaultLocale)),
+    );
     const recordIds = records.flatMap((record) =>
       isRecord(record) && typeof record['id'] === 'string' ? [record['id']] : [],
     );
     if (new Set(recordIds).size !== recordIds.length)
-      diagnostics.push(diagnostic(['metadata', 'records'], 'Game metadata record IDs must be unique.'));
+      diagnostics.push(
+        diagnostic(['metadata', 'records'], 'Game metadata record IDs must be unique.'),
+      );
   }
 
   if (diagnostics.length > 0) return { diagnostics, status: 'invalid' };

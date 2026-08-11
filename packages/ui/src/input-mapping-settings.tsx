@@ -303,7 +303,14 @@ export const InputMappingSettings = forwardRef<
     return true;
   };
 
-  useImperativeHandle(ref, () => ({ back, captureGamepadInput, captureInput, captureKeyboard, confirm, move }));
+  useImperativeHandle(ref, () => ({
+    back,
+    captureGamepadInput,
+    captureInput,
+    captureKeyboard,
+    confirm,
+    move,
+  }));
 
   const instructions =
     stage === 'device-selection'
@@ -429,7 +436,10 @@ export const InputMappingSettings = forwardRef<
                   >
                     <span className="pc-input-map-badge">
                       {promptScheme === 'desktop' && displayedKeyboardCode !== undefined ? (
-                        <span className="pc-physical-key" aria-label={keyCodeLabel(displayedKeyboardCode)}>
+                        <span
+                          className="pc-physical-key"
+                          aria-label={keyCodeLabel(displayedKeyboardCode)}
+                        >
                           {keyCodeLabel(displayedKeyboardCode)}
                         </span>
                       ) : (

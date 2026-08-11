@@ -169,7 +169,10 @@ export const ConsoleCarousel = forwardRef<ConsoleCarouselHandle, ConsoleCarousel
             type="button"
           >
             <img alt="" className="pc-console-artwork" src={selected.artworkUrl} />
-            <span className="pc-console-action"><InputPrompt action="confirm" label={props.copy.confirm} />{props.copy.confirm}</span>
+            <span className="pc-console-action">
+              <InputPrompt action="confirm" label={props.copy.confirm} />
+              {props.copy.confirm}
+            </span>
           </button>
         </section>
         <section className="pc-console-copy" id="pc-console-meta">

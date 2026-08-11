@@ -40,17 +40,21 @@ test('returns safe manifest diagnostics before definition validation', () => {
 });
 
 test('keeps unsupported API revisions inactive', () => {
-  expect(validatePluginContract({
-    ...consolePlugin,
-    manifest: { ...consolePlugin.manifest, apiVersion: 2 },
-  })).toMatchObject({ status: 'inactive', type: 'console' });
+  expect(
+    validatePluginContract({
+      ...consolePlugin,
+      manifest: { ...consolePlugin.manifest, apiVersion: 2 },
+    }),
+  ).toMatchObject({ status: 'inactive', type: 'console' });
 });
 
 test('accepts an expanded host API range', () => {
-  expect(validatePluginContract(
-    { ...consolePlugin, manifest: { ...consolePlugin.manifest, apiVersion: 2 } },
-    { supportedApiRange: { maxInclusive: 2, minInclusive: 1 } },
-  ).status).toBe('valid');
+  expect(
+    validatePluginContract(
+      { ...consolePlugin, manifest: { ...consolePlugin.manifest, apiVersion: 2 } },
+      { supportedApiRange: { maxInclusive: 2, minInclusive: 1 } },
+    ).status,
+  ).toBe('valid');
 });
 
 test('normalizes specialized contract failures', () => {
@@ -59,16 +63,21 @@ test('normalizes specialized contract failures', () => {
     console: { ...consolePlugin.console, supportedRomExtensions: [] },
   });
   expect(result.status).toBe('invalid');
-  if (result.status === 'invalid') expect(result.diagnostics[0]?.code).toBe('plugin-contract-invalid');
+  if (result.status === 'invalid')
+    expect(result.diagnostics[0]?.code).toBe('plugin-contract-invalid');
 });
 
 test('reports plugin types without a definition validator', () => {
-  expect(validatePluginContract({ manifest: { ...consolePlugin.manifest, type: 'theme' } })).toEqual({
-    diagnostics: [{
-      code: 'plugin-contract-validator-unavailable',
-      message: 'No public definition validator is available for plugin type theme.',
-      path: ['manifest', 'type'],
-    }],
+  expect(
+    validatePluginContract({ manifest: { ...consolePlugin.manifest, type: 'theme' } }),
+  ).toEqual({
+    diagnostics: [
+      {
+        code: 'plugin-contract-validator-unavailable',
+        message: 'No public definition validator is available for plugin type theme.',
+        path: ['manifest', 'type'],
+      },
+    ],
     status: 'invalid',
   });
 });

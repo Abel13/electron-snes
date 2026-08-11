@@ -58,17 +58,30 @@ const validateGamepadBindingSets = (input: unknown): Result<readonly GamepadBind
       if (typeof valueBinding !== 'object' || valueBinding === null || Array.isArray(valueBinding))
         return err({ code: 'invalid-input', message: 'A gamepad binding is invalid.' });
       const binding = valueBinding as Record<string, unknown>;
-      if (binding['kind'] !== 'button' || !Number.isInteger(binding['index']) ||
-          (binding['index'] as number) < 0 || (binding['index'] as number) > 63 ||
-          binding['index'] === RESERVED_GAMEPAD_BUTTON_INDEX ||
-          !isNormalizedInputAction(binding['normalizedAction']))
+      if (
+        binding['kind'] !== 'button' ||
+        !Number.isInteger(binding['index']) ||
+        (binding['index'] as number) < 0 ||
+        (binding['index'] as number) > 63 ||
+        binding['index'] === RESERVED_GAMEPAD_BUTTON_INDEX ||
+        !isNormalizedInputAction(binding['normalizedAction'])
+      )
         return err({ code: 'invalid-input', message: 'A gamepad binding is invalid.' });
-      bindings.push({ index: binding['index'] as number, kind: 'button', normalizedAction: binding['normalizedAction'] });
+      bindings.push({
+        index: binding['index'] as number,
+        kind: 'button',
+        normalizedAction: binding['normalizedAction'],
+      });
     }
-    if (bindings.length !== NORMALIZED_INPUT_ACTIONS.length ||
-        new Set(bindings.map((binding) => binding.index)).size !== bindings.length ||
-        new Set(bindings.map((binding) => binding.normalizedAction)).size !== bindings.length)
-      return err({ code: 'invalid-input', message: 'Gamepad bindings must be complete and unique.' });
+    if (
+      bindings.length !== NORMALIZED_INPUT_ACTIONS.length ||
+      new Set(bindings.map((binding) => binding.index)).size !== bindings.length ||
+      new Set(bindings.map((binding) => binding.normalizedAction)).size !== bindings.length
+    )
+      return err({
+        code: 'invalid-input',
+        message: 'Gamepad bindings must be complete and unique.',
+      });
     sets.push({ bindings, deviceFingerprint: candidate['deviceFingerprint'] });
   }
   if (new Set(sets.map((set) => set.deviceFingerprint)).size !== sets.length)
@@ -126,9 +139,8 @@ export const validateInputProfile = (input: unknown): Result<InputProfile> => {
       ? ok(DEFAULT_KEYBOARD_BINDINGS)
       : validateKeyboardBindings(candidate['keyboardBindings']);
   if (!keyboardBindings.ok) return keyboardBindings;
-  const gamepadBindings = candidate['version'] === 3
-    ? validateGamepadBindingSets(candidate['gamepadBindings'])
-    : ok([]);
+  const gamepadBindings =
+    candidate['version'] === 3 ? validateGamepadBindingSets(candidate['gamepadBindings']) : ok([]);
   if (!gamepadBindings.ok) return gamepadBindings;
   return ok({
     deviceFingerprint: candidate['deviceFingerprint'],
@@ -159,8 +171,12 @@ const toJson = (profile: InputProfile): JsonValue => ({
   version: profile.version,
 });
 
-export const bindingsForGamepad = (profile: InputProfile, deviceFingerprint: string): readonly GamepadBinding[] =>
-  profile.gamepadBindings.find((set) => set.deviceFingerprint === deviceFingerprint)?.bindings ?? DEFAULT_GAMEPAD_BINDINGS;
+export const bindingsForGamepad = (
+  profile: InputProfile,
+  deviceFingerprint: string,
+): readonly GamepadBinding[] =>
+  profile.gamepadBindings.find((set) => set.deviceFingerprint === deviceFingerprint)?.bindings ??
+  DEFAULT_GAMEPAD_BINDINGS;
 
 export class InputProfileRepository {
   public constructor(private readonly storage: JsonStoragePort) {}
