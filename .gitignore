@@ -4,3 +4,16 @@ apps/desktop/release/
 coverage/
 .turbo/
 *.tsbuildinfo
+
+# Local environment files
+.env
+.env.*
+!.env.example
+
+# Private keys, signing identities, and provisioning profiles
+*.key
+*.p8
+*.p12
+*.pem
+*.pfx
+*.mobileprovision
