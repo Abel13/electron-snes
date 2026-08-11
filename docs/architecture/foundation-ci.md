@@ -15,6 +15,7 @@ pnpm format:check
 pnpm lint
 pnpm typecheck
 pnpm test
+pnpm test:plugins
 pnpm build
 ```
 
@@ -22,6 +23,11 @@ pnpm build
 manifest compatibility is part of the foundation gate. The workflow has read-only
 repository permissions and receives no publishing, release, filesystem, or plugin
 execution credentials.
+
+The dedicated `Validate official plugins` job runs `pnpm test:plugins` over every
+workspace package under `plugins/`. Official adapters and executable examples use the
+same `@platform/plugin-test` entry point documented for community authors, while their
+domain-specific tests remain in the same package suites.
 
 ## Scope
 
