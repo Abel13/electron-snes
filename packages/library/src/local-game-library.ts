@@ -4,9 +4,20 @@ import type { JsonValue } from '@platform/shared';
 
 const libraryKey = 'local-games';
 
+export interface GameConfiguration {
+  readonly autosaveEnabled: boolean;
+  readonly version: 1;
+}
+
+export const DEFAULT_GAME_CONFIGURATION: GameConfiguration = {
+  autosaveEnabled: true,
+  version: 1,
+};
+
 export interface LocalGame {
   readonly addedAt: string;
   readonly artworkKey?: string;
+  readonly configuration: GameConfiguration;
   readonly extension: '.gb' | '.gbc';
   readonly favorite: boolean;
   readonly id: string;
@@ -42,6 +53,7 @@ export class LocalGameLibrary {
     const game: LocalGame = {
       ...input,
       addedAt: this.now(),
+      configuration: DEFAULT_GAME_CONFIGURATION,
       favorite: false,
       id: this.createId(),
     };
@@ -83,6 +95,15 @@ export class LocalGameLibrary {
     return this.update(id, (game) => ({ ...game, artworkKey }));
   }
 
+  public async setConfiguration(
+    id: string,
+    configuration: GameConfiguration,
+  ): Promise<Result<LocalGame>> {
+    if (!isGameConfiguration(configuration))
+      return err(invalid('The game configuration is invalid.'));
+    return this.update(id, (game) => ({ ...game, configuration }));
+  }
+
   private async update(
     id: string,
     transform: (game: LocalGame) => LocalGame,
@@ -118,7 +139,14 @@ export const queryLocalGames = (
   });
 };
 
-const gamesToJson = (games: readonly LocalGame[]): JsonValue => games.map((game) => ({ ...game }));
+const gamesToJson = (games: readonly LocalGame[]): JsonValue =>
+  games.map(({ configuration, ...game }) => ({
+    ...game,
+    configuration: {
+      autosaveEnabled: configuration.autosaveEnabled,
+      version: configuration.version,
+    },
+  }));
 
 const gamesFromJson = (value: JsonValue): readonly LocalGame[] | undefined => {
   if (!Array.isArray(value)) return undefined;
@@ -141,6 +169,9 @@ const gamesFromJson = (value: JsonValue): readonly LocalGame[] | undefined => {
       addedAt: game['addedAt'],
       ...(typeof game['artworkKey'] === 'string' ? { artworkKey: game['artworkKey'] } : {}),
       extension: game['extension'],
+      configuration: isGameConfiguration(game['configuration'])
+        ? game['configuration']
+        : DEFAULT_GAME_CONFIGURATION,
       favorite: typeof game['favorite'] === 'boolean' ? game['favorite'] : false,
       id: game['id'],
       ...(typeof game['lastPlayedAt'] === 'string' ? { lastPlayedAt: game['lastPlayedAt'] } : {}),
@@ -153,6 +184,13 @@ const gamesFromJson = (value: JsonValue): readonly LocalGame[] | undefined => {
 
 const isRegisterable = (input: RegisterLocalGame): boolean =>
   input.name.trim().length > 0 && input.sourceKey.trim().length > 0;
+
+const isGameConfiguration = (value: unknown): value is GameConfiguration =>
+  typeof value === 'object' &&
+  value !== null &&
+  !Array.isArray(value) &&
+  (value as Record<string, unknown>)['version'] === 1 &&
+  typeof (value as Record<string, unknown>)['autosaveEnabled'] === 'boolean';
 
 const invalid = (message: string): CoreError => ({ code: 'invalid-input', message });
 const conflict = (message: string): CoreError => ({ code: 'conflict', message });
