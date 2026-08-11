@@ -39,9 +39,9 @@ appx:
   applicationId: PixelCore
   artifactName: PixelCore-${version}-Windows-Store-${arch}.${ext}
   displayName: PixelCore
-  identityName: 42548abeldutra.PixelCore
+  identityName: 42548abeldutra.PixelCoreGame
   publisher: CN=2E06CDBC-D3D8-4686-8A98-B5E634031252
-  publisherDisplayName: Angry Gnar
+  publisherDisplayName: Abel Dutra UI
   showNameOnTiles: true
 
 mac:
