@@ -1,0 +1,295 @@
+import { readFile } from 'node:fs/promises';
+import { parentPort } from 'node:worker_threads';
+import { WASI } from 'node:wasi';
+
+import type {
+  EmulatorOperationResult,
+  EmulatorSaveStateResult,
+  EmulatorSessionStatus,
+  EmulatorStopResult,
+} from '@platform/emulator-sdk';
+
+import { loadSameBoyWasmFromBytes } from './sameboy-wasm.js';
+import type { SameBoyWorkerMessage, SameBoyWorkerRequest } from './sameboy-worker-protocol.js';
+
+if (parentPort === null) throw new Error('SameBoy requires a worker message port.');
+
+const port = parentPort;
+const inputButtons: Readonly<Record<string, number>> = {
+  a: 4,
+  b: 5,
+  down: 3,
+  left: 1,
+  right: 0,
+  select: 6,
+  start: 7,
+  up: 2,
+};
+const wasi = new WASI({ version: 'preview1' });
+const wasm = await loadSameBoyWasmFromBytes(
+  await readFile(new URL('../wasm/sameboy.wasm', import.meta.url)),
+  { wasi_snapshot_preview1: wasi.wasiImport },
+  (instance) => wasi.initialize(instance),
+);
+let hasRom = false;
+let status: EmulatorSessionStatus = 'idle';
+let timer: ReturnType<typeof setTimeout> | undefined;
+let framesSinceSaveCheck = 0;
+const frameDurationMs = 1000 / 59.7275;
+const rewindCaptureInterval = 3;
+const rewindFrameLimit = Math.ceil(10_000 / frameDurationMs / rewindCaptureInterval);
+const rewindStates: Uint8Array[] = [];
+let rewindActive = false;
+let fastForwardActive = false;
+let framesSinceRewindCapture = 0;
+let nextFrameAt: number | undefined;
+
+port.on('message', (request: SameBoyWorkerRequest) => {
+  void handle(request);
+});
+
+const handle = async (request: SameBoyWorkerRequest): Promise<void> => {
+  let result: EmulatorOperationResult | EmulatorSaveStateResult | EmulatorStopResult;
+  switch (request.type) {
+    case 'load-rom':
+      result = loadRom(request.rom.extension, request.rom.bytes, request.cartridgeSave?.bytes);
+      break;
+    case 'start':
+      result = start();
+      break;
+    case 'pause':
+      result =
+        status === 'running'
+          ? (stopClock(), (status = 'paused'), ok())
+          : invalid('A running SameBoy session is required to pause.');
+      break;
+    case 'resume':
+      result =
+        status === 'paused'
+          ? ((status = 'running'), scheduleFrame(), ok())
+          : invalid('A paused SameBoy session is required to resume.');
+      break;
+    case 'stop':
+      stopClock();
+      status = 'stopped';
+      result = stop();
+      break;
+    case 'set-input':
+      result = setInput(request.input.playerPortId, request.input.actions);
+      break;
+    case 'capture-save-state':
+      result = captureSaveState();
+      break;
+    case 'restore-save-state':
+      result = restoreSaveState(request.saveState);
+      break;
+    case 'set-rewind-active':
+      result = setRewindActive(request.active);
+      break;
+    case 'set-fast-forward-active':
+      result = setFastForwardActive(request.active);
+      break;
+  }
+  const stopTransfer =
+    request.type === 'stop' &&
+    result.status === 'ok' &&
+    'cartridgeSave' in result &&
+    result.cartridgeSave !== undefined
+      ? [result.cartridgeSave.bytes.buffer].filter(
+          (buffer): buffer is ArrayBuffer => buffer instanceof ArrayBuffer,
+        )
+      : undefined;
+  const stateTransfer =
+    request.type === 'capture-save-state' &&
+    result.status === 'ok' &&
+    'saveState' in result &&
+    result.saveState.bytes.buffer instanceof ArrayBuffer
+      ? [result.saveState.bytes.buffer]
+      : undefined;
+  post({ id: request.id, result, status, type: 'result' }, stateTransfer ?? stopTransfer);
+};
+
+const loadRom = (
+  extension: string,
+  bytes: Uint8Array,
+  cartridgeSave?: Uint8Array,
+): EmulatorOperationResult => {
+  if ((extension !== '.gb' && extension !== '.gbc') || bytes.byteLength === 0)
+    return {
+      code: 'invalid-rom',
+      message: 'SameBoy supports non-empty .gb and .gbc ROMs.',
+      status: 'error',
+    };
+  const address = wasm.allocate(bytes.byteLength);
+  try {
+    wasm.write(address, bytes);
+    if (!wasm.loadRom(address, bytes.byteLength))
+      return { code: 'invalid-rom', message: 'SameBoy could not load this ROM.', status: 'error' };
+  } finally {
+    wasm.release(address);
+  }
+  if (cartridgeSave !== undefined && cartridgeSave.byteLength > 0) {
+    const saveAddress = wasm.allocate(cartridgeSave.byteLength);
+    try {
+      wasm.write(saveAddress, cartridgeSave);
+      if (!wasm.loadBattery(saveAddress, cartridgeSave.byteLength))
+        return {
+          code: 'invalid-rom',
+          message: 'SameBoy could not load the cartridge save.',
+          status: 'error',
+        };
+    } finally {
+      wasm.release(saveAddress);
+    }
+  }
+  hasRom = true;
+  rewindActive = false;
+  fastForwardActive = false;
+  rewindStates.length = 0;
+  framesSinceRewindCapture = 0;
+  framesSinceSaveCheck = 0;
+  return ok();
+};
+const stop = (): EmulatorStopResult => {
+  const bytes = hasRom ? wasm.readBattery() : undefined;
+  return bytes === undefined ? ok() : { cartridgeSave: { bytes }, status: 'ok' };
+};
+const start = (): EmulatorOperationResult => {
+  if (!hasRom) return invalid('A ROM must be loaded before starting SameBoy.');
+  if (status !== 'idle' && status !== 'stopped')
+    return invalid('SameBoy can start only from an idle or stopped state.');
+  status = 'running';
+  nextFrameAt = performance.now();
+  scheduleFrame();
+  return ok();
+};
+const setInput = (portId: string, actions: readonly string[]): EmulatorOperationResult => {
+  if (portId !== 'player-one') return invalid('SameBoy supports only the player-one port.');
+  const pressed = new Set(actions);
+  for (const [action, button] of Object.entries(inputButtons))
+    wasm.setButton(button, pressed.has(action));
+  return ok();
+};
+const captureSaveState = (): EmulatorSaveStateResult => {
+  if (!hasRom || (status !== 'running' && status !== 'paused'))
+    return {
+      code: 'invalid-state',
+      message: 'An active SameBoy session is required to capture a save state.',
+      status: 'error',
+    };
+  const bytes = wasm.readSaveState();
+  return bytes === undefined
+    ? { code: 'unexpected', message: 'SameBoy could not capture the save state.', status: 'error' }
+    : {
+        saveState: { bytes, coreId: 'org.pixelcore.sameboy', formatVersion: 1 },
+        status: 'ok',
+      };
+};
+const restoreSaveState = (saveState: {
+  readonly bytes: Uint8Array;
+  readonly coreId: string;
+  readonly formatVersion: number;
+}): EmulatorOperationResult => {
+  if (!hasRom || (status !== 'running' && status !== 'paused'))
+    return invalid('An active SameBoy session is required to restore a save state.');
+  if (saveState.coreId !== 'org.pixelcore.sameboy' || saveState.formatVersion !== 1)
+    return invalid('The save state is incompatible with this SameBoy version.');
+  const address = wasm.allocate(saveState.bytes.byteLength);
+  try {
+    wasm.write(address, saveState.bytes);
+    return wasm.loadSaveState(address, saveState.bytes.byteLength)
+      ? ok()
+      : invalid('SameBoy rejected the save state.');
+  } finally {
+    wasm.release(address);
+  }
+};
+const setRewindActive = (active: boolean): EmulatorOperationResult => {
+  if (status !== 'running') return invalid('A running SameBoy session is required for rewind.');
+  rewindActive = active;
+  if (active) fastForwardActive = false;
+  return ok();
+};
+const setFastForwardActive = (active: boolean): EmulatorOperationResult => {
+  if (status !== 'running')
+    return invalid('A running SameBoy session is required for fast-forward.');
+  fastForwardActive = active;
+  if (active) rewindActive = false;
+  return ok();
+};
+const scheduleFrame = (): void => {
+  if (status !== 'running') return;
+  const now = performance.now();
+  if (nextFrameAt === undefined || now - nextFrameAt > frameDurationMs * 4) nextFrameAt = now;
+  nextFrameAt += frameDurationMs;
+  timer = setTimeout(runFrame, Math.max(0, nextFrameAt - now));
+};
+const runFrame = (): void => {
+  if (status !== 'running') return;
+  if (rewindActive) {
+    const previous = rewindStates.pop();
+    if (previous !== undefined) {
+      const address = wasm.allocate(previous.byteLength);
+      try {
+        wasm.write(address, previous);
+        wasm.loadSaveState(address, previous.byteLength);
+      } finally {
+        wasm.release(address);
+      }
+    }
+  } else {
+    const frameCount = fastForwardActive ? 2 : 1;
+    for (let frame = 0; frame < frameCount; frame += 1) {
+      wasm.runFrame();
+      framesSinceRewindCapture += 1;
+      if (framesSinceRewindCapture >= rewindCaptureInterval) {
+        framesSinceRewindCapture = 0;
+        const state = wasm.readSaveState();
+        if (state !== undefined) {
+          rewindStates.push(state);
+          if (rewindStates.length > rewindFrameLimit) rewindStates.shift();
+        }
+      }
+    }
+  }
+  const pixels = wasm.readFrame();
+  const buffer = pixels.buffer;
+  if (buffer instanceof ArrayBuffer)
+    post({ height: 144, pixels, type: 'video', width: 160 }, [buffer]);
+  else post({ height: 144, pixels, type: 'video', width: 160 });
+  const samples = wasm.readAudio();
+  const audioBuffer = samples.buffer;
+  if (
+    !rewindActive &&
+    !fastForwardActive &&
+    samples.length > 0 &&
+    audioBuffer instanceof ArrayBuffer
+  )
+    post({ channels: 2, sampleRate: 48000, samples, type: 'audio' }, [audioBuffer]);
+  framesSinceSaveCheck += 1;
+  if (framesSinceSaveCheck >= 60) {
+    framesSinceSaveCheck = 0;
+    if (wasm.isBatteryDirty()) {
+      const bytes = wasm.readBattery();
+      const buffer = bytes?.buffer;
+      if (bytes !== undefined && buffer instanceof ArrayBuffer)
+        post({ save: { bytes }, type: 'cartridge-save' }, [buffer]);
+    }
+  }
+  scheduleFrame();
+};
+const stopClock = (): void => {
+  if (timer !== undefined) clearTimeout(timer);
+  timer = undefined;
+  nextFrameAt = undefined;
+  rewindActive = false;
+  fastForwardActive = false;
+};
+const ok = (): EmulatorOperationResult => ({ status: 'ok' });
+const invalid = (message: string): EmulatorOperationResult => ({
+  code: 'invalid-state',
+  message,
+  status: 'error',
+});
+const post = (message: SameBoyWorkerMessage, transferList?: readonly ArrayBuffer[]): void =>
+  port.postMessage(message, transferList);

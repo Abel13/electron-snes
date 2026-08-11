@@ -1,0 +1,220 @@
+name: Release PixelCore
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: read
+
+concurrency:
+  cancel-in-progress: false
+  group: pixelcore-release-${{ github.ref }}
+
+jobs:
+  validate-tag:
+    name: Validate release tag
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Validate tag and main ancestry
+        id: version
+        shell: bash
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          package_version="$(node -p "require('./apps/desktop/package.json').version")"
+          test "$version" = "$package_version"
+          git fetch origin main:refs/remotes/origin/main
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+  package-windows:
+    name: Package Windows
+    needs: validate-tag
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.33.0
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          cache: pnpm
+          node-version: 22
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Require Windows signing credentials
+        shell: pwsh
+        env:
+          CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+          CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:CSC_LINK) -or [string]::IsNullOrWhiteSpace($env:CSC_KEY_PASSWORD)) {
+            throw 'Windows signing credentials are required.'
+          }
+      - name: Build signed Windows installer
+        env:
+          CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+          CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+        run: pnpm --filter @platform/desktop package:windows
+      - name: Verify Windows signature
+        shell: pwsh
+        run: |
+          $installer = Get-Item 'apps/desktop/release/PixelCore-${{ needs.validate-tag.outputs.version }}-Windows-x64.exe'
+          $signature = Get-AuthenticodeSignature $installer.FullName
+          if ($signature.Status -ne 'Valid') { throw "Invalid Windows signature: $($signature.Status)" }
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v7
+        with:
+          if-no-files-found: error
+          name: pixelcore-windows
+          path: |
+            apps/desktop/release/PixelCore-${{ needs.validate-tag.outputs.version }}-Windows-x64.exe
+            apps/desktop/release/PixelCore-${{ needs.validate-tag.outputs.version }}-Windows-x64.exe.blockmap
+            apps/desktop/release/beta.yml
+
+  package-macos:
+    name: Package macOS
+    needs: validate-tag
+    runs-on: macos-latest
+    timeout-minutes: 40
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.33.0
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          cache: pnpm
+          node-version: 22
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Require macOS signing credentials
+        env:
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY_CONTENT: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
+          CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
+        run: |
+          test -n "$CSC_LINK"
+          test -n "$CSC_KEY_PASSWORD"
+          test -n "$APPLE_API_KEY_CONTENT"
+          test -n "$APPLE_API_KEY_ID"
+          test -n "$APPLE_API_ISSUER"
+          printf '%s' "$APPLE_API_KEY_CONTENT" > "$RUNNER_TEMP/AuthKey_${APPLE_API_KEY_ID}.p8"
+      - name: Build signed and notarized macOS image
+        env:
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY: ${{ runner.temp }}/AuthKey_${{ secrets.APPLE_API_KEY_ID }}.p8
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
+          CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
+        run: pnpm --filter @platform/desktop package:macos:release
+      - name: Verify macOS signature and notarization
+        run: |
+          app='apps/desktop/release/mac-universal/PixelCore.app'
+          dmg='apps/desktop/release/PixelCore-${{ needs.validate-tag.outputs.version }}-macOS-universal.dmg'
+          codesign --verify --deep --strict --verbose=2 "$app"
+          xcrun stapler validate "$app"
+          spctl --assess --type execute --verbose=2 "$app"
+          spctl --assess --type open --context context:primary-signature --verbose=2 "$dmg"
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v7
+        with:
+          if-no-files-found: error
+          name: pixelcore-macos
+          path: |
+            apps/desktop/release/PixelCore-${{ needs.validate-tag.outputs.version }}-macOS-universal.dmg
+            apps/desktop/release/PixelCore-${{ needs.validate-tag.outputs.version }}-macOS-universal.dmg.blockmap
+            apps/desktop/release/PixelCore-${{ needs.validate-tag.outputs.version }}-macOS-universal.zip
+            apps/desktop/release/PixelCore-${{ needs.validate-tag.outputs.version }}-macOS-universal.zip.blockmap
+            apps/desktop/release/beta-mac.yml
+
+  package-linux:
+    name: Package Linux
+    needs: validate-tag
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.33.0
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          cache: pnpm
+          node-version: 22
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build Linux AppImage
+        run: pnpm --filter @platform/desktop package:linux
+      - name: Verify Linux artifact
+        run: |
+          appimage='apps/desktop/release/PixelCore-${{ needs.validate-tag.outputs.version }}-Linux-x86_64.AppImage'
+          test -x "$appimage"
+          file "$appimage" | grep -q 'ELF 64-bit.*x86-64'
+      - name: Upload Linux artifact
+        uses: actions/upload-artifact@v7
+        with:
+          if-no-files-found: error
+          name: pixelcore-linux
+          path: |
+            apps/desktop/release/PixelCore-${{ needs.validate-tag.outputs.version }}-Linux-x86_64.AppImage
+            apps/desktop/release/beta-linux.yml
+
+  publish:
+    name: Publish GitHub prerelease
+    needs:
+      - validate-tag
+      - package-windows
+      - package-macos
+      - package-linux
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: release
+    permissions:
+      attestations: write
+      contents: write
+      id-token: write
+    steps:
+      - name: Download release artifacts
+        uses: actions/download-artifact@v8
+        with:
+          merge-multiple: true
+          path: release-assets
+      - name: Generate checksums
+        working-directory: release-assets
+        run: sha256sum PixelCore-* > SHA256SUMS
+      - name: Attest release artifacts
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: release-assets/*
+      - name: Publish GitHub prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" release-assets/* \
+            --generate-notes \
+            --prerelease \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "PixelCore ${{ needs.validate-tag.outputs.version }}" \
+            --verify-tag

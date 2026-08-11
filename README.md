@@ -1,4 +1,12 @@
-# Electron SNES
+# PixelCore
+
+<img src="apps/desktop/assets/brand/pixelcore-icon.png" alt="PixelCore" width="160">
+
+> Play. Preserve. Connect.
+
+Os masters oficiais de marca estão em `apps/desktop/assets/brand/`. Consulte o
+[guia de marca](docs/design/brand.md) antes de criar telas, splash screens ou assets
+de empacotamento.
 
 ## Entendimento do projeto
 
@@ -15,8 +23,36 @@ Estrutura de governança:
 
 - `.github/agents/` (arquitetura, design e revisão)
 - `docs/architecture/` (princípios, plugin system, input)
+- `docs/plugins/` (SDK reference, scaffold, executable examples, and migration policy)
 - `docs/design/` (princípios de UX, tokens, navegação, acessibilidade)
 - `docs/adr/` (decisões arquiteturais)
 
 Objetivo operacional:
 Manter uma base escalável, testável, segura e de fácil contribuição para novos consoles, emuladores, controllers, metadados, temas e integrações.
+
+## Primeiro recorte jogável
+
+A primeira família oficial é Game Boy + Game Boy Color. O produto aceita ROMs locais
+`.gb` e `.gbc` fornecidas pelo usuário, com suporte de compatibilidade para jogos de
+Game Boy executados pelo console Game Boy Color. SNES permanece uma expansão futura,
+sem acoplamento ao core da plataforma.
+
+Consulte [a especificação da família Game Boy](docs/product/game-boy-family.md) para
+o escopo de controles, política de ROMs e estratégia de testes.
+
+## Desenvolvimento local
+
+Requisitos: Node.js 22 ou superior e pnpm 10.33.0.
+
+```sh
+corepack enable
+pnpm install
+pnpm lint
+pnpm format:check
+pnpm typecheck
+pnpm test
+pnpm build
+```
+
+O workspace usa pnpm e Turborepo. A estrutura de packages e suas dependências estão documentadas em `docs/architecture/monorepo.md`.
+O gate automatizado da fundação está documentado em `docs/architecture/foundation-ci.md`.

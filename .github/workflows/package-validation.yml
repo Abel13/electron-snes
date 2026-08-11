@@ -1,0 +1,140 @@
+name: Validate desktop packages
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/package-validation.yml'
+      - '.github/workflows/release.yml'
+      - 'apps/desktop/electron-builder.yml'
+      - 'apps/desktop/package.json'
+      - 'pnpm-lock.yaml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  cancel-in-progress: true
+  group: package-validation-${{ github.ref }}
+
+jobs:
+  windows:
+    name: Smoke package Windows
+    runs-on: windows-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.33.0
+      - uses: actions/setup-node@v7
+        with:
+          cache: pnpm
+          node-version: 22
+      - run: pnpm install --frozen-lockfile
+      - name: Build unsigned Windows package
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: pnpm --filter @platform/desktop package:windows
+      - name: Verify Windows package
+        shell: pwsh
+        run: |
+          $version = (Get-Content apps/desktop/package.json | ConvertFrom-Json).version
+          $installer = "apps/desktop/release/PixelCore-$version-Windows-x64.exe"
+          if (-not (Test-Path $installer)) { throw 'Windows installer is missing.' }
+          if ((Get-Item $installer).Length -lt 10MB) { throw 'Windows installer is unexpectedly small.' }
+          if (-not (Test-Path "$installer.blockmap")) { throw 'Windows blockmap is missing.' }
+          if (-not (Test-Path 'apps/desktop/release/beta.yml')) { throw 'Windows update metadata is missing.' }
+          if (-not (Test-Path 'apps/desktop/release/win-unpacked/resources/app.asar')) { throw 'Packaged application is missing.' }
+          $wasm = Get-ChildItem 'apps/desktop/release/win-unpacked/resources/app.asar.unpacked' -Filter '*.wasm' -Recurse
+          if ($wasm.Count -eq 0) { throw 'SameBoy WASM runtime is missing.' }
+      - uses: actions/upload-artifact@v7
+        with:
+          if-no-files-found: error
+          name: package-smoke-windows
+          path: |
+            apps/desktop/release/PixelCore-*-Windows-x64.exe
+            apps/desktop/release/PixelCore-*-Windows-x64.exe.blockmap
+            apps/desktop/release/beta.yml
+          retention-days: 7
+
+  macos:
+    name: Smoke package macOS
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.33.0
+      - uses: actions/setup-node@v7
+        with:
+          cache: pnpm
+          node-version: 22
+      - run: pnpm install --frozen-lockfile
+      - name: Build unsigned macOS package
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: pnpm --filter @platform/desktop package:macos
+      - name: Verify macOS package
+        run: |
+          version="$(node -p "require('./apps/desktop/package.json').version")"
+          app='apps/desktop/release/mac-universal/PixelCore.app'
+          dmg="apps/desktop/release/PixelCore-${version}-macOS-universal.dmg"
+          zip="apps/desktop/release/PixelCore-${version}-macOS-universal.zip"
+          test -d "$app"
+          test -s "$dmg"
+          test -s "$zip"
+          test -s "$dmg.blockmap"
+          test -s "$zip.blockmap"
+          test -s apps/desktop/release/beta-mac.yml
+          lipo -archs "$app/Contents/MacOS/PixelCore" | grep -q arm64
+          lipo -archs "$app/Contents/MacOS/PixelCore" | grep -q x86_64
+          test -f "$app/Contents/Resources/app.asar"
+          find "$app/Contents/Resources/app.asar.unpacked" -name '*.wasm' -print -quit | grep -q .
+      - uses: actions/upload-artifact@v7
+        with:
+          if-no-files-found: error
+          name: package-smoke-macos
+          path: |
+            apps/desktop/release/PixelCore-*-macOS-universal.dmg
+            apps/desktop/release/PixelCore-*-macOS-universal.dmg.blockmap
+            apps/desktop/release/PixelCore-*-macOS-universal.zip
+            apps/desktop/release/PixelCore-*-macOS-universal.zip.blockmap
+            apps/desktop/release/beta-mac.yml
+          retention-days: 7
+
+  linux:
+    name: Smoke package Linux
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.33.0
+      - uses: actions/setup-node@v7
+        with:
+          cache: pnpm
+          node-version: 22
+      - run: pnpm install --frozen-lockfile
+      - name: Build Linux package
+        run: pnpm --filter @platform/desktop package:linux
+      - name: Verify Linux package
+        run: |
+          version="$(node -p "require('./apps/desktop/package.json').version")"
+          appimage="apps/desktop/release/PixelCore-${version}-Linux-x86_64.AppImage"
+          test -x "$appimage"
+          test "$(stat -c %s "$appimage")" -gt 10000000
+          file "$appimage" | grep -q 'ELF 64-bit.*x86-64'
+          test -s apps/desktop/release/beta-linux.yml
+          test -f apps/desktop/release/linux-unpacked/resources/app.asar
+          find apps/desktop/release/linux-unpacked/resources/app.asar.unpacked -name '*.wasm' -print -quit | grep -q .
+      - uses: actions/upload-artifact@v7
+        with:
+          if-no-files-found: error
+          name: package-smoke-linux
+          path: |
+            apps/desktop/release/PixelCore-*-Linux-x86_64.AppImage
+            apps/desktop/release/beta-linux.yml
+          retention-days: 7

@@ -17,6 +17,10 @@ Obrigado por contribuir com a plataforma. Antes de abrir uma pull request (PR), 
 4. Atualize a documentação pública quando alterar SDKs, contratos, configuração ou comportamento observável.
 5. Preencha integralmente o template de PR.
 
+Mudanças em contratos públicos de plugin também devem seguir
+`docs/plugins/api-migration.md`, incluindo classificação de compatibilidade, fixtures e
+instruções de migração quando aplicável.
+
 ## Branches (Git Flow)
 
 As branches permanentes são:
@@ -123,6 +127,8 @@ Use o próximo número sequencial e inclua: contexto, decisão, alternativas, co
 ## Antes de solicitar revisão
 
 - Confirme que o escopo da PR está claro e sem alterações não relacionadas.
-- Execute os comandos de validação definidos pelo projeto para as áreas alteradas.
+- Execute `pnpm lint`, `pnpm format:check`, `pnpm typecheck`, `pnpm test` e `pnpm build` para mudanças de workspace ou tooling.
+- A workflow `Foundation validation` executa o mesmo gate em PRs para `develop` e
+  `main`; consulte `docs/architecture/foundation-ci.md`.
 - Documente compatibilidade, migrações e limitações conhecidas.
 - Descreva como a mudança foi testada e o que não foi testado.

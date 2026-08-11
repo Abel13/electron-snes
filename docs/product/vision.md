@@ -8,6 +8,10 @@ Criar uma plataforma desktop bonita e atual para jogar clássicos com a simplici
 
 O usuário abre a biblioteca, encontra um jogo, aperta jogar e usa o dispositivo que já tem: teclado, controle Xbox, PlayStation, 8BitDo ou um controle customizado. Compatibilidade e configuração não devem interromper a sessão de jogo.
 
+O primeiro recorte jogável contempla Game Boy e Game Boy Color. O suporte inicial a
+Game Boy preserva a compatibilidade com ROMs `.gb`; Game Boy Color inclui também
+ROMs `.gbc`. SNES é uma expansão futura da mesma plataforma extensível.
+
 ## Princípios de produto
 
 1. Qualquer controle deve parecer nativo.
@@ -26,6 +30,8 @@ O usuário abre a biblioteca, encontra um jogo, aperta jogar e usa o dispositivo
 - Reconexão de dispositivos sem travar a sessão ou exigir reinício.
 - Estados de carregamento, vazio, erro e indisponibilidade claros e acionáveis.
 - Motion discreto e respeitoso a `prefers-reduced-motion`.
+- ROMs fornecidas localmente pelo usuário, com saves e save states mantidos no
+  computador do usuário e separados da biblioteca e da configuração da aplicação.
 
 ## Direção técnica
 

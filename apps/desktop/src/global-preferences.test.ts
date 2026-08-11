@@ -1,0 +1,100 @@
+import { ok, type JsonStoragePort } from '@platform/core';
+import type { JsonObject, JsonValue } from '@platform/shared';
+import { describe, expect, it } from 'vitest';
+import {
+  GlobalPreferencesRepository,
+  clearLegacyGlobalPreferences,
+  createDefaultGlobalPreferences,
+  isGlobalPreferences,
+  readLegacyGlobalPreferences,
+  type GlobalPreferences,
+} from './global-preferences.js';
+
+const preferences: GlobalPreferences = {
+  locale: 'pt-BR',
+  telemetryConsent: 'declined',
+  uiAudioMuted: true,
+  uiAudioVolume: 0.45,
+  version: 2,
+};
+
+describe('global preferences', () => {
+  it('resolves safe defaults and validates strict persisted values', () => {
+    expect(createDefaultGlobalPreferences('pt-PT')).toEqual({
+      locale: 'pt-BR',
+      telemetryConsent: 'undecided',
+      uiAudioMuted: false,
+      uiAudioVolume: 0.22,
+      version: 2,
+    });
+    expect(isGlobalPreferences(preferences)).toBe(true);
+    expect(isGlobalPreferences({ ...preferences, locale: 'zh-TW' })).toBe(false);
+    expect(isGlobalPreferences({ ...preferences, uiAudioVolume: Number.NaN })).toBe(false);
+    expect(isGlobalPreferences({ ...preferences, uiAudioVolume: 1.1 })).toBe(false);
+    expect(isGlobalPreferences({ ...preferences, extra: true })).toBe(false);
+  });
+
+  it('migrates only valid legacy values and clears selected keys explicitly', () => {
+    const values = new Map<string, string>([
+      ['pixelcore.locale', 'zh-CN'],
+      ['pixelcore.uiAudioMuted', 'true'],
+      ['pixelcore.uiAudioVolume', 'invalid'],
+    ]);
+    const storage = {
+      getItem: (key: string) => values.get(key) ?? null,
+      removeItem: (key: string) => {
+        values.delete(key);
+      },
+    };
+    const migrated = readLegacyGlobalPreferences(storage, 'en-US');
+    expect(migrated.preferences).toEqual({
+      locale: 'zh-CN',
+      telemetryConsent: 'undecided',
+      uiAudioMuted: true,
+      uiAudioVolume: 0.22,
+      version: 2,
+    });
+    clearLegacyGlobalPreferences(storage, migrated.keys);
+    expect(values.size).toBe(0);
+  });
+
+  it('migrates v1 preferences without granting telemetry consent', async () => {
+    const legacy = { locale: 'en-US', uiAudioMuted: false, uiAudioVolume: 0.22, version: 1 };
+    const storage: JsonStoragePort = {
+      list: async () => ok({} as JsonObject),
+      read: async () => ok(legacy),
+      remove: async () => ok(undefined),
+      write: async () => ok(undefined),
+    };
+    await expect(new GlobalPreferencesRepository(storage).load()).resolves.toEqual(
+      ok({ ...legacy, telemetryConsent: 'undecided', version: 2 }),
+    );
+  });
+
+  it('serializes repository writes and preserves their order', async () => {
+    const writes: JsonValue[] = [];
+    let releaseFirst: (() => void) | undefined;
+    const firstPending = new Promise<void>((resolve) => {
+      releaseFirst = resolve;
+    });
+    const storage: JsonStoragePort = {
+      list: async () => ok({} as JsonObject),
+      read: async () => ok(undefined),
+      remove: async () => ok(undefined),
+      write: async (_domain, _key, value) => {
+        writes.push(value);
+        if (writes.length === 1) await firstPending;
+        return ok(undefined);
+      },
+    };
+    const repository = new GlobalPreferencesRepository(storage);
+    const first = repository.save(preferences);
+    const secondPreferences = { ...preferences, uiAudioVolume: 0.9 } as const;
+    const second = repository.save(secondPreferences);
+    await Promise.resolve();
+    expect(writes).toHaveLength(1);
+    releaseFirst?.();
+    await Promise.all([first, second]);
+    expect(writes).toEqual([preferences, secondPreferences]);
+  });
+});

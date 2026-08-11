@@ -1,0 +1,15 @@
+{
+  "apiVersion": 0,
+  "capabilities": ["Invalid Capability", "Invalid Capability"],
+  "extra": true,
+  "id": "invalid id",
+  "name": "",
+  "permissions": [
+    {
+      "actions": [],
+      "resource": "invalid resource"
+    }
+  ],
+  "type": "unknown",
+  "version": "1.0"
+}

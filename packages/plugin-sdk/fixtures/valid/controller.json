@@ -1,0 +1,9 @@
+{
+  "apiVersion": 1,
+  "capabilities": ["gamepad-mapping"],
+  "id": "org.pixelcore.reference-controller",
+  "name": "Reference Controller",
+  "permissions": [],
+  "type": "controller",
+  "version": "1.0.0"
+}

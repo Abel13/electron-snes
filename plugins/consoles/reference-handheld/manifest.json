@@ -1,0 +1,9 @@
+{
+  "apiVersion": 1,
+  "capabilities": ["cartridge-playback"],
+  "id": "org.pixelcore.example.reference-handheld",
+  "name": "Reference Handheld",
+  "permissions": [],
+  "type": "console",
+  "version": "1.0.0"
+}

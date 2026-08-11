@@ -1,0 +1,92 @@
+name: Foundation validation
+
+on:
+  pull_request:
+    branches:
+      - develop
+      - main
+  push:
+    branches:
+      - develop
+
+permissions:
+  contents: read
+
+concurrency:
+  cancel-in-progress: true
+  group: foundation-validation-${{ github.workflow }}-${{ github.ref }}
+
+jobs:
+  validate:
+    name: Validate foundation (${{ matrix.platform }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: Linux
+          - os: macos-latest
+            platform: macOS
+          - os: windows-latest
+            platform: Windows
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          cache: pnpm
+          node-version: 22
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check formatting
+        run: pnpm format:check
+
+      - name: Lint workspaces
+        run: pnpm lint
+
+      - name: Type-check workspaces
+        run: pnpm typecheck
+
+      - name: Run contract and unit tests
+        run: pnpm test
+
+      - name: Build workspaces
+        run: pnpm build
+
+  plugin-contracts:
+    name: Validate official plugins
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          cache: pnpm
+          node-version: 22
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate official plugins and examples
+        run: pnpm test:plugins

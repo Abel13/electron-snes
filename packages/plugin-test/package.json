@@ -1,0 +1,27 @@
+{
+  "name": "@platform/plugin-test",
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "lint": "eslint src --max-warnings=0",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@platform/console-sdk": "workspace:*",
+    "@platform/controller-sdk": "workspace:*",
+    "@platform/emulator-sdk": "workspace:*",
+    "@platform/game-sdk": "workspace:*",
+    "@platform/plugin-sdk": "workspace:*"
+  }
+}

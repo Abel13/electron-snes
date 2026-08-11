@@ -1,0 +1,27 @@
+{
+  "name": "electron-snes",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "format:check": "prettier --check --ignore-unknown package.json pnpm-workspace.yaml turbo.json .npmrc .gitignore .gitattributes .nvmrc tsconfig.base.json eslint.config.js prettier.config.js vitest.config.ts .github/workflows apps packages plugins",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "test:plugins": "turbo run test --filter='./plugins/**'",
+    "typecheck": "turbo run typecheck"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.0.0",
+    "eslint": "^9.0.0",
+    "prettier": "^3.0.0",
+    "turbo": "^2.0.0",
+    "typescript": "^5.0.0",
+    "typescript-eslint": "^8.0.0",
+    "vitest": "^3.0.0"
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "name": "@platform/desktop",
+  "version": "0.1.0-beta.1",
+  "description": "A modern, extensible desktop platform for preserving and playing retro games.",
+  "author": "PixelCore contributors",
+  "desktopName": "org.pixelcore.desktop",
+  "private": true,
+  "type": "module",
+  "main": "dist/main.js",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "vite build && vite build --config vite.preload.config.ts && tsc -p tsconfig.build.json",
+    "dev": "node scripts/dev.mjs",
+    "lint": "eslint src --max-warnings=0",
+    "package:linux": "pnpm --dir ../.. build && electron-builder --config electron-builder.yml --linux AppImage --x64",
+    "package:macos": "pnpm --dir ../.. build && electron-builder --config electron-builder.yml --mac --universal",
+    "package:macos:release": "pnpm package:macos -- -c.mac.notarize=true",
+    "package:windows": "pnpm --dir ../.. build && electron-builder --config electron-builder.yml --win nsis --x64",
+    "start": "pnpm build && env -u ELECTRON_RUN_AS_NODE electron .",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.renderer.json --noEmit"
+  },
+  "dependencies": {
+    "@platform/console-sdk": "workspace:*",
+    "@platform/controller-sdk": "workspace:*",
+    "@platform/core": "workspace:*",
+    "@platform/emulator": "workspace:*",
+    "@platform/emulator-sdk": "workspace:*",
+    "@platform/game-sdk": "workspace:*",
+    "@platform/input": "workspace:*",
+    "@platform/integration-sdk": "workspace:*",
+    "@platform/library": "workspace:*",
+    "@platform/official-plugins": "workspace:*",
+    "@platform/plugin-sdk": "workspace:*",
+    "@platform/shared": "workspace:*",
+    "@platform/theme-sdk": "workspace:*",
+    "@platform/ui": "workspace:*",
+    "@platform/ui-audio": "workspace:*",
+    "@platform/ui-contracts": "workspace:*",
+    "electron-updater": "^6.8.9",
+    "i18next": "^25.6.3",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "react-i18next": "^16.5.0"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.7",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "5.0.2",
+    "electron": "^43.3.0",
+    "electron-builder": "^26.15.3",
+    "vite": "7.1.7"
+  }
+}

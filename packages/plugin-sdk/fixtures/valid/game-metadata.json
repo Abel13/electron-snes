@@ -1,0 +1,9 @@
+{
+  "apiVersion": 1,
+  "capabilities": ["metadata-lookup"],
+  "id": "org.pixelcore.reference-metadata",
+  "name": "Reference Metadata",
+  "permissions": [],
+  "type": "game-metadata",
+  "version": "1.0.0"
+}
