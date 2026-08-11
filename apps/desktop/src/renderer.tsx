@@ -31,7 +31,6 @@ import {
   InputPromptProvider,
   InputMappingSettings,
   moveDirectionalFocus,
-  ParticleField,
   type ConsoleCarouselHandle,
   type ConsoleLibraryHandle,
   type EmulatorAmbientPalette,
