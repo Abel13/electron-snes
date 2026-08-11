@@ -134,4 +134,15 @@ describe('EmulatorSessionController', () => {
     await expect(controller.setRewindActive(true)).resolves.toMatchObject({ code: 'unavailable' });
     expect(session.setRewindActive).not.toHaveBeenCalled();
   });
+
+  it('does not invoke fast-forward unless the active plugin declares it', async () => {
+    const session = createSession();
+    session.setFastForwardActive = vi.fn(async () => ({ status: 'ok' as const }));
+    const controller = new EmulatorSessionController(createPlugin(session));
+    await controller.launch(rom);
+    await expect(controller.setFastForwardActive(true)).resolves.toMatchObject({
+      code: 'unavailable',
+    });
+    expect(session.setFastForwardActive).not.toHaveBeenCalled();
+  });
 });
