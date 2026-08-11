@@ -18,6 +18,7 @@ import {
   isEmulatorCapabilities,
   hasSaveStateSlotPayload,
   isSaveStateListResponse,
+  isUpdateState,
 } from './ipc.js';
 
 describe('IPC boundary contracts', () => {
@@ -27,6 +28,27 @@ describe('IPC boundary contracts', () => {
     uiAudioVolume: 0.22,
     version: 1,
   } as const;
+
+  it('validates renderer-safe update states', () => {
+    expect(isUpdateState({ currentVersion: '1.0.0', status: 'idle' })).toBe(true);
+    expect(
+      isUpdateState({
+        currentVersion: '1.0.0',
+        percent: 42,
+        status: 'downloading',
+        version: '1.1.0',
+      }),
+    ).toBe(true);
+    expect(
+      isUpdateState({
+        currentVersion: '1.0.0',
+        percent: 120,
+        status: 'downloading',
+        version: '1.1.0',
+      }),
+    ).toBe(false);
+    expect(isUpdateState({ currentVersion: '1.0.0', raw: {}, status: 'error' })).toBe(false);
+  });
 
   it('validates autosave launch negotiation without exposing state data', () => {
     expect(hasLibraryLaunchPayload(['game-1'])).toBe(true);
