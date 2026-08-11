@@ -9,7 +9,7 @@
   },
   "scripts": {
     "build": "turbo run build",
-    "format:check": "prettier --check --ignore-unknown package.json pnpm-workspace.yaml turbo.json .npmrc .gitignore .nvmrc tsconfig.base.json eslint.config.js prettier.config.js vitest.config.ts apps packages plugins",
+    "format:check": "prettier --check --ignore-unknown package.json pnpm-workspace.yaml turbo.json .npmrc .gitignore .nvmrc tsconfig.base.json eslint.config.js prettier.config.js vitest.config.ts apps examples packages plugins",
     "lint": "turbo run lint",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck"

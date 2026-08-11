@@ -109,6 +109,16 @@ importers:
         specifier: 7.1.7
         version: 7.1.7(@types/node@24.13.3)
 
+  examples/plugins/console:
+    dependencies:
+      '@platform/console-sdk':
+        specifier: workspace:*
+        version: link:../../../packages/console-sdk
+    devDependencies:
+      '@platform/plugin-test':
+        specifier: workspace:*
+        version: link:../../../packages/plugin-test
+
   packages/console-sdk:
     dependencies:
       '@platform/plugin-sdk':
@@ -290,6 +300,16 @@ importers:
       '@platform/console-sdk':
         specifier: workspace:*
         version: link:../../../packages/console-sdk
+
+  plugins/consoles/reference-handheld:
+    dependencies:
+      '@platform/console-sdk':
+        specifier: workspace:*
+        version: link:../../../packages/console-sdk
+    devDependencies:
+      '@platform/plugin-test':
+        specifier: workspace:*
+        version: link:../../../packages/plugin-test
 
   plugins/emulator-cores/sameboy:
     dependencies:
