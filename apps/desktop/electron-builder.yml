@@ -58,3 +58,15 @@ mac:
 dmg:
   iconSize: 128
   title: PixelCore ${version}
+
+linux:
+  artifactName: PixelCore-${version}-Linux-${arch}.${ext}
+  category: Game
+  executableName: pixelcore
+  icon: assets/brand/pixelcore-icon.png
+  maintainer: PixelCore contributors
+  syncDesktopName: true
+  target:
+    - arch:
+        - x64
+      target: AppImage
