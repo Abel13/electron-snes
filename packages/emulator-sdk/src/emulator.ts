@@ -80,6 +80,7 @@ export interface EmulatorSession {
   pause(): Promise<EmulatorOperationResult>;
   resume(): Promise<EmulatorOperationResult>;
   restoreSaveState?(saveState: EmulatorSaveState): Promise<EmulatorOperationResult>;
+  setFastForwardActive?(active: boolean): Promise<EmulatorOperationResult>;
   setRewindActive?(active: boolean): Promise<EmulatorOperationResult>;
   setInput(input: EmulatorInput): Promise<EmulatorOperationResult>;
   start(): Promise<EmulatorOperationResult>;
@@ -110,6 +111,13 @@ export const validateEmulatorSessionCapabilities = (
     return {
       code: 'unavailable',
       message: 'The emulator session does not implement its declared rewind capability.',
+      status: 'error',
+    };
+
+  if (capabilities.fastForward && typeof session.setFastForwardActive !== 'function')
+    return {
+      code: 'unavailable',
+      message: 'The emulator session does not implement its declared fast-forward capability.',
       status: 'error',
     };
 
