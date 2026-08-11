@@ -327,6 +327,16 @@ importers:
         specifier: workspace:*
         version: link:../../../packages/emulator-sdk
 
+  plugins/games/reference-catalog:
+    dependencies:
+      '@platform/game-sdk':
+        specifier: workspace:*
+        version: link:../../../packages/game-sdk
+    devDependencies:
+      '@platform/plugin-test':
+        specifier: workspace:*
+        version: link:../../../packages/plugin-test
+
 packages:
 
   '@babel/code-frame@7.29.7':
