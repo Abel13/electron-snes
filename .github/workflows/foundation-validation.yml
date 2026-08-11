@@ -18,9 +18,19 @@ concurrency:
 
 jobs:
   validate:
-    name: Validate foundation
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
+    name: Validate foundation (${{ matrix.platform }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: Linux
+          - os: macos-latest
+            platform: macOS
+          - os: windows-latest
+            platform: Windows
 
     steps:
       - name: Check out repository
