@@ -311,6 +311,16 @@ importers:
         specifier: workspace:*
         version: link:../../../packages/plugin-test
 
+  plugins/controllers/reference-gamepad:
+    dependencies:
+      '@platform/controller-sdk':
+        specifier: workspace:*
+        version: link:../../../packages/controller-sdk
+    devDependencies:
+      '@platform/plugin-test':
+        specifier: workspace:*
+        version: link:../../../packages/plugin-test
+
   plugins/emulator-cores/sameboy:
     dependencies:
       '@platform/emulator-sdk':
