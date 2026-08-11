@@ -7,6 +7,7 @@ dependencies or installed product plugins.
 | Example | Purpose |
 | --- | --- |
 | `plugins/consoles/reference-handheld` | Minimal fictional console with declarative actions, player port, mapping, and ROM extension. |
+| `plugins/controllers/reference-gamepad` | Fictional standard gamepad with declarative physical-to-normalized mappings. |
 
 Every example contains a strict manifest, typed definition, contract test, and README.
 Examples must remain free of commercial ROMs, proprietary artwork, Electron APIs,
