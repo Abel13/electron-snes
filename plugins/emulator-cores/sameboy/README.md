@@ -13,6 +13,13 @@ frames, and opaque battery RAM/RTC buffers. The plugin runs it inside a Node wor
 thread; it never receives a save path. Atomic storage and renderer presentation belong to
 their respective platform domains.
 
+## Save-state compatibility
+
+Save states use SameBoy's opaque BESS representation, format version `1`, scoped to
+`org.pixelcore.sameboy`. Capture and restore occur only for active sessions. Malformed,
+foreign-core, and unsupported-version buffers fail without exposing core or filesystem
+details.
+
 ## Upstream attribution
 
 SameBoy is Copyright Lior Halphon and contributors and is distributed under the Expat license. The pinned upstream source is tag `v1.0.3`, commit `208ba4afabffab9edde416f2dbb8ae459e34adb8`. Its license is retained in `vendor/SAMEBOY-LICENSE`.
