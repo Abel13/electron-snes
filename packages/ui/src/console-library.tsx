@@ -1,4 +1,5 @@
-import { forwardRef, useImperativeHandle, useMemo, useRef, useState, type ReactNode } from 'react';
+import { forwardRef, useImperativeHandle, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
+import type { InputMappingSettingsHandle } from './input-mapping-settings.js';
 import type { ConsoleCatalogItem } from '@platform/ui-contracts';
 import { Icon } from './icons.js';
 import { InputPrompt } from './input-prompts.js';
@@ -44,6 +45,7 @@ export interface ConsoleLibraryProps {
   readonly onPlay: (game: LibraryGameView) => void;
   readonly onSelect: (game: LibraryGameView) => void;
   readonly onSelectionChange: () => void;
+  readonly settingsRef?: RefObject<InputMappingSettingsHandle | null>;
 }
 
 const categories: readonly ConsoleLibraryCategory[] = [
@@ -141,6 +143,10 @@ export const ConsoleLibrary = forwardRef<ConsoleLibraryHandle, ConsoleLibraryPro
       props.onSelectionChange();
     };
     const move = (direction: 'down' | 'left' | 'right' | 'up'): void => {
+      if (category === 'settings') {
+        props.settingsRef?.current?.move(direction);
+        return;
+      }
       if (direction === 'up' || direction === 'down') {
         const nextCategoryIndex = moveCategoryIndex(categoryIndex, direction);
         if (nextCategoryIndex === categoryIndex) return;
@@ -151,12 +157,16 @@ export const ConsoleLibrary = forwardRef<ConsoleLibraryHandle, ConsoleLibraryPro
         props.onCategoryChange();
         return;
       }
-      if (category === 'settings' || categoryGames.length === 0) return;
+      if (categoryGames.length === 0) return;
       const nextIndex = moveGameIndex(selectedIndex, direction, categoryGames.length);
       if (nextIndex !== selectedIndex) selectIndex(nextIndex);
     };
     const confirm = (): void => {
-      if (selectedGame === undefined || category === 'settings') return;
+      if (category === 'settings') {
+        props.settingsRef?.current?.confirm();
+        return;
+      }
+      if (selectedGame === undefined) return;
       if (detailedGameId !== selectedGame.id) {
         setDetailedGameId(selectedGame.id);
         setAnnouncement(`${selectedGame.name}. ${props.copy.playHint}`);
@@ -164,6 +174,14 @@ export const ConsoleLibrary = forwardRef<ConsoleLibraryHandle, ConsoleLibraryPro
       } else props.onPlay(selectedGame);
     };
     const back = (): void => {
+      if (category === 'settings') {
+        if (props.settingsRef?.current?.back()) return;
+        const nextCategoryIndex = Math.max(0, categoryIndex - 1);
+        setCategoryIndex(nextCategoryIndex);
+        setAnnouncement(props.copy[categories[nextCategoryIndex] ?? 'library']);
+        props.onCategoryChange();
+        return;
+      }
       if (detailedGameId !== undefined) {
         setDetailedGameId(undefined);
         props.onBackFeedback();

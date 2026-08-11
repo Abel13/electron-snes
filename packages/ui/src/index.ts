@@ -42,7 +42,11 @@ export type {
   ProductView,
 } from './product-shell.js';
 export type {
+  ConsoleControlDiagram,
+  ConsoleControlPoint,
   InputMappingDeviceOption,
   InputMappingEntryOption,
+  InputMappingSettingsHandle,
   InputMappingSettingsProps,
+  KeyboardBindingOption,
 } from './input-mapping-settings.js';

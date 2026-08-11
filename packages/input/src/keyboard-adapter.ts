@@ -1,16 +1,6 @@
 import type { NormalizedInputAction } from './actions.js';
-
-const DEFAULT_KEYBOARD_MAPPING: Readonly<Record<string, NormalizedInputAction>> = {
-  ArrowDown: 'move-down',
-  ArrowLeft: 'move-left',
-  ArrowRight: 'move-right',
-  ArrowUp: 'move-up',
-  Backspace: 'select',
-  Enter: 'start',
-  KeyX: 'secondary',
-  KeyZ: 'primary',
-  ShiftRight: 'select',
-};
+import { DEFAULT_KEYBOARD_BINDINGS } from './input-profiles.js';
+import type { KeyboardBinding } from './input-profiles.js';
 
 export interface KeyboardInputEvent {
   readonly code: string;
@@ -18,17 +8,35 @@ export interface KeyboardInputEvent {
   readonly pressed: boolean;
 }
 
+export interface KeyboardCaptureCandidate {
+  readonly altKey: boolean;
+  readonly code: string;
+  readonly ctrlKey: boolean;
+  readonly metaKey: boolean;
+  readonly repeat: boolean;
+}
+
+export const isCapturableKeyboardInput = (candidate: KeyboardCaptureCandidate): boolean => {
+  if (candidate.code === 'Escape' || candidate.repeat || candidate.metaKey) return false;
+  const isolatedControl =
+    candidate.code === 'ControlLeft' || candidate.code === 'ControlRight';
+  const isolatedAlt = candidate.code === 'AltLeft' || candidate.code === 'AltRight';
+  return !(
+    (candidate.ctrlKey && !isolatedControl) ||
+    (candidate.altKey && !isolatedAlt)
+  );
+};
+
 export class KeyboardInputAdapter {
   readonly #pressed = new Set<NormalizedInputAction>();
+  #mapping = new Map<string, NormalizedInputAction>();
 
-  public constructor(
-    private readonly mapping: Readonly<
-      Record<string, NormalizedInputAction>
-    > = DEFAULT_KEYBOARD_MAPPING,
-  ) {}
+  public constructor(bindings: readonly KeyboardBinding[] = DEFAULT_KEYBOARD_BINDINGS) {
+    this.setBindings(bindings);
+  }
 
   public handle(event: KeyboardInputEvent): boolean {
-    const action = this.mapping[event.code];
+    const action = this.#mapping.get(event.code);
     if (action === undefined || event.editable) return false;
     if (event.pressed) this.#pressed.add(action);
     else this.#pressed.delete(action);
@@ -41,5 +49,12 @@ export class KeyboardInputAdapter {
 
   public reset(): void {
     this.#pressed.clear();
+  }
+
+  public setBindings(bindings: readonly KeyboardBinding[]): void {
+    this.reset();
+    this.#mapping = new Map(
+      bindings.map((binding) => [binding.code, binding.normalizedAction] as const),
+    );
   }
 }
