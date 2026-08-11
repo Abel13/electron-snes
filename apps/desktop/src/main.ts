@@ -48,6 +48,7 @@ const officialEmulator = resolveOfficialEmulatorPlugin('org.pixelcore.sameboy');
 const officialConsole = resolveOfficialConsolePlugin('org.pixelcore.game-boy-family');
 let stopActiveSession: (() => Promise<void>) | undefined;
 let quitAfterSaveFlush = false;
+let mainWindow: ElectronBrowserWindow | undefined;
 
 if (officialEmulator === undefined || officialConsole === undefined)
   throw new Error('The official Game Boy runtime plugins are unavailable.');
@@ -79,7 +80,18 @@ const createMainWindow = (): ElectronBrowserWindow => {
 
 app.enableSandbox();
 
+const hasSingleInstanceLock = app.requestSingleInstanceLock();
+
+if (!hasSingleInstanceLock) app.quit();
+
+app.on('second-instance', () => {
+  if (mainWindow === undefined) return;
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.focus();
+});
+
 app.whenReady().then(() => {
+  if (!hasSingleInstanceLock) return;
   const libraryStorage = new JsonFileStorage(join(app.getPath('userData'), 'library.json'));
   const library = new LocalGameLibrary(libraryStorage, randomUUID, () => new Date().toISOString());
   const romDirectory = join(app.getPath('documents'), 'PixelCore', 'ROMs');
@@ -496,11 +508,11 @@ app.whenReady().then(() => {
     });
   }
 
-  const mainWindow = createMainWindow();
+  mainWindow = createMainWindow();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
-      createMainWindow();
+      mainWindow = createMainWindow();
     }
   });
 });
