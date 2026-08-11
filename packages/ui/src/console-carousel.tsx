@@ -91,12 +91,6 @@ export const ConsoleCarousel = forwardRef<ConsoleCarouselHandle, ConsoleCarousel
     return (
       <main
         className="pc-console-home"
-        onKeyDown={(event) => {
-          if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
-            event.preventDefault();
-            move(event.key === 'ArrowLeft' ? 'left' : 'right');
-          }
-        }}
         style={{ '--pc-console-accent': selected.accentColor } as React.CSSProperties}
       >
         <div aria-hidden="true" className="pc-console-atmosphere">
