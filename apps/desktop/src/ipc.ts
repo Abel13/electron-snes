@@ -3,6 +3,7 @@ import { validateConsoleInputMapping, validateInputProfile } from '@platform/inp
 import { isGlobalPreferences, type GlobalPreferences } from './global-preferences.js';
 import { SAVE_STATE_SLOTS, type SaveStateDescriptor, type SaveStateSlot } from '@platform/emulator';
 import type { EmulatorCapabilities } from '@platform/emulator-sdk';
+import { isResolvedGameMetadata, type ResolvedGameMetadata } from '@platform/game-sdk';
 
 export const IPC_CHANNELS = {
   importGame: 'pixel-core:import-game',
@@ -141,6 +142,7 @@ export interface LibraryGame {
   readonly id: string;
   readonly lastPlayedAt?: string;
   readonly name: string;
+  readonly metadata?: ResolvedGameMetadata;
   readonly playtimeMilliseconds: number;
 }
 
@@ -399,6 +401,7 @@ const isLibraryGame = (value: unknown): value is LibraryGame =>
       'id',
       'lastPlayedAt',
       'name',
+      'metadata',
       'playtimeMilliseconds',
     ].includes(key),
   ) &&
@@ -407,6 +410,7 @@ const isLibraryGame = (value: unknown): value is LibraryGame =>
   typeof value['favorite'] === 'boolean' &&
   typeof value['id'] === 'string' &&
   typeof value['name'] === 'string' &&
+  (value['metadata'] === undefined || isResolvedGameMetadata(value['metadata'])) &&
   Number.isSafeInteger(value['playtimeMilliseconds']) &&
   (value['playtimeMilliseconds'] as number) >= 0 &&
   (value['lastPlayedAt'] === undefined || typeof value['lastPlayedAt'] === 'string') &&

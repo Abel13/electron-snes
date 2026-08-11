@@ -4,6 +4,16 @@ export const gameBoyFamilyConsole = defineConsole({
   console: {
     capabilities: ['cartridge-playback'],
     id: 'org.pixelcore.game-boy-family',
+    identifyRom: (bytes: Uint8Array) => {
+      if (bytes.byteLength < 0x144) return [];
+      const titleEnd = bytes[0x143] === 0x80 || bytes[0x143] === 0xc0 ? 0x143 : 0x144;
+      const title = String.fromCharCode(...bytes.slice(0x134, titleEnd))
+        .replaceAll('\0', '')
+        .trim();
+      return /^[\x20-\x7e]{1,16}$/.test(title)
+        ? [{ namespace: 'game-boy-header-title', value: title }]
+        : [];
+    },
     inputActions: [
       { id: 'up' },
       { id: 'down' },

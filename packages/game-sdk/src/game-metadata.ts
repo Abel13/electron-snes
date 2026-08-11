@@ -23,12 +23,41 @@ export interface GameMetadataProvenance {
   readonly source: string;
 }
 
+export interface GameIdentifier {
+  readonly namespace: string;
+  readonly value: string;
+}
+
+export interface GamePlayerCount {
+  readonly maximum: number;
+  readonly minimum: number;
+}
+
 export interface GameMetadataRecord {
   readonly artwork?: readonly GameArtworkReference[];
   readonly consoleId: string;
+  readonly developers?: readonly string[];
+  readonly genres?: readonly string[];
   readonly id: string;
+  readonly identifiers?: readonly GameIdentifier[];
+  readonly playerCount?: GamePlayerCount;
   readonly provenance: GameMetadataProvenance;
+  readonly publishers?: readonly string[];
+  readonly releaseDate?: string;
   readonly text: Readonly<Record<string, LocalizedGameText>>;
+}
+
+export interface ResolvedGameMetadata {
+  readonly artwork?: GameArtworkReference;
+  readonly developers?: readonly string[];
+  readonly description?: string;
+  readonly genres?: readonly string[];
+  readonly playerCount?: GamePlayerCount;
+  readonly pluginId: string;
+  readonly provenance: GameMetadataProvenance;
+  readonly publishers?: readonly string[];
+  readonly releaseDate?: string;
+  readonly title: string;
 }
 
 export interface GameMetadataDefinition {
@@ -110,13 +139,52 @@ const isProvenance = (value: unknown): value is GameMetadataProvenance =>
   isNonEmptyString(value['source'], 240) &&
   (value['attribution'] === undefined || isNonEmptyString(value['attribution'], 500));
 
+const isIdentifier = (value: unknown): value is GameIdentifier =>
+  isRecord(value) &&
+  hasOnlyKeys(value, ['namespace', 'value']) &&
+  typeof value['namespace'] === 'string' &&
+  IDENTIFIER_PATTERN.test(value['namespace']) &&
+  typeof value['value'] === 'string' &&
+  /^[\x20-\x7e]{1,64}$/.test(value['value']);
+
+const isStringList = (value: unknown): value is readonly string[] =>
+  Array.isArray(value) &&
+  value.length > 0 &&
+  value.length <= 32 &&
+  value.every((entry) => isNonEmptyString(entry, 120)) &&
+  new Set(value).size === value.length;
+
+const isPlayerCount = (value: unknown): value is GamePlayerCount =>
+  isRecord(value) &&
+  hasOnlyKeys(value, ['maximum', 'minimum']) &&
+  Number.isInteger(value['minimum']) &&
+  Number.isInteger(value['maximum']) &&
+  (value['minimum'] as number) > 0 &&
+  (value['maximum'] as number) >= (value['minimum'] as number) &&
+  (value['maximum'] as number) <= 64;
+
 const validateRecord = (
   value: unknown,
   index: number,
   defaultLocale: unknown,
 ): readonly GameMetadataPluginDiagnostic[] => {
   const path = ['metadata', 'records', index] as const;
-  if (!isRecord(value) || !hasOnlyKeys(value, ['artwork', 'consoleId', 'id', 'provenance', 'text']))
+  if (
+    !isRecord(value) ||
+    !hasOnlyKeys(value, [
+      'artwork',
+      'consoleId',
+      'developers',
+      'genres',
+      'id',
+      'identifiers',
+      'playerCount',
+      'provenance',
+      'publishers',
+      'releaseDate',
+      'text',
+    ])
+  )
     return [diagnostic(path, 'A metadata record must contain only supported declarative fields.')];
 
   const diagnostics: GameMetadataPluginDiagnostic[] = [];
@@ -135,6 +203,25 @@ const validateRecord = (
     diagnostics.push(
       diagnostic([...path, 'provenance'], 'Metadata provenance requires a source and license.'),
     );
+  if (
+    value['identifiers'] !== undefined &&
+    (!Array.isArray(value['identifiers']) ||
+      value['identifiers'].length === 0 ||
+      !value['identifiers'].every(isIdentifier))
+  )
+    diagnostics.push(
+      diagnostic([...path, 'identifiers'], 'Game identifiers must be safe declarative pairs.'),
+    );
+  for (const field of ['developers', 'publishers', 'genres'] as const)
+    if (value[field] !== undefined && !isStringList(value[field]))
+      diagnostics.push(diagnostic([...path, field], `${field} must be a unique string list.`));
+  if (
+    value['releaseDate'] !== undefined &&
+    (typeof value['releaseDate'] !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value['releaseDate']))
+  )
+    diagnostics.push(diagnostic([...path, 'releaseDate'], 'Release date must use YYYY-MM-DD.'));
+  if (value['playerCount'] !== undefined && !isPlayerCount(value['playerCount']))
+    diagnostics.push(diagnostic([...path, 'playerCount'], 'Player count is invalid.'));
 
   const text = value['text'];
   if (
@@ -257,3 +344,71 @@ export const validateGameMetadataPlugin = (input: unknown): GameMetadataPluginVa
   if (diagnostics.length > 0) return { diagnostics, status: 'invalid' };
   return { definition: input as unknown as GameMetadataPluginDefinition, status: 'valid' };
 };
+
+export const resolveGameMetadata = (
+  plugins: readonly unknown[],
+  identifiers: readonly GameIdentifier[],
+  locale: string,
+): ResolvedGameMetadata | undefined => {
+  for (const plugin of plugins) {
+    const validated = validateGameMetadataPlugin(plugin);
+    if (validated.status !== 'valid') continue;
+    const { metadata } = validated.definition;
+    for (const record of metadata.records) {
+      if (
+        record.identifiers?.some((candidate) =>
+          identifiers.some(
+            (identifier) =>
+              identifier.namespace === candidate.namespace && identifier.value === candidate.value,
+          ),
+        ) !== true
+      )
+        continue;
+      const text = record.text[locale] ?? record.text[metadata.defaultLocale];
+      if (text === undefined) continue;
+      const artwork =
+        record.artwork?.find((candidate) => candidate.locale === locale) ??
+        record.artwork?.find((candidate) => candidate.locale === undefined) ??
+        record.artwork?.find((candidate) => candidate.locale === metadata.defaultLocale);
+      return {
+        ...(artwork === undefined ? {} : { artwork }),
+        ...(record.developers === undefined ? {} : { developers: record.developers }),
+        ...(text.description === undefined ? {} : { description: text.description }),
+        ...(record.genres === undefined ? {} : { genres: record.genres }),
+        ...(record.playerCount === undefined ? {} : { playerCount: record.playerCount }),
+        pluginId: metadata.id,
+        provenance: record.provenance,
+        ...(record.publishers === undefined ? {} : { publishers: record.publishers }),
+        ...(record.releaseDate === undefined ? {} : { releaseDate: record.releaseDate }),
+        title: text.title,
+      };
+    }
+  }
+  return undefined;
+};
+
+export const isResolvedGameMetadata = (value: unknown): value is ResolvedGameMetadata =>
+  isRecord(value) &&
+  hasOnlyKeys(value, [
+    'artwork',
+    'developers',
+    'description',
+    'genres',
+    'playerCount',
+    'pluginId',
+    'provenance',
+    'publishers',
+    'releaseDate',
+    'title',
+  ]) &&
+  PLUGIN_ID_PATTERN.test(typeof value['pluginId'] === 'string' ? value['pluginId'] : '') &&
+  isNonEmptyString(value['title'], 160) &&
+  isProvenance(value['provenance']) &&
+  (value['artwork'] === undefined || isArtworkReference(value['artwork'])) &&
+  (value['description'] === undefined || isNonEmptyString(value['description'], 2_000)) &&
+  (value['developers'] === undefined || isStringList(value['developers'])) &&
+  (value['genres'] === undefined || isStringList(value['genres'])) &&
+  (value['playerCount'] === undefined || isPlayerCount(value['playerCount'])) &&
+  (value['publishers'] === undefined || isStringList(value['publishers'])) &&
+  (value['releaseDate'] === undefined ||
+    (typeof value['releaseDate'] === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value['releaseDate'])));

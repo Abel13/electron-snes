@@ -19,15 +19,35 @@ const metadata = defineGameMetadata({
       {
         artwork: [{ kind: 'cover', path: 'assets/covers/orbit-demo.svg' }],
         consoleId: 'org.example.portable-console',
+        developers: ['PixelCore Studio'],
+        genres: ['Puzzle'],
         id: 'orbit-demo',
+        identifiers: [{ namespace: 'game-boy-header-title', value: 'PIXELCORE DEMO' }],
+        playerCount: { maximum: 1, minimum: 1 },
         provenance: { license: 'CC0-1.0', source: 'Example author' },
         text: {
           'en-US': { description: 'An original example game.', title: 'Orbit Demo' },
           'pt-BR': { title: 'Demo Orbital' },
         },
+        releaseDate: '2026-08-11',
       },
     ],
   },
+});
+
+test('resolves identifiers with locale fallback and provenance', async () => {
+  const { resolveGameMetadata } = await import('./game-metadata.js');
+  expect(
+    resolveGameMetadata(
+      [metadata, { invalid: true }],
+      [{ namespace: 'game-boy-header-title', value: 'PIXELCORE DEMO' }],
+      'zh-CN',
+    ),
+  ).toMatchObject({
+    pluginId: 'org.example.public-domain-catalog',
+    title: 'Orbit Demo',
+    provenance: { license: 'CC0-1.0' },
+  });
 });
 
 test('accepts localized declarative metadata', () => {

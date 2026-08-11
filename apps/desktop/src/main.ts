@@ -9,9 +9,11 @@ import { createSecureWindowOptions } from './electron-security.js';
 import { InputProfileRepository } from '@platform/input';
 import { SaveStateRepository } from '@platform/emulator';
 import { LocalGameLibrary } from '@platform/library';
+import { resolveGameMetadata } from '@platform/game-sdk';
 import type { LocalGame } from '@platform/library';
 import {
   listOfficialConsolePluginIds,
+  listOfficialGameMetadataPlugins,
   resolveOfficialConsolePlugin,
   resolveOfficialEmulatorPlugin,
 } from '@platform/official-plugins';
@@ -104,6 +106,12 @@ app.whenReady().then(() => {
         artworkDataUrl = undefined;
       }
     }
+    const preferences = await globalPreferences.load();
+    const metadata = resolveGameMetadata(
+      listOfficialGameMetadataPlugins(),
+      game.identifiers,
+      preferences.ok ? (preferences.value?.locale ?? 'en-US') : 'en-US',
+    );
     return {
       addedAt: game.addedAt,
       ...(artworkDataUrl === undefined ? {} : { artworkDataUrl }),
@@ -112,6 +120,7 @@ app.whenReady().then(() => {
       id: game.id,
       ...(game.lastPlayedAt === undefined ? {} : { lastPlayedAt: game.lastPlayedAt }),
       name: game.name,
+      ...(metadata === undefined ? {} : { metadata }),
       playtimeMilliseconds: game.playtimeMilliseconds,
     };
   };
@@ -124,8 +133,10 @@ app.whenReady().then(() => {
     for (const sourceKey of await readdir(romDirectory)) {
       const extension = extname(sourceKey).toLowerCase();
       if ((extension !== '.gb' && extension !== '.gbc') || knownSources.has(sourceKey)) continue;
+      const bytes = await readFile(join(romDirectory, sourceKey));
       await library.add({
         extension,
+        identifiers: officialConsole.console.identifyRom?.(bytes) ?? [],
         name: basename(sourceKey, extension),
         sourceKey,
       });
@@ -173,9 +184,11 @@ app.whenReady().then(() => {
         return { message: 'The ROM must be between 1 byte and 8 MiB.', status: 'error' };
       await mkdir(romDirectory, { recursive: true });
       const sourceKey = `${randomUUID()}-${basename(filePath)}`;
+      const bytes = await readFile(filePath);
       await copyFile(filePath, join(romDirectory, sourceKey));
       const added = await library.add({
         extension,
+        identifiers: officialConsole.console.identifyRom?.(bytes) ?? [],
         name: basename(filePath, extension),
         sourceKey,
       });
