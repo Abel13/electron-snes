@@ -18,7 +18,7 @@ describe('sameBoyEmulator', () => {
   it('advertises only implemented advanced capabilities', () => {
     expect(sameBoyEmulator.emulator.capabilities).toEqual({
       fastForward: false,
-      rewind: false,
+      rewind: true,
       saveStates: true,
     });
   });

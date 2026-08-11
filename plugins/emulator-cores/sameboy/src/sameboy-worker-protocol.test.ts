@@ -1,4 +1,4 @@
-import { describe, expectTypeOf, it } from 'vitest';
+import { describe, expect, expectTypeOf, it } from 'vitest';
 
 import type {
   SameBoyWorkerCommand,
@@ -27,5 +27,16 @@ describe('SameBoy worker protocol', () => {
       type: 'cartridge-save',
     };
     expectTypeOf(saveMessage.save.bytes).toEqualTypeOf<Uint8Array>();
+  });
+
+  it('carries rewind hold and release commands without state payloads', () => {
+    const start: SameBoyWorkerCommand = { active: true, type: 'set-rewind-active' };
+    const stop: SameBoyWorkerRequest = {
+      active: false,
+      id: 'sameboy-rewind-1',
+      type: 'set-rewind-active',
+    };
+    expect(start.active).toBe(true);
+    expect(stop.active).toBe(false);
   });
 });
