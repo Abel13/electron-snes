@@ -141,6 +141,7 @@ export interface LibraryGame {
   readonly id: string;
   readonly lastPlayedAt?: string;
   readonly name: string;
+  readonly playtimeMilliseconds: number;
 }
 
 export type LibraryResponse =
@@ -390,15 +391,24 @@ export const isInputProfileResponse = (value: unknown): value is InputProfileRes
 const isLibraryGame = (value: unknown): value is LibraryGame =>
   isRecord(value) &&
   Object.keys(value).every((key) =>
-    ['addedAt', 'artworkDataUrl', 'extension', 'favorite', 'id', 'lastPlayedAt', 'name'].includes(
-      key,
-    ),
+    [
+      'addedAt',
+      'artworkDataUrl',
+      'extension',
+      'favorite',
+      'id',
+      'lastPlayedAt',
+      'name',
+      'playtimeMilliseconds',
+    ].includes(key),
   ) &&
   typeof value['addedAt'] === 'string' &&
   (value['extension'] === '.gb' || value['extension'] === '.gbc') &&
   typeof value['favorite'] === 'boolean' &&
   typeof value['id'] === 'string' &&
   typeof value['name'] === 'string' &&
+  Number.isSafeInteger(value['playtimeMilliseconds']) &&
+  (value['playtimeMilliseconds'] as number) >= 0 &&
   (value['lastPlayedAt'] === undefined || typeof value['lastPlayedAt'] === 'string') &&
   (value['artworkDataUrl'] === undefined ||
     (typeof value['artworkDataUrl'] === 'string' &&

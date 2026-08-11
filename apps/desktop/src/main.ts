@@ -112,6 +112,7 @@ app.whenReady().then(() => {
       id: game.id,
       ...(game.lastPlayedAt === undefined ? {} : { lastPlayedAt: game.lastPlayedAt }),
       name: game.name,
+      playtimeMilliseconds: game.playtimeMilliseconds,
     };
   };
 
@@ -332,6 +333,10 @@ app.whenReady().then(() => {
     },
     loadCartridgeSave: (key) => cartridgeSaves.read(key),
     persistCartridgeSave: (key, bytes) => cartridgeSaves.write(key, bytes),
+    persistPlaytime: async (gameId, elapsedMilliseconds) => {
+      const result = await library.addPlaytime(gameId, elapsedMilliseconds);
+      if (!result.ok) throw new Error(result.error.message);
+    },
     readSaveState: async (gameId, slot) => {
       const result = await saveStates.read(gameId, slot);
       if (!result.ok) throw new Error(result.error.message);
