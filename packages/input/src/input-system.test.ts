@@ -6,10 +6,10 @@ import { describe, expect, it } from 'vitest';
 import { NORMALIZED_INPUT_ACTIONS } from './actions.js';
 import { validateConsoleInputMapping, mapNormalizedActions } from './console-mapping.js';
 import { InputDeviceDiscovery, KEYBOARD_DEVICE } from './device-discovery.js';
-import { GamepadInputAdapter } from './gamepad-adapter.js';
+import { DEFAULT_GAMEPAD_BINDINGS, GamepadInputAdapter, readPressedGamepadButtons } from './gamepad-adapter.js';
 import { GamepadPromptActivityTracker, classifyGamepadPromptScheme } from './input-prompt-scheme.js';
-import { InputProfileRepository } from './input-profiles.js';
-import { KeyboardInputAdapter } from './keyboard-adapter.js';
+import { DEFAULT_KEYBOARD_BINDINGS, InputProfileRepository } from './input-profiles.js';
+import { KeyboardInputAdapter, isCapturableKeyboardInput } from './keyboard-adapter.js';
 import { PlayerAssignmentManager } from './player-assignment.js';
 import { UniversalInputRuntime } from './runtime.js';
 
@@ -68,6 +68,34 @@ describe('universal input', () => {
     expect(keyboard.readActions()).toEqual(['primary']);
     keyboard.handle({ code: 'KeyZ', editable: false, pressed: false });
     expect(keyboard.readActions()).toEqual([]);
+    keyboard.setBindings(
+      DEFAULT_KEYBOARD_BINDINGS.map((binding) =>
+        binding.normalizedAction === 'primary' ? { ...binding, code: 'KeyA' } : binding,
+      ),
+    );
+    expect(keyboard.handle({ code: 'KeyZ', editable: false, pressed: true })).toBe(false);
+    expect(keyboard.handle({ code: 'KeyA', editable: false, pressed: true })).toBe(true);
+    expect(keyboard.readActions()).toEqual(['primary']);
+  });
+
+  it('accepts assignable keys and protects platform shortcuts', () => {
+    const candidate = {
+      altKey: false,
+      code: 'KeyA',
+      ctrlKey: false,
+      metaKey: false,
+      repeat: false,
+    };
+    expect(isCapturableKeyboardInput(candidate)).toBe(true);
+    expect(isCapturableKeyboardInput({ ...candidate, code: 'Escape' })).toBe(false);
+    expect(isCapturableKeyboardInput({ ...candidate, repeat: true })).toBe(false);
+    expect(isCapturableKeyboardInput({ ...candidate, metaKey: true })).toBe(false);
+    expect(isCapturableKeyboardInput({ ...candidate, ctrlKey: true })).toBe(false);
+    expect(
+      isCapturableKeyboardInput({ ...candidate, code: 'ControlLeft', ctrlKey: true }),
+    ).toBe(true);
+    expect(isCapturableKeyboardInput({ ...candidate, altKey: true })).toBe(false);
+    expect(isCapturableKeyboardInput({ ...candidate, code: 'AltLeft', altKey: true })).toBe(true);
   });
 
   it('maps standard gamepad buttons and axes without brand knowledge', () => {
@@ -175,12 +203,47 @@ describe('universal input', () => {
     const repository = new InputProfileRepository(storage);
     const profile = {
       deviceFingerprint: 'keyboard:standard',
+      gamepadBindings: [],
       id: 'default',
+      keyboardBindings: DEFAULT_KEYBOARD_BINDINGS,
       mapping,
       name: 'Default',
-      version: 1,
+      version: 3,
     } as const;
     await expect(repository.save(profile)).resolves.toEqual({ ok: true, value: undefined });
     await expect(repository.load('default')).resolves.toEqual({ ok: true, value: profile });
+  });
+
+  it('migrates version one input profiles with default keyboard bindings', async () => {
+    const storage = new MemoryStorage();
+    storage.values.set('user-preferences:input-profile:legacy', {
+      deviceFingerprint: 'keyboard:standard',
+      id: 'legacy',
+      mapping,
+      name: 'Legacy',
+      version: 1,
+    });
+    const result = await new InputProfileRepository(storage).load('legacy');
+    expect(result).toEqual({
+      ok: true,
+      value: {
+        deviceFingerprint: 'keyboard:standard',
+        gamepadBindings: [],
+        id: 'legacy',
+        keyboardBindings: DEFAULT_KEYBOARD_BINDINGS,
+        mapping,
+        name: 'Legacy',
+        version: 3,
+      },
+    });
+  });
+
+  it('maps and captures physical gamepad buttons with a reserved menu button', () => {
+    const buttons = Array.from({ length: 16 }, () => ({ pressed: false, value: 0 }));
+    buttons[4] = { pressed: true, value: 1 };
+    buttons[9] = { pressed: true, value: 1 };
+    const snapshot = { axes: [], buttons, connected: true, id: 'Pad', index: 0 };
+    expect(readPressedGamepadButtons(snapshot)).toEqual([4, 9]);
+    expect(new GamepadInputAdapter().readActions(snapshot, DEFAULT_GAMEPAD_BINDINGS)).toContain('select');
   });
 });
