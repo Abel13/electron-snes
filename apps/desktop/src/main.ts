@@ -106,7 +106,9 @@ app.whenReady().then(() => {
   const preferencesStorage = new JsonFileStorage(join(app.getPath('userData'), 'preferences.json'));
   const inputProfiles = new InputProfileRepository(preferencesStorage);
   const globalPreferences = new GlobalPreferencesRepository(preferencesStorage);
-  const updates = new DesktopUpdateService(app.getVersion(), app.isPackaged, () => mainWindow);
+  const usesGitHubUpdates =
+    app.isPackaged && (process.platform !== 'win32' || process.windowsStore !== true);
+  const updates = new DesktopUpdateService(app.getVersion(), usesGitHubUpdates, () => mainWindow);
 
   const toLibraryGame = async (game: LocalGame) => {
     let artworkDataUrl: string | undefined;

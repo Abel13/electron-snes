@@ -32,30 +32,31 @@ jobs:
           cache: pnpm
           node-version: 22
       - run: pnpm install --frozen-lockfile
-      - name: Build unsigned Windows package
+      - name: Build Microsoft Store package
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
         run: pnpm --filter @platform/desktop package:windows
-      - name: Verify Windows package
+      - name: Verify Microsoft Store package
         shell: pwsh
         run: |
           $version = (Get-Content apps/desktop/package.json | ConvertFrom-Json).version
-          $installer = "apps/desktop/release/PixelCore-$version-Windows-x64.exe"
-          if (-not (Test-Path $installer)) { throw 'Windows installer is missing.' }
-          if ((Get-Item $installer).Length -lt 10MB) { throw 'Windows installer is unexpectedly small.' }
-          if (-not (Test-Path "$installer.blockmap")) { throw 'Windows blockmap is missing.' }
-          if (-not (Test-Path 'apps/desktop/release/beta.yml')) { throw 'Windows update metadata is missing.' }
-          if (-not (Test-Path 'apps/desktop/release/win-unpacked/resources/app.asar')) { throw 'Packaged application is missing.' }
-          $wasm = Get-ChildItem 'apps/desktop/release/win-unpacked/resources/app.asar.unpacked' -Filter '*.wasm' -Recurse
-          if ($wasm.Count -eq 0) { throw 'SameBoy WASM runtime is missing.' }
+          $package = "apps/desktop/release/PixelCore-$version-Windows-Store-x64.appx"
+          if (-not (Test-Path $package)) { throw 'Microsoft Store package is missing.' }
+          if ((Get-Item $package).Length -lt 10MB) { throw 'Microsoft Store package is unexpectedly small.' }
+          $manifest = [xml](tar -xOf $package AppxManifest.xml)
+          if ($manifest.Package.Identity.Name -ne '42548abeldutra.PixelCore') { throw 'Store identity name does not match Partner Center.' }
+          if ($manifest.Package.Identity.Publisher -ne 'CN=2E06CDBC-D3D8-4686-8A98-B5E634031252') { throw 'Store publisher does not match Partner Center.' }
+          if ($manifest.Package.Identity.ProcessorArchitecture -ne 'x64') { throw 'Store package is not x64.' }
+          if ($manifest.Package.Properties.PublisherDisplayName -ne 'Angry Gnar') { throw 'Publisher display name does not match Partner Center.' }
+          tar -tf $package | Select-String -Quiet 'resources/app.asar$' | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw 'Packaged application is missing.' }
+          tar -tf $package | Select-String -Quiet '\.wasm$' | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw 'SameBoy WASM runtime is missing.' }
       - uses: actions/upload-artifact@v7
         with:
           if-no-files-found: error
-          name: package-smoke-windows
-          path: |
-            apps/desktop/release/PixelCore-*-Windows-x64.exe
-            apps/desktop/release/PixelCore-*-Windows-x64.exe.blockmap
-            apps/desktop/release/beta.yml
+          name: package-smoke-windows-store
+          path: apps/desktop/release/PixelCore-*-Windows-Store-x64.appx
           retention-days: 7
 
   macos:
