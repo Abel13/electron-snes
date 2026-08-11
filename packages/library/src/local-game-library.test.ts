@@ -31,6 +31,7 @@ describe('LocalGameLibrary', () => {
       ok: true,
       value: {
         addedAt: '2026-08-09T00:00:00.000Z',
+        configuration: { autosaveEnabled: true, version: 1 },
         extension: '.gb',
         favorite: false,
         id: 'game-1',
@@ -74,5 +75,20 @@ describe('LocalGameLibrary', () => {
     await expect(
       library.add({ extension: '.gbc', name: 'Pokemon Crystal', sourceKey: 'source-1' }),
     ).resolves.toMatchObject({ error: { code: 'conflict' }, ok: false });
+  });
+
+  it('persists autosave preferences and migrates missing configuration', async () => {
+    const library = new LocalGameLibrary(
+      createStorage(),
+      () => 'game-1',
+      () => '2026-08-09T00:00:00.000Z',
+    );
+    await library.add({ extension: '.gb', name: 'Demo', sourceKey: 'demo.gb' });
+    await expect(
+      library.setConfiguration('game-1', { autosaveEnabled: false, version: 1 }),
+    ).resolves.toMatchObject({
+      ok: true,
+      value: { configuration: { autosaveEnabled: false, version: 1 } },
+    });
   });
 });
