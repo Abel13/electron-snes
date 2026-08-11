@@ -4,6 +4,7 @@ import { WASI } from 'node:wasi';
 
 import type {
   EmulatorOperationResult,
+  EmulatorSaveStateResult,
   EmulatorSessionStatus,
   EmulatorStopResult,
 } from '@platform/emulator-sdk';
@@ -42,7 +43,7 @@ port.on('message', (request: SameBoyWorkerRequest) => {
 });
 
 const handle = async (request: SameBoyWorkerRequest): Promise<void> => {
-  let result: EmulatorOperationResult | EmulatorStopResult;
+  let result: EmulatorOperationResult | EmulatorSaveStateResult | EmulatorStopResult;
   switch (request.type) {
     case 'load-rom':
       result = loadRom(request.rom.extension, request.rom.bytes, request.cartridgeSave?.bytes);
@@ -70,8 +71,14 @@ const handle = async (request: SameBoyWorkerRequest): Promise<void> => {
     case 'set-input':
       result = setInput(request.input.playerPortId, request.input.actions);
       break;
+    case 'capture-save-state':
+      result = captureSaveState();
+      break;
+    case 'restore-save-state':
+      result = restoreSaveState(request.saveState);
+      break;
   }
-  const transfer =
+  const stopTransfer =
     request.type === 'stop' &&
     result.status === 'ok' &&
     'cartridgeSave' in result &&
@@ -80,7 +87,14 @@ const handle = async (request: SameBoyWorkerRequest): Promise<void> => {
           (buffer): buffer is ArrayBuffer => buffer instanceof ArrayBuffer,
         )
       : undefined;
-  post({ id: request.id, result, status, type: 'result' }, transfer);
+  const stateTransfer =
+    request.type === 'capture-save-state' &&
+    result.status === 'ok' &&
+    'saveState' in result &&
+    result.saveState.bytes.buffer instanceof ArrayBuffer
+      ? [result.saveState.bytes.buffer]
+      : undefined;
+  post({ id: request.id, result, status, type: 'result' }, stateTransfer ?? stopTransfer);
 };
 
 const loadRom = (
@@ -139,6 +153,40 @@ const setInput = (portId: string, actions: readonly string[]): EmulatorOperation
   for (const [action, button] of Object.entries(inputButtons))
     wasm.setButton(button, pressed.has(action));
   return ok();
+};
+const captureSaveState = (): EmulatorSaveStateResult => {
+  if (!hasRom || (status !== 'running' && status !== 'paused'))
+    return {
+      code: 'invalid-state',
+      message: 'An active SameBoy session is required to capture a save state.',
+      status: 'error',
+    };
+  const bytes = wasm.readSaveState();
+  return bytes === undefined
+    ? { code: 'unexpected', message: 'SameBoy could not capture the save state.', status: 'error' }
+    : {
+        saveState: { bytes, coreId: 'org.pixelcore.sameboy', formatVersion: 1 },
+        status: 'ok',
+      };
+};
+const restoreSaveState = (saveState: {
+  readonly bytes: Uint8Array;
+  readonly coreId: string;
+  readonly formatVersion: number;
+}): EmulatorOperationResult => {
+  if (!hasRom || (status !== 'running' && status !== 'paused'))
+    return invalid('An active SameBoy session is required to restore a save state.');
+  if (saveState.coreId !== 'org.pixelcore.sameboy' || saveState.formatVersion !== 1)
+    return invalid('The save state is incompatible with this SameBoy version.');
+  const address = wasm.allocate(saveState.bytes.byteLength);
+  try {
+    wasm.write(address, saveState.bytes);
+    return wasm.loadSaveState(address, saveState.bytes.byteLength)
+      ? ok()
+      : invalid('SameBoy rejected the save state.');
+  } finally {
+    wasm.release(address);
+  }
 };
 const scheduleFrame = (): void => {
   if (status !== 'running') return;

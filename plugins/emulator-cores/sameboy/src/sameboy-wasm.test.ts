@@ -119,3 +119,28 @@ describe('SameBoy WASM cartridge saves', () => {
     expect(wasm.readBattery()?.[0]).toBe(0x42);
   });
 });
+
+describe('SameBoy WASM save states', () => {
+  it('captures and restores an opaque BESS state', async () => {
+    const wasi = new WASI({ version: 'preview1' });
+    const wasm = await loadSameBoyWasmFromBytes(
+      await readFile(new URL('../wasm/sameboy.wasm', import.meta.url)),
+      { wasi_snapshot_preview1: wasi.wasiImport },
+      (instance) => wasi.initialize(instance),
+    );
+    const rom = createToneRom();
+    const romAddress = wasm.allocate(rom.byteLength);
+    wasm.write(romAddress, rom);
+    expect(wasm.loadRom(romAddress, rom.byteLength)).toBe(true);
+    wasm.release(romAddress);
+    for (let frame = 0; frame < 30; frame += 1) wasm.runFrame();
+
+    const state = wasm.readSaveState();
+    expect(state?.byteLength).toBeGreaterThan(0);
+    if (state === undefined) throw new Error('SameBoy must expose a BESS state.');
+    const stateAddress = wasm.allocate(state.byteLength);
+    wasm.write(stateAddress, state);
+    expect(wasm.loadSaveState(stateAddress, state.byteLength)).toBe(true);
+    wasm.release(stateAddress);
+  });
+});
