@@ -31,6 +31,13 @@ export interface KeyboardBindingOption {
   readonly normalizedAction: string;
 }
 
+export interface AdvancedBindingOption {
+  readonly command: string;
+  readonly gamepadIndex: number;
+  readonly keyboardCode: string;
+  readonly label: string;
+}
+
 export interface InputMappingSettingsHandle {
   back(): boolean;
   captureGamepadInput(index: number): boolean;
@@ -44,9 +51,11 @@ type InputMappingStage =
   'button-navigation' | 'device-selection' | 'mapping-capture' | 'mapping-confirmation';
 
 export interface InputMappingSettingsProps {
+  readonly advancedBindings?: readonly AdvancedBindingOption[];
   readonly assetMap?: InputPromptAssetMap;
   readonly copy?: {
     readonly assigned: string;
+    readonly advancedControls: string;
     readonly chooseDevice: string;
     readonly connected: string;
     readonly consoleAction: string;
@@ -73,6 +82,8 @@ export interface InputMappingSettingsProps {
   readonly onMappingChange: (normalizedAction: string, consoleAction: string) => void;
   readonly onKeyboardBindingChange: (normalizedAction: string, code: string) => void;
   readonly onGamepadBindingChange: (normalizedAction: string, index: number) => void;
+  readonly onAdvancedGamepadBindingChange?: (command: string, index: number) => void;
+  readonly onAdvancedKeyboardBindingChange?: (command: string, code: string) => void;
   readonly onNavigate?: () => void;
   readonly promptScheme: InputPromptScheme;
   readonly selectedDeviceFingerprint: string;
@@ -100,8 +111,10 @@ export const InputMappingSettings = forwardRef<
 >(function InputMappingSettings(
   {
     assetMap,
+    advancedBindings = [],
     copy = {
       assigned: 'Assigned',
+      advancedControls: 'Advanced controls',
       chooseDevice: 'Choose a device, then confirm to configure its buttons.',
       connected: 'Connected',
       consoleAction: 'console action',
@@ -128,6 +141,8 @@ export const InputMappingSettings = forwardRef<
     onMappingChange,
     onKeyboardBindingChange,
     onGamepadBindingChange,
+    onAdvancedGamepadBindingChange,
+    onAdvancedKeyboardBindingChange,
     onNavigate,
     promptScheme,
     selectedDeviceFingerprint,
@@ -165,6 +180,7 @@ export const InputMappingSettings = forwardRef<
   const [capturedGamepadIndex, setCapturedGamepadIndex] = useState<number>();
   const [announcement, setAnnouncement] = useState(copy.chooseDevice);
   const selectedEntry = entries[actionCursor];
+  const selectedAdvanced = advancedBindings[actionCursor - entries.length];
   const selectedPoint = diagram.controlPoints.find(
     (point) => point.action === selectedEntry?.consoleAction,
   );
@@ -191,11 +207,18 @@ export const InputMappingSettings = forwardRef<
       if (direction !== 'up' && direction !== 'down') return;
       const next = Math.max(
         0,
-        Math.min(entries.length - 1, actionCursor + (direction === 'down' ? 1 : -1)),
+        Math.min(
+          entries.length + advancedBindings.length - 1,
+          actionCursor + (direction === 'down' ? 1 : -1),
+        ),
       );
       if (next === actionCursor) return;
       setActionCursor(next);
-      setAnnouncement(actionLabel(entries[next]?.normalizedAction ?? ''));
+      setAnnouncement(
+        entries[next] === undefined
+          ? (advancedBindings[next - entries.length]?.label ?? '')
+          : actionLabel(entries[next]?.normalizedAction ?? ''),
+      );
       onNavigate?.();
       return;
     }
@@ -212,7 +235,7 @@ export const InputMappingSettings = forwardRef<
       onConfirmFeedback?.();
       return;
     }
-    if (selectedEntry === undefined) return;
+    if (selectedEntry === undefined && selectedAdvanced === undefined) return;
     if (stage === 'button-navigation') {
       setCapturedAction(undefined);
       setCapturedKeyboard(undefined);
@@ -223,11 +246,21 @@ export const InputMappingSettings = forwardRef<
       return;
     }
     if (stage !== 'mapping-confirmation') return;
-    if (capturedKeyboard !== undefined)
-      onKeyboardBindingChange(selectedEntry.normalizedAction, capturedKeyboard.code);
-    else if (capturedGamepadIndex !== undefined)
-      onGamepadBindingChange(selectedEntry.normalizedAction, capturedGamepadIndex);
-    else if (capturedAction !== undefined && capturedAction !== selectedEntry.normalizedAction)
+    if (capturedKeyboard !== undefined) {
+      if (selectedAdvanced !== undefined)
+        onAdvancedKeyboardBindingChange?.(selectedAdvanced.command, capturedKeyboard.code);
+      else if (selectedEntry !== undefined)
+        onKeyboardBindingChange(selectedEntry.normalizedAction, capturedKeyboard.code);
+    } else if (capturedGamepadIndex !== undefined) {
+      if (selectedAdvanced !== undefined)
+        onAdvancedGamepadBindingChange?.(selectedAdvanced.command, capturedGamepadIndex);
+      else if (selectedEntry !== undefined)
+        onGamepadBindingChange(selectedEntry.normalizedAction, capturedGamepadIndex);
+    } else if (
+      selectedEntry !== undefined &&
+      capturedAction !== undefined &&
+      capturedAction !== selectedEntry.normalizedAction
+    )
       onMappingChange(capturedAction, selectedEntry.consoleAction);
     else if (capturedAction === undefined) return;
     setCapturedAction(undefined);
@@ -452,6 +485,50 @@ export const InputMappingSettings = forwardRef<
                     <span>
                       <strong>{actionLabel(displayedAction)}</strong>
                       <small>{entry.consoleAction.toUpperCase()}</small>
+                    </span>
+                  </button>
+                );
+              })}
+              {advancedBindings.length > 0 ? (
+                <span className="pc-input-map-group-label">{copy.advancedControls}</span>
+              ) : null}
+              {advancedBindings.map((binding, offset) => {
+                const index = entries.length + offset;
+                const active = stage !== 'device-selection' && actionCursor === index;
+                const displayedKeyboardCode =
+                  active && stage === 'mapping-confirmation' && capturedKeyboard !== undefined
+                    ? capturedKeyboard.code
+                    : binding.keyboardCode;
+                const displayedGamepadIndex =
+                  active && stage === 'mapping-confirmation' && capturedGamepadIndex !== undefined
+                    ? capturedGamepadIndex
+                    : binding.gamepadIndex;
+                return (
+                  <button
+                    className={active ? 'is-focused' : undefined}
+                    key={binding.command}
+                    onClick={() => {
+                      if (
+                        stage === 'device-selection' ||
+                        stage === 'mapping-capture' ||
+                        stage === 'mapping-confirmation'
+                      )
+                        return;
+                      if (actionCursor === index) confirm();
+                      else setActionCursor(index);
+                    }}
+                    type="button"
+                  >
+                    <span className="pc-input-map-badge">
+                      <span className="pc-physical-key">
+                        {selectedDeviceKind === 'keyboard'
+                          ? keyCodeLabel(displayedKeyboardCode)
+                          : `B${displayedGamepadIndex}`}
+                      </span>
+                    </span>
+                    <span>
+                      <strong>{binding.label}</strong>
+                      <small>{copy.advancedControls}</small>
                     </span>
                   </button>
                 );

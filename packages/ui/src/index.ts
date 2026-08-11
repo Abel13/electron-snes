@@ -62,6 +62,7 @@ export type {
   ProductView,
 } from './product-shell.js';
 export type {
+  AdvancedBindingOption,
   ConsoleControlDiagram,
   ConsoleControlPoint,
   InputMappingDeviceOption,

@@ -4,7 +4,13 @@ import { useTranslation } from 'react-i18next';
 import {
   GamepadInputAdapter,
   PLATFORM_GAMEPAD_BINDINGS,
+  DEFAULT_ADVANCED_KEYBOARD_BINDINGS,
+  advancedBindingsForGamepad,
   bindingsForGamepad,
+  gamepadButtonForAdvancedCommand,
+  keyboardCodeForAdvancedCommand,
+  rebindAdvancedGamepad,
+  rebindAdvancedKeyboard,
   readPressedGamepadButtons,
   GamepadPromptActivityTracker,
   DEFAULT_KEYBOARD_BINDINGS,
@@ -16,6 +22,7 @@ import {
   type ConsoleInputMapping,
   type InputDeviceDescriptor,
   type InputProfile,
+  type AdvancedInputCommand,
   type NormalizedInputAction,
   type InputPromptScheme,
 } from '@platform/input';
@@ -410,13 +417,15 @@ const ProductApp = (): React.JSX.Element => {
   useEffect(() => {
     void window.pixelCore.getInputConfiguration().then((configuration) => {
       const resolvedProfile: InputProfile = configuration.profile ?? {
+        advancedGamepadBindings: [],
+        advancedKeyboardBindings: DEFAULT_ADVANCED_KEYBOARD_BINDINGS,
         gamepadBindings: [],
         deviceFingerprint: 'keyboard:standard',
         id: 'default',
         keyboardBindings: DEFAULT_KEYBOARD_BINDINGS,
         mapping: configuration.mapping,
         name: 'Default input profile',
-        version: 3,
+        version: 4,
       };
       inputRuntime.current.assignments.prefer(
         resolvedProfile.mapping.playerPortId,
@@ -569,7 +578,13 @@ const ProductApp = (): React.JSX.Element => {
             ? []
             : readPressedGamepadButtons(selectedSnapshot),
         );
-        const rewindPressed = sessionButtons.has(6);
+        const rewindPressed = sessionButtons.has(
+          gamepadButtonForAdvancedCommand(
+            currentProfile,
+            currentProfile.deviceFingerprint,
+            'rewind',
+          ) ?? -1,
+        );
         if (
           emulatorCapabilitiesRef.current.rewind &&
           statusRef.current === 'running' &&
@@ -578,7 +593,13 @@ const ProductApp = (): React.JSX.Element => {
           rewindActiveRef.current = rewindPressed;
           void window.pixelCore.setRewindActive(rewindPressed);
         }
-        const fastForwardPressed = sessionButtons.has(7);
+        const fastForwardPressed = sessionButtons.has(
+          gamepadButtonForAdvancedCommand(
+            currentProfile,
+            currentProfile.deviceFingerprint,
+            'fast-forward',
+          ) ?? -1,
+        );
         if (
           emulatorCapabilitiesRef.current.fastForward &&
           statusRef.current === 'running' &&
@@ -650,7 +671,13 @@ const ProductApp = (): React.JSX.Element => {
       const keyboardHandled = keyboard.current.handle({ code: event.code, editable, pressed });
       platformKeyboard.current.handle({ code: event.code, editable, pressed });
       if (statusRef.current === 'running' || statusRef.current === 'paused') {
-        if (emulatorCapabilitiesRef.current.rewind && event.code === 'KeyQ') {
+        if (
+          emulatorCapabilitiesRef.current.rewind &&
+          event.code ===
+            (profileRef.current === undefined
+              ? 'KeyQ'
+              : keyboardCodeForAdvancedCommand(profileRef.current, 'rewind'))
+        ) {
           event.preventDefault();
           if (rewindActiveRef.current !== pressed && statusRef.current === 'running') {
             rewindActiveRef.current = pressed;
@@ -658,7 +685,13 @@ const ProductApp = (): React.JSX.Element => {
           }
           return;
         }
-        if (emulatorCapabilitiesRef.current.fastForward && event.code === 'KeyE') {
+        if (
+          emulatorCapabilitiesRef.current.fastForward &&
+          event.code ===
+            (profileRef.current === undefined
+              ? 'KeyE'
+              : keyboardCodeForAdvancedCommand(profileRef.current, 'fast-forward'))
+        ) {
           event.preventDefault();
           if (fastForwardActiveRef.current !== pressed && statusRef.current === 'running') {
             fastForwardActiveRef.current = pressed;
@@ -782,6 +815,39 @@ const ProductApp = (): React.JSX.Element => {
       ...profile,
       gamepadBindings: [
         ...profile.gamepadBindings.filter((set) => set.deviceFingerprint !== deviceFingerprint),
+        { bindings: nextBindings, deviceFingerprint },
+      ],
+    });
+    uiAudio.play('toggle-on');
+  };
+  const changeAdvancedKeyboardBinding = (command: string, code: string): void => {
+    if (profile === undefined) return;
+    const typedCommand = command as AdvancedInputCommand;
+    const nextBindings = rebindAdvancedKeyboard(
+      profile.advancedKeyboardBindings,
+      typedCommand,
+      code,
+    );
+    if (nextBindings === profile.advancedKeyboardBindings) return;
+    persistProfile({
+      ...profile,
+      advancedKeyboardBindings: nextBindings,
+    });
+    uiAudio.play('toggle-on');
+  };
+  const changeAdvancedGamepadBinding = (command: string, index: number): void => {
+    if (profile === undefined || profile.deviceFingerprint === 'keyboard:standard') return;
+    const typedCommand = command as AdvancedInputCommand;
+    const deviceFingerprint = profile.deviceFingerprint;
+    const bindings = advancedBindingsForGamepad(profile, deviceFingerprint);
+    const nextBindings = rebindAdvancedGamepad(bindings, typedCommand, index);
+    if (nextBindings === bindings) return;
+    persistProfile({
+      ...profile,
+      advancedGamepadBindings: [
+        ...profile.advancedGamepadBindings.filter(
+          (set) => set.deviceFingerprint !== deviceFingerprint,
+        ),
         { bindings: nextBindings, deviceFingerprint },
       ],
     });
@@ -1223,9 +1289,43 @@ const ProductApp = (): React.JSX.Element => {
           >
             {profile === undefined ? null : (
               <InputMappingSettings
+                advancedBindings={[
+                  ...(emulatorCapabilities.rewind
+                    ? [
+                        {
+                          command: 'rewind',
+                          gamepadIndex:
+                            gamepadButtonForAdvancedCommand(
+                              profile,
+                              profile.deviceFingerprint,
+                              'rewind',
+                            ) ?? 6,
+                          keyboardCode: keyboardCodeForAdvancedCommand(profile, 'rewind') ?? 'KeyQ',
+                          label: t('rewind'),
+                        },
+                      ]
+                    : []),
+                  ...(emulatorCapabilities.fastForward
+                    ? [
+                        {
+                          command: 'fast-forward',
+                          gamepadIndex:
+                            gamepadButtonForAdvancedCommand(
+                              profile,
+                              profile.deviceFingerprint,
+                              'fast-forward',
+                            ) ?? 7,
+                          keyboardCode:
+                            keyboardCodeForAdvancedCommand(profile, 'fast-forward') ?? 'KeyE',
+                          label: t('fastForward'),
+                        },
+                      ]
+                    : []),
+                ]}
                 assetMap={kenneyInputPromptAssets}
                 copy={{
                   assigned: t('mappingAssigned'),
+                  advancedControls: t('advancedControls'),
                   chooseDevice: t('mappingChooseDevice'),
                   connected: t('connected'),
                   consoleAction: t('consoleAction'),
@@ -1254,6 +1354,8 @@ const ProductApp = (): React.JSX.Element => {
                 onMappingChange={changeMapping}
                 onKeyboardBindingChange={changeKeyboardBinding}
                 onGamepadBindingChange={changeGamepadBinding}
+                onAdvancedGamepadBindingChange={changeAdvancedGamepadBinding}
+                onAdvancedKeyboardBindingChange={changeAdvancedKeyboardBinding}
                 onNavigate={() => uiAudio.play('focus')}
                 promptScheme={
                   profile.deviceFingerprint === 'keyboard:standard'

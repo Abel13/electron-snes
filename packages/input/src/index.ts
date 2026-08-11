@@ -25,12 +25,28 @@ export {
 } from './input-prompt-scheme.js';
 export type { InputPromptScheme } from './input-prompt-scheme.js';
 export {
+  ADVANCED_INPUT_COMMANDS,
+  DEFAULT_ADVANCED_GAMEPAD_BINDINGS,
+  DEFAULT_ADVANCED_KEYBOARD_BINDINGS,
   DEFAULT_KEYBOARD_BINDINGS,
   InputProfileRepository,
+  advancedBindingsForGamepad,
   bindingsForGamepad,
+  gamepadButtonForAdvancedCommand,
+  keyboardCodeForAdvancedCommand,
+  rebindAdvancedGamepad,
+  rebindAdvancedKeyboard,
   validateInputProfile,
 } from './input-profiles.js';
-export type { GamepadBindingSet, InputProfile, KeyboardBinding } from './input-profiles.js';
+export type {
+  AdvancedGamepadBinding,
+  AdvancedGamepadBindingSet,
+  AdvancedInputCommand,
+  AdvancedKeyboardBinding,
+  GamepadBindingSet,
+  InputProfile,
+  KeyboardBinding,
+} from './input-profiles.js';
 export { KeyboardInputAdapter, isCapturableKeyboardInput } from './keyboard-adapter.js';
 export type { KeyboardCaptureCandidate, KeyboardInputEvent } from './keyboard-adapter.js';
 export { PlayerAssignmentManager } from './player-assignment.js';
