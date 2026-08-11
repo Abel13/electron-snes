@@ -16,6 +16,7 @@ export interface DesktopSessionHost {
   pause(): Promise<SessionCommandResponse>;
   resume(): Promise<SessionCommandResponse>;
   restoreSaveState(slot: SaveStateSlot): Promise<SessionCommandResponse>;
+  setRewindActive(active: boolean): Promise<SessionCommandResponse>;
   setInput(playerPortId: string, actions: readonly string[]): Promise<SessionCommandResponse>;
   stop(): Promise<SessionCommandResponse>;
 }
@@ -185,6 +186,7 @@ export const createDesktopSessionHost = (
     },
     setInput: async (playerPortId, actions) =>
       execute(() => controller.setInput({ actions, playerPortId })),
+    setRewindActive: async (active) => execute(() => controller.setRewindActive(active)),
     stop: async () => {
       clearAutosaveTimer();
       await captureAutosave().catch(() => undefined);

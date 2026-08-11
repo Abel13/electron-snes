@@ -4,6 +4,7 @@ import {
   IPC_CHANNELS,
   createPixelCoreApi,
   hasGlobalPreferencesPayload,
+  hasBooleanPayload,
   hasNoIpcPayload,
   isHostVersionResponse,
   isGlobalPreferencesLoadResponse,
@@ -12,6 +13,7 @@ import {
   isLibraryResponse,
   isSelectRomResponse,
   isSessionInputPayload,
+  isEmulatorCapabilities,
   hasSaveStateSlotPayload,
   isSaveStateListResponse,
 } from './ipc.js';
@@ -148,6 +150,15 @@ describe('IPC boundary contracts', () => {
         status: 'ok',
       }),
     ).toBe(true);
+  });
+
+  it('validates capability responses and rewind state payloads', () => {
+    expect(isEmulatorCapabilities({ fastForward: false, rewind: true, saveStates: true })).toBe(
+      true,
+    );
+    expect(isEmulatorCapabilities({ rewind: true })).toBe(false);
+    expect(hasBooleanPayload([true])).toBe(true);
+    expect(hasBooleanPayload(['true'])).toBe(false);
   });
 
   it('accepts renderer-safe library records and rejects filesystem paths', () => {

@@ -20,6 +20,7 @@ import {
   SESSION_EVENT_CHANNELS,
   createHostVersionResponse,
   hasFavoritePayload,
+  hasBooleanPayload,
   hasGlobalPreferencesPayload,
   hasLibraryGameIdPayload,
   hasNoIpcPayload,
@@ -236,6 +237,10 @@ app.whenReady().then(() => {
 
     return createHostVersionResponse(app.getVersion());
   });
+  ipcMain.handle(IPC_CHANNELS.getEmulatorCapabilities, (_event, ...payload: unknown[]) => {
+    if (!hasNoIpcPayload(payload)) throw new Error('Capabilities do not accept a payload.');
+    return officialEmulator.emulator.capabilities;
+  });
   ipcMain.handle(IPC_CHANNELS.quitApplication, (_event, ...payload: unknown[]) => {
     if (!hasNoIpcPayload(payload))
       throw new Error('The quit-application channel takes no payload.');
@@ -404,6 +409,10 @@ app.whenReady().then(() => {
     )
       throw new Error('The session input references an unavailable console action.');
     return sessionHost.setInput(payload[0].playerPortId, payload[0].actions);
+  });
+  ipcMain.handle(IPC_CHANNELS.setRewindActive, async (_event, ...payload: unknown[]) => {
+    if (!hasBooleanPayload(payload)) throw new Error('Rewind requires one boolean state.');
+    return sessionHost.setRewindActive(payload[0]);
   });
 
   ipcMain.handle(IPC_CHANNELS.listSaveStates, async (_event, ...payload: unknown[]) => {
