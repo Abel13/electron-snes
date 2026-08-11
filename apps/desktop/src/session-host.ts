@@ -26,6 +26,7 @@ export interface DesktopSessionHostOutputs {
   readonly listSaveStates?: (gameId: string) => Promise<readonly SaveStateDescriptor[]>;
   readonly loadCartridgeSave: (key: string) => Promise<Uint8Array | undefined>;
   readonly persistCartridgeSave: (key: string, bytes: Uint8Array) => Promise<void>;
+  readonly persistPlaytime?: (gameId: string, elapsedMilliseconds: number) => Promise<void>;
   readonly readSaveState?: (
     gameId: string,
     slot: SaveStateSlot,
@@ -41,6 +42,7 @@ export interface DesktopSessionHostOutputs {
     slot: SaveStateSlot,
     state: import('@platform/emulator-sdk').EmulatorSaveState,
   ) => Promise<void>;
+  readonly monotonicNow?: () => number;
 }
 
 export type SaveStateListResponse =
@@ -62,6 +64,9 @@ export const createDesktopSessionHost = (
   let activeSaveKey: string | undefined;
   let activeGameId: string | undefined;
   let autosaveTimer: ReturnType<typeof setInterval> | undefined;
+  let playtimeTimer: ReturnType<typeof setInterval> | undefined;
+  let playtimeCheckpointAt: number | undefined;
+  const monotonicNow = outputs.monotonicNow ?? (() => performance.now());
   const controller = new EmulatorSessionController(plugin, {
     onAudio: outputs.sendAudio,
     onCartridgeSave: async (save) => {
@@ -83,6 +88,23 @@ export const createDesktopSessionHost = (
   const clearAutosaveTimer = (): void => {
     if (autosaveTimer !== undefined) clearInterval(autosaveTimer);
     autosaveTimer = undefined;
+  };
+  const clearPlaytimeTimer = (): void => {
+    if (playtimeTimer !== undefined) clearInterval(playtimeTimer);
+    playtimeTimer = undefined;
+  };
+  const checkpointPlaytime = async (): Promise<void> => {
+    if (
+      activeGameId === undefined ||
+      playtimeCheckpointAt === undefined ||
+      outputs.persistPlaytime === undefined
+    )
+      return;
+    const now = monotonicNow();
+    const elapsed = Math.max(0, Math.floor(now - playtimeCheckpointAt));
+    if (elapsed === 0) return;
+    await outputs.persistPlaytime(activeGameId, elapsed);
+    playtimeCheckpointAt = now;
   };
 
   const captureAutosave = async (): Promise<void> => {
@@ -113,7 +135,7 @@ export const createDesktopSessionHost = (
         };
       }
     },
-    launch: async (rom, saveKey, gameId = saveKey, autosaveEnabled = false) => {
+    launch: async (rom, saveKey, gameId, autosaveEnabled = false) => {
       try {
         const bytes = await outputs.loadCartridgeSave(saveKey);
         activeSaveKey = saveKey;
@@ -123,8 +145,17 @@ export const createDesktopSessionHost = (
         );
         if (result.status === 'error') {
           clearAutosaveTimer();
+          clearPlaytimeTimer();
           activeSaveKey = undefined;
           activeGameId = undefined;
+        }
+        if (result.status === 'ok' && gameId !== undefined) {
+          playtimeCheckpointAt = monotonicNow();
+          playtimeTimer = setInterval(
+            () => void checkpointPlaytime().catch(() => undefined),
+            60_000,
+          );
+          playtimeTimer.unref?.();
         }
         if (result.status === 'ok' && autosaveEnabled) {
           autosaveTimer = setInterval(() => void captureAutosave().catch(() => undefined), 300_000);
@@ -133,6 +164,7 @@ export const createDesktopSessionHost = (
         return result;
       } catch {
         clearAutosaveTimer();
+        clearPlaytimeTimer();
         activeSaveKey = undefined;
         activeGameId = undefined;
         return {
@@ -191,11 +223,14 @@ export const createDesktopSessionHost = (
     setRewindActive: async (active) => execute(() => controller.setRewindActive(active)),
     stop: async () => {
       clearAutosaveTimer();
+      clearPlaytimeTimer();
       await captureAutosave().catch(() => undefined);
+      await checkpointPlaytime().catch(() => undefined);
       const result = await execute(() => controller.stop());
       if (result.status === 'ok') {
         activeSaveKey = undefined;
         activeGameId = undefined;
+        playtimeCheckpointAt = undefined;
       }
       return result;
     },

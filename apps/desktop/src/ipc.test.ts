@@ -168,6 +168,7 @@ describe('IPC boundary contracts', () => {
       favorite: true,
       id: '3b343e5d-161a-41db-bd92-d2d1bd177ba8',
       name: 'Local game',
+      playtimeMilliseconds: 0,
     };
     expect(isLibraryResponse({ games: [game], status: 'ready' })).toBe(true);
     expect(

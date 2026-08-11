@@ -23,6 +23,7 @@ export interface LocalGame {
   readonly id: string;
   readonly lastPlayedAt?: string;
   readonly name: string;
+  readonly playtimeMilliseconds: number;
   /** Opaque host-only reference; never expose a filesystem path to the renderer. */
   readonly sourceKey: string;
 }
@@ -56,6 +57,7 @@ export class LocalGameLibrary {
       configuration: DEFAULT_GAME_CONFIGURATION,
       favorite: false,
       id: this.createId(),
+      playtimeMilliseconds: 0,
     };
     const stored = await this.storage.write(
       'game-library',
@@ -88,6 +90,15 @@ export class LocalGameLibrary {
 
   public async markPlayed(id: string): Promise<Result<LocalGame>> {
     return this.update(id, (game) => ({ ...game, lastPlayedAt: this.now() }));
+  }
+
+  public async addPlaytime(id: string, elapsedMilliseconds: number): Promise<Result<LocalGame>> {
+    if (!Number.isSafeInteger(elapsedMilliseconds) || elapsedMilliseconds < 0)
+      return err(invalid('Playtime requires non-negative whole milliseconds.'));
+    return this.update(id, (game) => ({
+      ...game,
+      playtimeMilliseconds: game.playtimeMilliseconds + elapsedMilliseconds,
+    }));
   }
 
   public async setArtwork(id: string, artworkKey: string): Promise<Result<LocalGame>> {
@@ -165,6 +176,12 @@ const gamesFromJson = (value: JsonValue): readonly LocalGame[] | undefined => {
       return undefined;
     if (game['lastPlayedAt'] !== undefined && typeof game['lastPlayedAt'] !== 'string')
       return undefined;
+    if (
+      game['playtimeMilliseconds'] !== undefined &&
+      (!Number.isSafeInteger(game['playtimeMilliseconds']) ||
+        (game['playtimeMilliseconds'] as number) < 0)
+    )
+      return undefined;
     return {
       addedAt: game['addedAt'],
       ...(typeof game['artworkKey'] === 'string' ? { artworkKey: game['artworkKey'] } : {}),
@@ -176,6 +193,8 @@ const gamesFromJson = (value: JsonValue): readonly LocalGame[] | undefined => {
       id: game['id'],
       ...(typeof game['lastPlayedAt'] === 'string' ? { lastPlayedAt: game['lastPlayedAt'] } : {}),
       name: game['name'],
+      playtimeMilliseconds:
+        typeof game['playtimeMilliseconds'] === 'number' ? game['playtimeMilliseconds'] : 0,
       sourceKey: game['sourceKey'],
     };
   });
