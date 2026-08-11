@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { vi } from 'vitest';
 import type {
   EmulatorPluginDefinition,
   EmulatorSession,
@@ -9,7 +10,7 @@ import { createDesktopSessionHost } from './session-host.js';
 
 const inputSnapshots: (readonly string[])[] = [];
 
-const createPlugin = (): EmulatorPluginDefinition => {
+const createPlugin = (saveStates = false): EmulatorPluginDefinition => {
   let status: EmulatorSessionStatus = 'idle';
   let audio:
     ((frame: { channels: 2; sampleRate: number; samples: Float32Array }) => void) | undefined;
@@ -46,7 +47,7 @@ const createPlugin = (): EmulatorPluginDefinition => {
   return {
     createSession: async () => session,
     emulator: {
-      capabilities: { fastForward: false, rewind: false, saveStates: false },
+      capabilities: { fastForward: false, rewind: false, saveStates },
       compatibleConsoleIds: ['org.pixelcore.game-boy-family'],
       id: 'org.pixelcore.fixture',
       supportedRomExtensions: ['.gb', '.gbc'],
@@ -122,5 +123,39 @@ describe('DesktopSessionHost', () => {
 
     expect(persisted).toEqual([new Uint8Array([6, 5])]);
     session.stop = originalStop;
+  });
+
+  it('captures autosaves periodically and before a clean stop', async () => {
+    vi.useFakeTimers();
+    const plugin = createPlugin(true);
+    const session = await plugin.createSession();
+    session.captureSaveState = async () => ({
+      saveState: {
+        bytes: new Uint8Array([7]),
+        coreId: 'org.pixelcore.fixture',
+        formatVersion: 1,
+      },
+      status: 'ok',
+    });
+    const writes: string[] = [];
+    const host = createDesktopSessionHost(plugin, {
+      loadCartridgeSave: async () => undefined,
+      persistCartridgeSave: async () => undefined,
+      sendAudio: () => undefined,
+      sendVideo: () => undefined,
+      writeSaveState: async (_gameId, slot) => {
+        writes.push(slot);
+      },
+    });
+    await host.launch(
+      { bytes: new Uint8Array([1]), extension: '.gb', name: 'auto.gb', selectionId: 'id' },
+      'save-key',
+      'game-1',
+      true,
+    );
+    await vi.advanceTimersByTimeAsync(300_000);
+    await host.stop();
+    expect(writes).toEqual(['autosave', 'autosave']);
+    vi.useRealTimers();
   });
 });
