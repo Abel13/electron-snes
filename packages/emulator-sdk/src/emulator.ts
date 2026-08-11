@@ -38,6 +38,12 @@ export interface EmulatorCartridgeSave {
   readonly bytes: Uint8Array;
 }
 
+export interface EmulatorSaveState {
+  readonly bytes: Uint8Array;
+  readonly coreId: string;
+  readonly formatVersion: number;
+}
+
 export interface EmulatorOperationSuccess {
   readonly status: 'ok';
 }
@@ -50,6 +56,12 @@ export interface EmulatorOperationFailure {
 
 export type EmulatorOperationResult = EmulatorOperationFailure | EmulatorOperationSuccess;
 
+export interface EmulatorSaveStateSuccess extends EmulatorOperationSuccess {
+  readonly saveState: EmulatorSaveState;
+}
+
+export type EmulatorSaveStateResult = EmulatorOperationFailure | EmulatorSaveStateSuccess;
+
 export interface EmulatorStopSuccess extends EmulatorOperationSuccess {
   readonly cartridgeSave?: EmulatorCartridgeSave;
 }
@@ -59,6 +71,7 @@ export type EmulatorStopResult = EmulatorOperationFailure | EmulatorStopSuccess;
 export type UnsubscribeEmulatorOutput = () => void;
 
 export interface EmulatorSession {
+  captureSaveState?(): Promise<EmulatorSaveStateResult>;
   getStatus(): EmulatorSessionStatus;
   loadRom(
     rom: EmulatorRom,
@@ -66,6 +79,7 @@ export interface EmulatorSession {
   ): Promise<EmulatorOperationResult>;
   pause(): Promise<EmulatorOperationResult>;
   resume(): Promise<EmulatorOperationResult>;
+  restoreSaveState?(saveState: EmulatorSaveState): Promise<EmulatorOperationResult>;
   setInput(input: EmulatorInput): Promise<EmulatorOperationResult>;
   start(): Promise<EmulatorOperationResult>;
   stop(): Promise<EmulatorStopResult>;
@@ -75,6 +89,24 @@ export interface EmulatorSession {
   ): UnsubscribeEmulatorOutput;
   subscribeVideo(listener: (frame: EmulatorVideoFrame) => void): UnsubscribeEmulatorOutput;
 }
+
+export const validateEmulatorSessionCapabilities = (
+  session: EmulatorSession,
+  capabilities: EmulatorCapabilities,
+): EmulatorOperationResult => {
+  if (
+    capabilities.saveStates &&
+    (typeof session.captureSaveState !== 'function' ||
+      typeof session.restoreSaveState !== 'function')
+  )
+    return {
+      code: 'unavailable',
+      message: 'The emulator session does not implement its declared save-state capability.',
+      status: 'error',
+    };
+
+  return { status: 'ok' };
+};
 
 export interface EmulatorCoreDefinition {
   readonly capabilities: EmulatorCapabilities;
@@ -122,6 +154,7 @@ export const validateEmulatorPlugin = (input: unknown): EmulatorOperationResult 
   const definition = emulator as Record<string, unknown>;
   const extensions = definition['supportedRomExtensions'];
   const consoles = definition['compatibleConsoleIds'];
+  const capabilities = definition['capabilities'];
 
   if (
     definition['id'] !== manifest.data.id ||
@@ -133,6 +166,12 @@ export const validateEmulatorPlugin = (input: unknown): EmulatorOperationResult 
     !Array.isArray(consoles) ||
     consoles.length === 0 ||
     !consoles.every((id) => typeof id === 'string') ||
+    typeof capabilities !== 'object' ||
+    capabilities === null ||
+    Array.isArray(capabilities) ||
+    typeof (capabilities as Record<string, unknown>)['fastForward'] !== 'boolean' ||
+    typeof (capabilities as Record<string, unknown>)['rewind'] !== 'boolean' ||
+    typeof (capabilities as Record<string, unknown>)['saveStates'] !== 'boolean' ||
     typeof candidate['createSession'] !== 'function'
   ) {
     return { code: 'unavailable', message: 'The emulator definition is invalid.', status: 'error' };
