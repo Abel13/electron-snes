@@ -2995,6 +2995,47 @@ summary:focus-visible {
 .pc-session-overlay > .pc-input-prompt-group {
   opacity: 0.72;
 }
+.pc-autosave-choice {
+  position: fixed;
+  z-index: 30;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(2, 5, 16, 0.62);
+  backdrop-filter: blur(18px);
+}
+.pc-autosave-choice > section {
+  width: min(680px, calc(100vw - 48px));
+  padding: 38px;
+  border: 1px solid rgba(39, 226, 226, 0.42);
+  border-radius: 28px;
+  background: linear-gradient(145deg, rgba(10, 17, 38, 0.98), rgba(8, 32, 38, 0.94));
+  box-shadow:
+    0 28px 90px rgba(0, 0, 0, 0.55),
+    0 0 44px rgba(39, 226, 226, 0.12);
+}
+.pc-autosave-choice strong {
+  display: block;
+  margin: 10px 0;
+  font-size: clamp(28px, 4vw, 48px);
+}
+.pc-autosave-choice > section > div {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 28px 0;
+}
+.pc-autosave-choice button {
+  min-height: 64px;
+  border: 1px solid rgba(148, 163, 205, 0.24);
+  border-radius: 18px;
+  background: rgba(5, 10, 26, 0.76);
+  color: inherit;
+}
+.pc-autosave-choice button.is-selected {
+  border-color: #27e2e2;
+  box-shadow: 0 0 26px rgba(39, 226, 226, 0.22);
+}
 .pc-save-state-panel {
   display: grid;
   width: min(720px, 82vw);

@@ -45,7 +45,7 @@ import {
   type InputMappingSettingsHandle,
 } from '@platform/ui';
 import { BrowserUiAudioService } from '@platform/ui-audio';
-import type { LibraryGame, PixelCoreApi, SessionVideoFrame } from './ipc.js';
+import type { LibraryGame, LibraryLaunchMode, PixelCoreApi, SessionVideoFrame } from './ipc.js';
 import type { SaveStateDescriptor, SaveStateSlot } from '@platform/emulator';
 import type { EmulatorCapabilities } from '@platform/emulator-sdk';
 import { setLocale, type SupportedLocale } from './localization.js';
@@ -181,6 +181,11 @@ const ProductApp = (): React.JSX.Element => {
   const [screen, setScreen] = useState<AppScreen>('home');
   const [globalSettingsOpen, setGlobalSettingsOpen] = useState(false);
   const [exitConfirmationOpen, setExitConfirmationOpen] = useState(false);
+  const [autosaveChoice, setAutosaveChoice] = useState<{
+    readonly game: LibraryGame;
+    readonly selected: LibraryLaunchMode;
+    readonly updatedAt: string;
+  }>();
   const [saveStateSlots, setSaveStateSlots] = useState<readonly SaveStateDescriptor[]>([]);
   const [emulatorCapabilities, setEmulatorCapabilities] = useState<EmulatorCapabilities>({
     fastForward: false,
@@ -217,6 +222,7 @@ const ProductApp = (): React.JSX.Element => {
   const sessionScreen = useRef<HTMLDivElement>(null);
   const exitWasRunning = useRef(false);
   const exitConfirmationOpenRef = useRef(false);
+  const autosaveChoiceRef = useRef(autosaveChoice);
   const rewindActiveRef = useRef(false);
   const fastForwardActiveRef = useRef(false);
   const emulatorCapabilitiesRef = useRef(emulatorCapabilities);
@@ -276,6 +282,9 @@ const ProductApp = (): React.JSX.Element => {
   useEffect(() => {
     exitConfirmationOpenRef.current = exitConfirmationOpen;
   }, [exitConfirmationOpen]);
+  useEffect(() => {
+    autosaveChoiceRef.current = autosaveChoice;
+  }, [autosaveChoice]);
   useEffect(() => {
     void window.pixelCore.getEmulatorCapabilities().then(setEmulatorCapabilities);
   }, []);
@@ -516,6 +525,28 @@ const ProductApp = (): React.JSX.Element => {
             );
           previousCapture = currentCapture;
           if (!inputConsumed) {
+            if (autosaveChoiceRef.current !== undefined) {
+              if (
+                (currentNavigation.has('move-left') && !previousNavigation.has('move-left')) ||
+                (currentNavigation.has('move-right') && !previousNavigation.has('move-right'))
+              )
+                setAutosaveChoice((current) =>
+                  current === undefined
+                    ? undefined
+                    : {
+                        ...current,
+                        selected:
+                          current.selected === 'restore-autosave' ? 'fresh' : 'restore-autosave',
+                      },
+                );
+              if (currentNavigation.has('primary') && !previousNavigation.has('primary'))
+                void confirmAutosaveChoice();
+              if (currentNavigation.has('secondary') && !previousNavigation.has('secondary'))
+                setAutosaveChoice(undefined);
+              previousNavigation = currentNavigation;
+              animationFrame = requestAnimationFrame(poll);
+              return;
+            }
             for (const [action, direction] of [
               ['move-up', 'up'],
               ['move-down', 'down'],
@@ -709,6 +740,26 @@ const ProductApp = (): React.JSX.Element => {
         return;
       }
       if (!pressed || editable) return;
+      if (autosaveChoiceRef.current !== undefined) {
+        if (event.code === 'ArrowLeft' || event.code === 'ArrowRight') {
+          event.preventDefault();
+          setAutosaveChoice((current) =>
+            current === undefined
+              ? undefined
+              : {
+                  ...current,
+                  selected: current.selected === 'restore-autosave' ? 'fresh' : 'restore-autosave',
+                },
+          );
+        } else if (event.code === 'Enter') {
+          event.preventDefault();
+          void confirmAutosaveChoice();
+        } else if (event.code === 'Escape' || event.code === 'Backspace') {
+          event.preventDefault();
+          setAutosaveChoice(undefined);
+        }
+        return;
+      }
       if (screenRef.current === 'home') {
         if (event.code === 'Escape') {
           event.preventDefault();
@@ -868,13 +919,20 @@ const ProductApp = (): React.JSX.Element => {
     setSelectedGameId(response.game.id);
     uiAudio.play('success');
   };
-  const launchGame = async (game: LibraryGame): Promise<void> => {
+  const launchGame = async (game: LibraryGame, mode?: LibraryLaunchMode): Promise<void> => {
+    if (mode !== undefined) setAutosaveChoice(undefined);
     await audio.current.start();
     setSelectedGameId(game.id);
     setStatus('starting');
     setMessage(`${t('loading')} ${game.name}`);
     uiAudio.play('launch');
-    const result = await window.pixelCore.startLibraryGame(game.id);
+    const result = await window.pixelCore.startLibraryGame(game.id, mode);
+    if (result.status === 'autosave-available') {
+      setStatus('ready');
+      setAutosaveChoice({ game, selected: 'restore-autosave', updatedAt: result.updatedAt });
+      uiAudio.play('open');
+      return;
+    }
     if (result.status === 'error') {
       setStatus('error');
       setMessage(result.message);
@@ -885,6 +943,12 @@ const ProductApp = (): React.JSX.Element => {
     setMessage(game.name);
     await refreshLibrary();
     setStatus('running');
+  };
+  const confirmAutosaveChoice = async (): Promise<void> => {
+    const choice = autosaveChoiceRef.current;
+    if (choice === undefined) return;
+    setAutosaveChoice(undefined);
+    await launchGame(choice.game, choice.selected);
   };
   const runAction = async (action: 'pause' | 'resume' | 'stop'): Promise<void> => {
     if (action !== 'resume' && rewindActiveRef.current) {
@@ -1252,127 +1316,165 @@ const ProductApp = (): React.JSX.Element => {
     <InputPromptProvider assetMap={kenneyInputPromptAssets} scheme={inputPromptScheme}>
       <>
         {consoles[0] === undefined ? null : (
-          <ConsoleLibrary
-            artworkFor={(game) => game.artworkDataUrl ?? defaultArtworkUrl}
-            cartridgeUrl={cartridgeUrl}
-            console={consoles[0]}
-            copy={{
-              addGame: t('addGame'),
-              artwork: t('artwork'),
-              backSystems: t('backSystems'),
-              emptyCategory: t('emptyCategory'),
-              favorite: t('favoriteGame'),
-              favorites: t('favorites'),
-              library: t('library'),
-              playHint: t('playHint'),
-              recent: t('recent'),
-              removeFavorite: t('removeFavorite'),
-              settings: t('settings'),
-            }}
-            games={games.filter((game) => consoles[0]?.extensions.includes(game.extension))}
-            logoUrl={logoUrl}
-            onAddGame={() => void importGame()}
-            onArtwork={(game) => void selectArtwork(game as LibraryGame)}
-            onBack={() => {
-              setScreen('home');
-              uiAudio.play('back');
-            }}
-            onBackFeedback={() => uiAudio.play('back')}
-            onCategoryChange={() => uiAudio.play('focus')}
-            onDetail={() => uiAudio.play('select')}
-            onFavorite={(game) => void toggleFavorite(game as LibraryGame)}
-            onPlay={(game) => void launchGame(game as LibraryGame)}
-            onSelect={(game) => setSelectedGameId(game.id)}
-            onSelectionChange={() => uiAudio.play('browse')}
-            ref={consoleLibrary}
-            settingsRef={inputMappingSettings}
-          >
-            {profile === undefined ? null : (
-              <InputMappingSettings
-                advancedBindings={[
-                  ...(emulatorCapabilities.rewind
-                    ? [
-                        {
-                          command: 'rewind',
-                          gamepadIndex:
-                            gamepadButtonForAdvancedCommand(
-                              profile,
-                              profile.deviceFingerprint,
-                              'rewind',
-                            ) ?? 6,
-                          keyboardCode: keyboardCodeForAdvancedCommand(profile, 'rewind') ?? 'KeyQ',
-                          label: t('rewind'),
-                        },
-                      ]
-                    : []),
-                  ...(emulatorCapabilities.fastForward
-                    ? [
-                        {
-                          command: 'fast-forward',
-                          gamepadIndex:
-                            gamepadButtonForAdvancedCommand(
-                              profile,
-                              profile.deviceFingerprint,
-                              'fast-forward',
-                            ) ?? 7,
-                          keyboardCode:
-                            keyboardCodeForAdvancedCommand(profile, 'fast-forward') ?? 'KeyE',
-                          label: t('fastForward'),
-                        },
-                      ]
-                    : []),
-                ]}
-                assetMap={kenneyInputPromptAssets}
-                copy={{
-                  assigned: t('mappingAssigned'),
-                  advancedControls: t('advancedControls'),
-                  chooseDevice: t('mappingChooseDevice'),
-                  connected: t('connected'),
-                  consoleAction: t('consoleAction'),
-                  disconnected: t('disconnected'),
-                  editButton: t('mappingEditButton'),
-                  gameControls: t('gameControls'),
-                  inputSettings: t('inputSettings'),
-                  mappingCancelled: t('mappingCancelled'),
-                  mappingCancel: t('mappingCancel'),
-                  mappingConfirm: t('mappingConfirm'),
-                  mappingPreview: t('mappingPreview'),
-                  mappingSaved: t('mappingSaved'),
-                  playerOneDevice: t('playerOneDevice'),
-                  pressInput: t('mappingPressInput'),
-                }}
-                devices={devices}
-                diagram={gameBoyControlDiagram}
-                entries={profile.mapping.entries}
-                keyboardBindings={profile.keyboardBindings}
-                onBackFeedback={() => uiAudio.play('back')}
-                onConfirmFeedback={() => uiAudio.play('toggle-on')}
-                onDeviceChange={(deviceFingerprint) =>
-                  persistProfile({ ...profile, deviceFingerprint })
-                }
-                onEditFeedback={() => uiAudio.play('select')}
-                onMappingChange={changeMapping}
-                onKeyboardBindingChange={changeKeyboardBinding}
-                onGamepadBindingChange={changeGamepadBinding}
-                onAdvancedGamepadBindingChange={changeAdvancedGamepadBinding}
-                onAdvancedKeyboardBindingChange={changeAdvancedKeyboardBinding}
-                onNavigate={() => uiAudio.play('focus')}
-                promptScheme={
-                  profile.deviceFingerprint === 'keyboard:standard'
-                    ? 'desktop'
-                    : classifyGamepadPromptScheme(
-                        devices.find((device) => device.fingerprint === profile.deviceFingerprint)
-                          ?.label ?? '',
-                      )
-                }
-                ref={inputMappingSettings}
-                selectedDeviceFingerprint={profile.deviceFingerprint}
-                selectedDeviceKind={
-                  profile.deviceFingerprint === 'keyboard:standard' ? 'keyboard' : 'gamepad'
-                }
-              />
+          <>
+            <ConsoleLibrary
+              artworkFor={(game) => game.artworkDataUrl ?? defaultArtworkUrl}
+              cartridgeUrl={cartridgeUrl}
+              console={consoles[0]}
+              copy={{
+                addGame: t('addGame'),
+                artwork: t('artwork'),
+                backSystems: t('backSystems'),
+                emptyCategory: t('emptyCategory'),
+                favorite: t('favoriteGame'),
+                favorites: t('favorites'),
+                library: t('library'),
+                playHint: t('playHint'),
+                recent: t('recent'),
+                removeFavorite: t('removeFavorite'),
+                settings: t('settings'),
+              }}
+              games={games.filter((game) => consoles[0]?.extensions.includes(game.extension))}
+              logoUrl={logoUrl}
+              onAddGame={() => void importGame()}
+              onArtwork={(game) => void selectArtwork(game as LibraryGame)}
+              onBack={() => {
+                setScreen('home');
+                uiAudio.play('back');
+              }}
+              onBackFeedback={() => uiAudio.play('back')}
+              onCategoryChange={() => uiAudio.play('focus')}
+              onDetail={() => uiAudio.play('select')}
+              onFavorite={(game) => void toggleFavorite(game as LibraryGame)}
+              onPlay={(game) => void launchGame(game as LibraryGame)}
+              onSelect={(game) => setSelectedGameId(game.id)}
+              onSelectionChange={() => uiAudio.play('browse')}
+              ref={consoleLibrary}
+              settingsRef={inputMappingSettings}
+            >
+              {profile === undefined ? null : (
+                <InputMappingSettings
+                  advancedBindings={[
+                    ...(emulatorCapabilities.rewind
+                      ? [
+                          {
+                            command: 'rewind',
+                            gamepadIndex:
+                              gamepadButtonForAdvancedCommand(
+                                profile,
+                                profile.deviceFingerprint,
+                                'rewind',
+                              ) ?? 6,
+                            keyboardCode:
+                              keyboardCodeForAdvancedCommand(profile, 'rewind') ?? 'KeyQ',
+                            label: t('rewind'),
+                          },
+                        ]
+                      : []),
+                    ...(emulatorCapabilities.fastForward
+                      ? [
+                          {
+                            command: 'fast-forward',
+                            gamepadIndex:
+                              gamepadButtonForAdvancedCommand(
+                                profile,
+                                profile.deviceFingerprint,
+                                'fast-forward',
+                              ) ?? 7,
+                            keyboardCode:
+                              keyboardCodeForAdvancedCommand(profile, 'fast-forward') ?? 'KeyE',
+                            label: t('fastForward'),
+                          },
+                        ]
+                      : []),
+                  ]}
+                  assetMap={kenneyInputPromptAssets}
+                  copy={{
+                    assigned: t('mappingAssigned'),
+                    advancedControls: t('advancedControls'),
+                    chooseDevice: t('mappingChooseDevice'),
+                    connected: t('connected'),
+                    consoleAction: t('consoleAction'),
+                    disconnected: t('disconnected'),
+                    editButton: t('mappingEditButton'),
+                    gameControls: t('gameControls'),
+                    inputSettings: t('inputSettings'),
+                    mappingCancelled: t('mappingCancelled'),
+                    mappingCancel: t('mappingCancel'),
+                    mappingConfirm: t('mappingConfirm'),
+                    mappingPreview: t('mappingPreview'),
+                    mappingSaved: t('mappingSaved'),
+                    playerOneDevice: t('playerOneDevice'),
+                    pressInput: t('mappingPressInput'),
+                  }}
+                  devices={devices}
+                  diagram={gameBoyControlDiagram}
+                  entries={profile.mapping.entries}
+                  keyboardBindings={profile.keyboardBindings}
+                  onBackFeedback={() => uiAudio.play('back')}
+                  onConfirmFeedback={() => uiAudio.play('toggle-on')}
+                  onDeviceChange={(deviceFingerprint) =>
+                    persistProfile({ ...profile, deviceFingerprint })
+                  }
+                  onEditFeedback={() => uiAudio.play('select')}
+                  onMappingChange={changeMapping}
+                  onKeyboardBindingChange={changeKeyboardBinding}
+                  onGamepadBindingChange={changeGamepadBinding}
+                  onAdvancedGamepadBindingChange={changeAdvancedGamepadBinding}
+                  onAdvancedKeyboardBindingChange={changeAdvancedKeyboardBinding}
+                  onNavigate={() => uiAudio.play('focus')}
+                  promptScheme={
+                    profile.deviceFingerprint === 'keyboard:standard'
+                      ? 'desktop'
+                      : classifyGamepadPromptScheme(
+                          devices.find((device) => device.fingerprint === profile.deviceFingerprint)
+                            ?.label ?? '',
+                        )
+                  }
+                  ref={inputMappingSettings}
+                  selectedDeviceFingerprint={profile.deviceFingerprint}
+                  selectedDeviceKind={
+                    profile.deviceFingerprint === 'keyboard:standard' ? 'keyboard' : 'gamepad'
+                  }
+                />
+              )}
+            </ConsoleLibrary>
+            {autosaveChoice === undefined ? null : (
+              <div className="pc-autosave-choice" role="dialog" aria-modal="true">
+                <section>
+                  <small>{t('autosaveFound')}</small>
+                  <strong>{autosaveChoice.game.name}</strong>
+                  <p>
+                    {t('autosaveUpdated', {
+                      date: new Date(autosaveChoice.updatedAt).toLocaleString(),
+                    })}
+                  </p>
+                  <div>
+                    <button
+                      className={
+                        autosaveChoice.selected === 'restore-autosave' ? 'is-selected' : ''
+                      }
+                      onClick={() => void launchGame(autosaveChoice.game, 'restore-autosave')}
+                      type="button"
+                    >
+                      {t('continueAutosave')}
+                    </button>
+                    <button
+                      className={autosaveChoice.selected === 'fresh' ? 'is-selected' : ''}
+                      onClick={() => void launchGame(autosaveChoice.game, 'fresh')}
+                      type="button"
+                    >
+                      {t('startNormally')}
+                    </button>
+                  </div>
+                  <InputPromptGroup
+                    actions={['navigate-horizontal', 'primary', 'secondary']}
+                    label={t('gameControls')}
+                  />
+                </section>
+              </div>
             )}
-          </ConsoleLibrary>
+          </>
         )}
         {status === 'error' ? (
           <aside className="pc-toast" role="alert">

@@ -65,6 +65,10 @@ export type SessionCommandResponse =
       readonly status: 'error';
     };
 
+export type LibraryLaunchMode = 'fresh' | 'restore-autosave';
+export type LibraryLaunchResponse =
+  SessionCommandResponse | { readonly status: 'autosave-available'; readonly updatedAt: string };
+
 export interface SessionAudioFrame {
   readonly channels: 1 | 2;
   readonly sampleRate: number;
@@ -123,7 +127,7 @@ export interface PixelCoreApi {
   setFastForwardActive(active: boolean): Promise<SessionCommandResponse>;
   setRewindActive(active: boolean): Promise<SessionCommandResponse>;
   startSession(selectionId: string): Promise<SessionCommandResponse>;
-  startLibraryGame(gameId: string): Promise<SessionCommandResponse>;
+  startLibraryGame(gameId: string, mode?: LibraryLaunchMode): Promise<LibraryLaunchResponse>;
   stopSession(): Promise<SessionCommandResponse>;
   subscribeSessionAudio(listener: (frame: SessionAudioFrame) => void): () => void;
   subscribeSessionVideo(listener: (frame: SessionVideoFrame) => void): () => void;
@@ -184,6 +188,13 @@ export const hasSaveStateSlotPayload = (
 
 export const hasBooleanPayload = (payload: readonly unknown[]): payload is readonly [boolean] =>
   payload.length === 1 && typeof payload[0] === 'boolean';
+
+export const hasLibraryLaunchPayload = (
+  payload: readonly unknown[],
+): payload is readonly [string, LibraryLaunchMode?] =>
+  (payload.length === 1 || payload.length === 2) &&
+  typeof payload[0] === 'string' &&
+  (payload[1] === undefined || payload[1] === 'fresh' || payload[1] === 'restore-autosave');
 
 export interface InputConfigurationResponse {
   readonly mapping: ConsoleInputMapping;
@@ -444,6 +455,13 @@ export const isLibraryMutationResponse = (value: unknown): value is LibraryMutat
     (value['status'] === 'updated' && isLibraryGame(value['game'])) ||
     (value['status'] === 'error' && typeof value['message'] === 'string'));
 
+export const isLibraryLaunchResponse = (value: unknown): value is LibraryLaunchResponse =>
+  isSessionCommandResponse(value) ||
+  (isRecord(value) &&
+    Object.keys(value).length === 2 &&
+    value['status'] === 'autosave-available' &&
+    typeof value['updatedAt'] === 'string');
+
 const isSessionAudioEvent = (value: unknown): value is SessionAudioEvent =>
   isRecord(value) &&
   Object.keys(value).length === 3 &&
@@ -552,9 +570,13 @@ export const createPixelCoreApi = (
       throw new Error('Received an invalid rewind response.');
     return response;
   },
-  async startLibraryGame(gameId: string): Promise<SessionCommandResponse> {
-    const response = await invoke(IPC_CHANNELS.startLibraryGame, gameId);
-    if (!isSessionCommandResponse(response))
+  async startLibraryGame(gameId: string, mode?: LibraryLaunchMode): Promise<LibraryLaunchResponse> {
+    const response = await invoke(
+      IPC_CHANNELS.startLibraryGame,
+      gameId,
+      ...(mode === undefined ? [] : [mode]),
+    );
+    if (!isLibraryLaunchResponse(response))
       throw new Error('Received an invalid library session response.');
     return response;
   },
