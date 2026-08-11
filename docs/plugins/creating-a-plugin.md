@@ -107,8 +107,15 @@ Execute o contrato público com `runPluginContract` de `@platform/plugin-test`. 
 runner é usado pelos exemplos e pela CI oficial; ele não carrega arquivos, ativa código
 ou concede permissões.
 
+O exemplo completo de console está em `examples/plugins/console`. Ele usa uma identidade
+e um formato fictícios para demonstrar manifesto, definição, mapeamento e testes sem
+incorporar conteúdo comercial.
+
 Ao alterar um contrato público, documente a compatibilidade e inclua um ADR quando a decisão afetar a arquitetura de longo prazo.
 
 Antes de adotar uma API revision nova, siga `api-migration.md`. O guia da revisão deve
 mostrar as alterações necessárias, os efeitos em permissões e como validar o plugin com
 o runner público. Não dependa de detalhes internos para concluir uma migração.
+
+Consulte `examples.md` para pacotes completos e executáveis que podem servir como ponto
+de partida sem introduzir dependências internas.
