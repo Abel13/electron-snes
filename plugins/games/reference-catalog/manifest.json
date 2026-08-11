@@ -1,0 +1,9 @@
+{
+  "apiVersion": 1,
+  "capabilities": ["localized-game-metadata"],
+  "id": "org.pixelcore.example.reference-catalog",
+  "name": "Reference Game Catalog",
+  "permissions": [],
+  "type": "game-metadata",
+  "version": "1.0.0"
+}
