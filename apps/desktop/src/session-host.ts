@@ -6,7 +6,12 @@ import type { LoadedRom, SessionCommandResponse } from './ipc.js';
 
 export interface DesktopSessionHost {
   captureSaveState(slot: SaveStateSlot): Promise<SessionCommandResponse>;
-  launch(rom: LoadedRom, saveKey: string, gameId?: string): Promise<SessionCommandResponse>;
+  launch(
+    rom: LoadedRom,
+    saveKey: string,
+    gameId?: string,
+    autosaveEnabled?: boolean,
+  ): Promise<SessionCommandResponse>;
   listSaveStates(): Promise<SaveStateListResponse>;
   pause(): Promise<SessionCommandResponse>;
   resume(): Promise<SessionCommandResponse>;
@@ -54,6 +59,7 @@ export const createDesktopSessionHost = (
 ): DesktopSessionHost => {
   let activeSaveKey: string | undefined;
   let activeGameId: string | undefined;
+  let autosaveTimer: ReturnType<typeof setInterval> | undefined;
   const controller = new EmulatorSessionController(plugin, {
     onAudio: outputs.sendAudio,
     onCartridgeSave: async (save) => {
@@ -70,6 +76,18 @@ export const createDesktopSessionHost = (
     return result.status === 'ok'
       ? { sessionStatus: controller.getStatus(), status: 'ok' }
       : { code: result.code, message: result.message, status: 'error' };
+  };
+
+  const clearAutosaveTimer = (): void => {
+    if (autosaveTimer !== undefined) clearInterval(autosaveTimer);
+    autosaveTimer = undefined;
+  };
+
+  const captureAutosave = async (): Promise<void> => {
+    if (activeGameId === undefined || outputs.writeSaveState === undefined) return;
+    const captured = await controller.captureSaveState();
+    if (captured.status === 'ok')
+      await outputs.writeSaveState(activeGameId, 'autosave', captured.saveState);
   };
 
   return {
@@ -93,7 +111,7 @@ export const createDesktopSessionHost = (
         };
       }
     },
-    launch: async (rom, saveKey, gameId = saveKey) => {
+    launch: async (rom, saveKey, gameId = saveKey, autosaveEnabled = false) => {
       try {
         const bytes = await outputs.loadCartridgeSave(saveKey);
         activeSaveKey = saveKey;
@@ -102,11 +120,17 @@ export const createDesktopSessionHost = (
           controller.launch(rom, bytes === undefined ? undefined : { bytes }),
         );
         if (result.status === 'error') {
+          clearAutosaveTimer();
           activeSaveKey = undefined;
           activeGameId = undefined;
         }
+        if (result.status === 'ok' && autosaveEnabled) {
+          autosaveTimer = setInterval(() => void captureAutosave().catch(() => undefined), 300_000);
+          autosaveTimer.unref?.();
+        }
         return result;
       } catch {
+        clearAutosaveTimer();
         activeSaveKey = undefined;
         activeGameId = undefined;
         return {
@@ -162,6 +186,8 @@ export const createDesktopSessionHost = (
     setInput: async (playerPortId, actions) =>
       execute(() => controller.setInput({ actions, playerPortId })),
     stop: async () => {
+      clearAutosaveTimer();
+      await captureAutosave().catch(() => undefined);
       const result = await execute(() => controller.stop());
       if (result.status === 'ok') {
         activeSaveKey = undefined;
