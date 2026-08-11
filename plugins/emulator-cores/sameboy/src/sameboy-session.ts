@@ -90,6 +90,10 @@ class SameBoyWorkerSession implements EmulatorSession {
     return this.request({ active, type: 'set-rewind-active' });
   }
 
+  setFastForwardActive(active: boolean): Promise<EmulatorOperationResult> {
+    return this.request({ active, type: 'set-fast-forward-active' });
+  }
+
   setInput(input: EmulatorInput): Promise<EmulatorOperationResult> {
     return this.request({ input, type: 'set-input' });
   }

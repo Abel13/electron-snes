@@ -39,4 +39,15 @@ describe('SameBoy worker protocol', () => {
     expect(start.active).toBe(true);
     expect(stop.active).toBe(false);
   });
+
+  it('carries fast-forward hold and release commands without speed payloads', () => {
+    const start: SameBoyWorkerCommand = { active: true, type: 'set-fast-forward-active' };
+    const stop: SameBoyWorkerRequest = {
+      active: false,
+      id: 'sameboy-fast-forward-1',
+      type: 'set-fast-forward-active',
+    };
+    expect(start.active).toBe(true);
+    expect(stop.active).toBe(false);
+  });
 });

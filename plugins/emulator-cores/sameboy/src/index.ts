@@ -6,7 +6,7 @@ export const sameBoyEmulator = defineEmulator({
   createSession: createSameBoySession,
   emulator: {
     capabilities: {
-      fastForward: false,
+      fastForward: true,
       rewind: true,
       saveStates: true,
     },
