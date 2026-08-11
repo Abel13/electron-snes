@@ -1,4 +1,8 @@
-export { defineEmulator, validateEmulatorPlugin } from './emulator.js';
+export {
+  defineEmulator,
+  validateEmulatorPlugin,
+  validateEmulatorSessionCapabilities,
+} from './emulator.js';
 export type {
   EmulatorAudioFrame,
   EmulatorCapabilities,
@@ -10,6 +14,9 @@ export type {
   EmulatorOperationSuccess,
   EmulatorPluginDefinition,
   EmulatorRom,
+  EmulatorSaveState,
+  EmulatorSaveStateResult,
+  EmulatorSaveStateSuccess,
   EmulatorSession,
   EmulatorSessionStatus,
   EmulatorStopResult,
