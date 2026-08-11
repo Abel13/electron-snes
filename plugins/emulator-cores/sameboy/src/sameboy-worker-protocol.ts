@@ -16,6 +16,7 @@ export type SameBoyWorkerRequest =
     }
   | { readonly id: string; readonly type: 'pause' | 'resume' | 'start' | 'stop' }
   | { readonly id: string; readonly type: 'capture-save-state' }
+  | { readonly active: boolean; readonly id: string; readonly type: 'set-rewind-active' }
   | {
       readonly id: string;
       readonly saveState: EmulatorSaveState;
@@ -31,6 +32,7 @@ export type SameBoyWorkerCommand =
     }
   | { readonly type: 'pause' | 'resume' | 'start' | 'stop' }
   | { readonly type: 'capture-save-state' }
+  | { readonly active: boolean; readonly type: 'set-rewind-active' }
   | { readonly saveState: EmulatorSaveState; readonly type: 'restore-save-state' }
   | { readonly input: EmulatorInput; readonly type: 'set-input' };
 

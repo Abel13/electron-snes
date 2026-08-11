@@ -36,6 +36,11 @@ let status: EmulatorSessionStatus = 'idle';
 let timer: ReturnType<typeof setTimeout> | undefined;
 let framesSinceSaveCheck = 0;
 const frameDurationMs = 1000 / 59.7275;
+const rewindCaptureInterval = 3;
+const rewindFrameLimit = Math.ceil(10_000 / frameDurationMs / rewindCaptureInterval);
+const rewindStates: Uint8Array[] = [];
+let rewindActive = false;
+let framesSinceRewindCapture = 0;
 let nextFrameAt: number | undefined;
 
 port.on('message', (request: SameBoyWorkerRequest) => {
@@ -76,6 +81,9 @@ const handle = async (request: SameBoyWorkerRequest): Promise<void> => {
       break;
     case 'restore-save-state':
       result = restoreSaveState(request.saveState);
+      break;
+    case 'set-rewind-active':
+      result = setRewindActive(request.active);
       break;
   }
   const stopTransfer =
@@ -131,6 +139,9 @@ const loadRom = (
     }
   }
   hasRom = true;
+  rewindActive = false;
+  rewindStates.length = 0;
+  framesSinceRewindCapture = 0;
   framesSinceSaveCheck = 0;
   return ok();
 };
@@ -188,6 +199,11 @@ const restoreSaveState = (saveState: {
     wasm.release(address);
   }
 };
+const setRewindActive = (active: boolean): EmulatorOperationResult => {
+  if (status !== 'running') return invalid('A running SameBoy session is required for rewind.');
+  rewindActive = active;
+  return ok();
+};
 const scheduleFrame = (): void => {
   if (status !== 'running') return;
   const now = performance.now();
@@ -197,7 +213,29 @@ const scheduleFrame = (): void => {
 };
 const runFrame = (): void => {
   if (status !== 'running') return;
-  wasm.runFrame();
+  if (rewindActive) {
+    const previous = rewindStates.pop();
+    if (previous !== undefined) {
+      const address = wasm.allocate(previous.byteLength);
+      try {
+        wasm.write(address, previous);
+        wasm.loadSaveState(address, previous.byteLength);
+      } finally {
+        wasm.release(address);
+      }
+    }
+  } else {
+    wasm.runFrame();
+    framesSinceRewindCapture += 1;
+    if (framesSinceRewindCapture >= rewindCaptureInterval) {
+      framesSinceRewindCapture = 0;
+      const state = wasm.readSaveState();
+      if (state !== undefined) {
+        rewindStates.push(state);
+        if (rewindStates.length > rewindFrameLimit) rewindStates.shift();
+      }
+    }
+  }
   const pixels = wasm.readFrame();
   const buffer = pixels.buffer;
   if (buffer instanceof ArrayBuffer)
@@ -205,7 +243,7 @@ const runFrame = (): void => {
   else post({ height: 144, pixels, type: 'video', width: 160 });
   const samples = wasm.readAudio();
   const audioBuffer = samples.buffer;
-  if (samples.length > 0 && audioBuffer instanceof ArrayBuffer)
+  if (!rewindActive && samples.length > 0 && audioBuffer instanceof ArrayBuffer)
     post({ channels: 2, sampleRate: 48000, samples, type: 'audio' }, [audioBuffer]);
   framesSinceSaveCheck += 1;
   if (framesSinceSaveCheck >= 60) {
