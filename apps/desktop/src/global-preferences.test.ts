@@ -12,18 +12,20 @@ import {
 
 const preferences: GlobalPreferences = {
   locale: 'pt-BR',
+  telemetryConsent: 'declined',
   uiAudioMuted: true,
   uiAudioVolume: 0.45,
-  version: 1,
+  version: 2,
 };
 
 describe('global preferences', () => {
   it('resolves safe defaults and validates strict persisted values', () => {
     expect(createDefaultGlobalPreferences('pt-PT')).toEqual({
       locale: 'pt-BR',
+      telemetryConsent: 'undecided',
       uiAudioMuted: false,
       uiAudioVolume: 0.22,
-      version: 1,
+      version: 2,
     });
     expect(isGlobalPreferences(preferences)).toBe(true);
     expect(isGlobalPreferences({ ...preferences, locale: 'zh-TW' })).toBe(false);
@@ -47,12 +49,26 @@ describe('global preferences', () => {
     const migrated = readLegacyGlobalPreferences(storage, 'en-US');
     expect(migrated.preferences).toEqual({
       locale: 'zh-CN',
+      telemetryConsent: 'undecided',
       uiAudioMuted: true,
       uiAudioVolume: 0.22,
-      version: 1,
+      version: 2,
     });
     clearLegacyGlobalPreferences(storage, migrated.keys);
     expect(values.size).toBe(0);
+  });
+
+  it('migrates v1 preferences without granting telemetry consent', async () => {
+    const legacy = { locale: 'en-US', uiAudioMuted: false, uiAudioVolume: 0.22, version: 1 };
+    const storage: JsonStoragePort = {
+      list: async () => ok({} as JsonObject),
+      read: async () => ok(legacy),
+      remove: async () => ok(undefined),
+      write: async () => ok(undefined),
+    };
+    await expect(new GlobalPreferencesRepository(storage).load()).resolves.toEqual(
+      ok({ ...legacy, telemetryConsent: 'undecided', version: 2 }),
+    );
   });
 
   it('serializes repository writes and preserves their order', async () => {

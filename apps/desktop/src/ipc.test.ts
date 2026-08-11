@@ -24,9 +24,10 @@ import {
 describe('IPC boundary contracts', () => {
   const globalPreferences = {
     locale: 'en-US',
+    telemetryConsent: 'undecided',
     uiAudioMuted: false,
     uiAudioVolume: 0.22,
-    version: 1,
+    version: 2,
   } as const;
 
   it('validates renderer-safe update states', () => {
