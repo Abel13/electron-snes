@@ -29,6 +29,10 @@ válidos, inativos e inválidos sem criar plugins executáveis. Consulte
 Console plugins use the public `@platform/console-sdk` declaration and validation
 boundary; see `console-sdk.md`.
 
+Controller plugins use the declarative `@platform/controller-sdk` boundary to map
+physical inputs to normalized actions without knowing console layouts; see
+`controller-sdk.md`.
+
 ## Regras
 
 - Preferir configuração declarativa (`json`/`yaml`) com validação no load.
