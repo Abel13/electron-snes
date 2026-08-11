@@ -19,6 +19,8 @@ packages/
   emulator/
   library/
   plugin-sdk/
+  plugin-test/
+  plugin-test/
   console-sdk/
   emulator-sdk/
   controller-sdk/
@@ -47,6 +49,8 @@ plugins/
 | `packages/emulator` | `@platform/emulator` | ROM-session orchestration, capability handling, audio/video ports, and emulator lifecycle. |
 | `packages/library` | `@platform/library` | Game identification, metadata and artwork references, favorites, recents, and playtime. |
 | `packages/plugin-sdk` | `@platform/plugin-sdk` | Plugin manifest, compatibility, and common plugin authoring contracts. |
+| `packages/plugin-test` | `@platform/plugin-test` | Framework-neutral contract validation for plugin definitions and CI. |
+| `packages/plugin-test` | `@platform/plugin-test` | Public plugin contract validation tooling for authors and CI. |
 | `packages/console-sdk` | `@platform/console-sdk` | Console plugin contracts and capabilities. |
 | `packages/emulator-sdk` | `@platform/emulator-sdk` | Emulator-core contracts and capabilities. |
 | `packages/controller-sdk` | `@platform/controller-sdk` | Controller adapter and normalized input contracts. |
@@ -76,6 +80,7 @@ input -> controller-sdk, core, shared
 emulator -> emulator-sdk, core, shared
 library -> game-sdk, core, shared
 apps/desktop -> ui, ui-contracts, input, emulator, library, core, SDKs, shared
+plugin-test -> specialized SDKs -> plugin-sdk -> core -> shared
 ```
 
 Rules:
@@ -85,6 +90,9 @@ Rules:
 - `@platform/ui-contracts` depends only on `@platform/shared`.
 - `@platform/plugin-sdk` depends on core contracts and shared primitives.
 - Specialized SDKs depend on `@platform/plugin-sdk` and shared types.
+- `@platform/plugin-test` depends on public specialized SDKs and `@platform/plugin-sdk`; runtime packages never depend on it.
+- `@platform/plugin-test` may depend on public specialized SDKs for authoring and CI;
+  no runtime package or SDK depends on it.
 - `@platform/input` depends on core contracts, `@platform/controller-sdk`, and shared types.
 - `@platform/emulator` depends on core contracts, `@platform/emulator-sdk`, and shared types.
 - `@platform/library` depends on core contracts, `@platform/game-sdk`, and shared types.
