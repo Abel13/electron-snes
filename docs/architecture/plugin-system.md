@@ -33,6 +33,9 @@ Controller plugins use the declarative `@platform/controller-sdk` boundary to ma
 physical inputs to normalized actions without knowing console layouts; see
 `controller-sdk.md`.
 
+Game metadata plugins use `@platform/game-sdk` for localized, attributed, declarative
+catalog records and safe package artwork references; see `game-metadata-sdk.md`.
+
 ## Regras
 
 - Preferir configuração declarativa (`json`/`yaml`) com validação no load.
