@@ -35,12 +35,38 @@ describe('LocalGameLibrary', () => {
         extension: '.gb',
         favorite: false,
         id: 'game-1',
+        identifiers: [],
         name: 'Pokemon Yellow',
         playtimeMilliseconds: 0,
         sourceKey: 'source-1',
       },
     });
     await expect(library.list()).resolves.toMatchObject({ ok: true, value: [{ id: 'game-1' }] });
+  });
+
+  it('persists generic identifiers without ROM content', async () => {
+    const library = new LocalGameLibrary(
+      createStorage(),
+      () => 'game-1',
+      () => '2026-08-09T00:00:00.000Z',
+    );
+    await expect(
+      library.add({
+        extension: '.gb',
+        identifiers: [{ namespace: 'game-boy-header-title', value: 'PIXELCORE DEMO' }],
+        name: 'Demo',
+        sourceKey: 'demo.gb',
+      }),
+    ).resolves.toMatchObject({
+      ok: true,
+      value: {
+        identifiers: [{ namespace: 'game-boy-header-title', value: 'PIXELCORE DEMO' }],
+      },
+    });
+    await expect(library.list()).resolves.toMatchObject({
+      ok: true,
+      value: [{ identifiers: [{ namespace: 'game-boy-header-title', value: 'PIXELCORE DEMO' }] }],
+    });
   });
 
   it('updates favorites, artwork, and recent activity without exposing ROM bytes', async () => {

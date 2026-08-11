@@ -172,6 +172,27 @@ describe('IPC boundary contracts', () => {
     };
     expect(isLibraryResponse({ games: [game], status: 'ready' })).toBe(true);
     expect(
+      isLibraryResponse({
+        games: [
+          {
+            ...game,
+            metadata: {
+              pluginId: 'org.pixelcore.example.reference-catalog',
+              provenance: { license: 'CC0-1.0', source: 'PixelCore' },
+              title: 'Localized game',
+            },
+          },
+        ],
+        status: 'ready',
+      }),
+    ).toBe(true);
+    expect(
+      isLibraryResponse({
+        games: [{ ...game, metadata: { pluginId: 'invalid', title: 'Unsafe' } }],
+        status: 'ready',
+      }),
+    ).toBe(false);
+    expect(
       isLibraryResponse({ games: [{ ...game, path: '/Users/private/game.gbc' }], status: 'ready' }),
     ).toBe(false);
     expect(
