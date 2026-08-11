@@ -158,4 +158,38 @@ describe('DesktopSessionHost', () => {
     expect(writes).toEqual(['autosave', 'autosave']);
     vi.useRealTimers();
   });
+
+  it('checkpoints wall-clock playtime across pauses and flushes on stop', async () => {
+    vi.useFakeTimers();
+    let now = 0;
+    const checkpoints: number[] = [];
+    const host = createDesktopSessionHost(createPlugin(false), {
+      loadCartridgeSave: async () => undefined,
+      monotonicNow: () => now,
+      persistCartridgeSave: async () => undefined,
+      persistPlaytime: async (_gameId, elapsedMilliseconds) => {
+        checkpoints.push(elapsedMilliseconds);
+      },
+      sendAudio: () => undefined,
+      sendVideo: () => undefined,
+    });
+    await host.launch(
+      {
+        bytes: new Uint8Array([1]),
+        extension: '.gbc',
+        name: 'fixture.gbc',
+        selectionId: 'opaque-id',
+      },
+      'save-key',
+      'game-1',
+    );
+    now = 60_000;
+    await vi.advanceTimersByTimeAsync(60_000);
+    await host.pause();
+    now = 90_000;
+    await host.stop();
+
+    expect(checkpoints).toEqual([60_000, 30_000]);
+    vi.useRealTimers();
+  });
 });

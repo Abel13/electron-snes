@@ -36,6 +36,7 @@ describe('LocalGameLibrary', () => {
         favorite: false,
         id: 'game-1',
         name: 'Pokemon Yellow',
+        playtimeMilliseconds: 0,
         sourceKey: 'source-1',
       },
     });
@@ -89,6 +90,27 @@ describe('LocalGameLibrary', () => {
     ).resolves.toMatchObject({
       ok: true,
       value: { configuration: { autosaveEnabled: false, version: 1 } },
+    });
+  });
+
+  it('tracks playtime cumulatively and rejects invalid elapsed values', async () => {
+    const library = new LocalGameLibrary(
+      createStorage(),
+      () => 'game-1',
+      () => '2026-08-09T00:00:00.000Z',
+    );
+    await library.add({ extension: '.gb', name: 'Demo', sourceKey: 'demo.gb' });
+    await expect(library.addPlaytime('game-1', 60_000)).resolves.toMatchObject({
+      ok: true,
+      value: { playtimeMilliseconds: 60_000 },
+    });
+    await expect(library.addPlaytime('game-1', 5_500)).resolves.toMatchObject({
+      ok: true,
+      value: { playtimeMilliseconds: 65_500 },
+    });
+    await expect(library.addPlaytime('game-1', -1)).resolves.toMatchObject({
+      error: { code: 'invalid-input' },
+      ok: false,
     });
   });
 });
