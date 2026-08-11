@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { adjustSettingsVolume, cycleSettingsOption, moveSettingsIndex } from './global-settings-menu.js';
+import {
+  adjustSettingsVolume,
+  cycleSettingsOption,
+  moveSettingsIndex,
+} from './global-settings-menu.js';
 
 describe('global settings navigation', () => {
   it('keeps vertical selection within the menu', () => {

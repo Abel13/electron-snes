@@ -47,7 +47,8 @@ export const extractAmbientPalette = (frame: EmulatorVideoFrameData): EmulatorAm
       return `rgb(${channel(bin.red)} ${channel(bin.green)} ${channel(bin.blue)})`;
     });
   const fallback = ['rgb(87 68 196)', 'rgb(22 155 190)', 'rgb(32 91 190)', 'rgb(122 49 176)'];
-  const color = (index: number): string => colors[index % Math.max(1, colors.length)] ?? fallback[index]!;
+  const color = (index: number): string =>
+    colors[index % Math.max(1, colors.length)] ?? fallback[index]!;
   return { bottom: color(2), left: color(3), right: color(1), top: color(0) };
 };
 

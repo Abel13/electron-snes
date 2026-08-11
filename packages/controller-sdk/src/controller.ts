@@ -63,8 +63,7 @@ export interface InvalidControllerPluginDefinition {
 }
 
 export type ControllerPluginValidationResult =
-  | InvalidControllerPluginDefinition
-  | ValidControllerPluginDefinition;
+  InvalidControllerPluginDefinition | ValidControllerPluginDefinition;
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -100,7 +99,8 @@ const isDeviceMatch = (value: unknown): value is ControllerDeviceMatch => {
       (Array.isArray(nameIncludes) &&
         nameIncludes.length > 0 &&
         nameIncludes.every((part) => typeof part === 'string' && part.trim().length > 0))) &&
-    (productId === undefined || (typeof productId === 'string' && HEX_ID_PATTERN.test(productId))) &&
+    (productId === undefined ||
+      (typeof productId === 'string' && HEX_ID_PATTERN.test(productId))) &&
     (vendorId === undefined || (typeof vendorId === 'string' && HEX_ID_PATTERN.test(vendorId))) &&
     (standardMapping === undefined || typeof standardMapping === 'boolean')
   );
@@ -126,8 +126,8 @@ const parsePhysicalInput = (value: unknown): ControllerPhysicalInput | undefined
     const index = value['index'];
     const threshold = value['threshold'];
     if (
-      Object.keys(value).every((key) =>
-        key === 'direction' || key === 'index' || key === 'kind' || key === 'threshold'
+      Object.keys(value).every(
+        (key) => key === 'direction' || key === 'index' || key === 'kind' || key === 'threshold',
       ) &&
       (direction === 'negative' || direction === 'positive') &&
       Number.isInteger(index) &&
@@ -135,7 +135,10 @@ const parsePhysicalInput = (value: unknown): ControllerPhysicalInput | undefined
       index >= 0 &&
       index <= MAX_AXIS_INDEX &&
       (threshold === undefined ||
-        (typeof threshold === 'number' && Number.isFinite(threshold) && threshold >= 0.1 && threshold <= 1))
+        (typeof threshold === 'number' &&
+          Number.isFinite(threshold) &&
+          threshold >= 0.1 &&
+          threshold <= 1))
     )
       return threshold === undefined
         ? { direction, index, kind: 'axis' }
@@ -146,9 +149,7 @@ const parsePhysicalInput = (value: unknown): ControllerPhysicalInput | undefined
 };
 
 const physicalInputKey = (input: ControllerPhysicalInput): string =>
-  input.kind === 'button'
-    ? `button:${input.index}`
-    : `axis:${input.index}:${input.direction}`;
+  input.kind === 'button' ? `button:${input.index}` : `axis:${input.index}:${input.direction}`;
 
 export const defineController = <TDefinition extends ControllerPluginDefinition>(
   definition: TDefinition,
@@ -166,8 +167,13 @@ export const validateControllerPlugin = (input: unknown): ControllerPluginValida
     return {
       diagnostics: manifestResult.error.issues.map((issue) =>
         diagnostic(
-          ['manifest', ...issue.path.filter((part): part is number | string =>
-            typeof part === 'number' || typeof part === 'string')],
+          [
+            'manifest',
+            ...issue.path.filter(
+              (part): part is number | string =>
+                typeof part === 'number' || typeof part === 'string',
+            ),
+          ],
           issue.message,
           'controller-manifest-invalid',
         ),
@@ -201,17 +207,26 @@ export const validateControllerPlugin = (input: unknown): ControllerPluginValida
 
   if (!isIdentifier(id) || id !== manifestResult.data.id)
     diagnostics.push(
-      diagnostic(['controller', 'id'], 'The controller identifier must match the plugin manifest identifier.'),
+      diagnostic(
+        ['controller', 'id'],
+        'The controller identifier must match the plugin manifest identifier.',
+      ),
     );
 
   if (!Array.isArray(match) || match.length === 0 || !match.every(isDeviceMatch))
     diagnostics.push(
-      diagnostic(['controller', 'match'], 'Controller matching must contain valid declarative criteria.'),
+      diagnostic(
+        ['controller', 'match'],
+        'Controller matching must contain valid declarative criteria.',
+      ),
     );
 
   if (!Array.isArray(mappings) || mappings.length === 0) {
     diagnostics.push(
-      diagnostic(['controller', 'mappings'], 'A controller must declare at least one input mapping.'),
+      diagnostic(
+        ['controller', 'mappings'],
+        'A controller must declare at least one input mapping.',
+      ),
     );
   } else {
     const physicalInputs: string[] = [];

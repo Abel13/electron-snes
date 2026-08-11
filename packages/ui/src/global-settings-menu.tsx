@@ -50,12 +50,9 @@ export const cycleSettingsOption = (
   current: number,
   direction: 'left' | 'right',
   total: number,
-): number => total <= 0 ? 0 : (current + (direction === 'right' ? 1 : -1) + total) % total;
+): number => (total <= 0 ? 0 : (current + (direction === 'right' ? 1 : -1) + total) % total);
 
-export const adjustSettingsVolume = (
-  volume: number,
-  direction: 'left' | 'right',
-): number =>
+export const adjustSettingsVolume = (volume: number, direction: 'left' | 'right'): number =>
   Math.max(
     0,
     Math.min(1, Math.round((volume + (direction === 'right' ? 0.05 : -0.05)) * 100) / 100),
@@ -85,7 +82,10 @@ export const GlobalSettingsMenu = forwardRef<GlobalSettingsMenuHandle, GlobalSet
     const adjust = (direction: 'left' | 'right'): void => {
       if (selectedIndex === 3) return;
       if (selectedIndex === 0) {
-        const current = Math.max(0, props.locales.findIndex((item) => item.value === props.locale));
+        const current = Math.max(
+          0,
+          props.locales.findIndex((item) => item.value === props.locale),
+        );
         const next = props.locales[cycleSettingsOption(current, direction, props.locales.length)];
         if (next !== undefined) props.onLocaleChange(next.value);
       } else if (selectedIndex === 1) props.onMutedChange(!props.muted);
@@ -93,7 +93,8 @@ export const GlobalSettingsMenu = forwardRef<GlobalSettingsMenuHandle, GlobalSet
       props.onAdjust();
     };
     const move = (direction: 'down' | 'left' | 'right' | 'up'): void => {
-      if (direction === 'up' || direction === 'down') select(moveSettingsIndex(selectedIndex, direction));
+      if (direction === 'up' || direction === 'down')
+        select(moveSettingsIndex(selectedIndex, direction));
       else adjust(direction);
     };
     const confirm = (): void => {
@@ -117,65 +118,93 @@ export const GlobalSettingsMenu = forwardRef<GlobalSettingsMenuHandle, GlobalSet
 
     return (
       <>
-      <div
-        aria-hidden="true"
-        className="pc-global-settings-backdrop"
-        onClick={props.onClose}
-      />
-      <aside
-        aria-label={props.copy.title}
-        aria-modal="true"
-        autoFocus
-        className="pc-global-settings"
-        onKeyDown={(event) => {
-          const direction = {
-            ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up',
-          }[event.key] as 'down' | 'left' | 'right' | 'up' | undefined;
-          if (direction !== undefined) {
-            event.preventDefault(); event.stopPropagation(); move(direction);
-          } else if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault(); event.stopPropagation(); confirm();
-          } else if (event.key === 'Escape' || event.key === 'Backspace') {
-            event.preventDefault(); event.stopPropagation(); props.onClose();
-          }
-        }}
-        ref={container}
-        role="dialog"
-        tabIndex={-1}
-      >
-        <div aria-live="polite" className="pc-sr-only">{announcement}</div>
-        <header>
-          <div><span>PixelCore</span><h2>{props.copy.title}</h2></div>
-          <button aria-label={props.copy.close} onClick={props.onClose} type="button">×</button>
-        </header>
-        <div className="pc-settings-menu">
-          {rows.map((row, index) => (
-            <button
-              aria-current={selectedIndex === index ? 'true' : undefined}
-                className={`${selectedIndex === index ? 'is-selected' : ''}${index === 3 ? ' is-action' : ''}`}
-              key={row.label}
-              onClick={() => selectedIndex === index ? confirm() : select(index)}
-              type="button"
-            >
-              <span>{row.label}</span>
-              <strong>
-                {index === 3 ? null : <i aria-hidden="true">‹</i>}
-                {index === 3 ? row.label : row.value}
-                {index === 3 ? null : <i aria-hidden="true">›</i>}
-              </strong>
-              {index === 2 ? (
-                <em style={{ '--pc-setting-level': `${props.volume * 100}%` } as React.CSSProperties} />
-              ) : null}
+        <div aria-hidden="true" className="pc-global-settings-backdrop" onClick={props.onClose} />
+        <aside
+          aria-label={props.copy.title}
+          aria-modal="true"
+          autoFocus
+          className="pc-global-settings"
+          onKeyDown={(event) => {
+            const direction = {
+              ArrowDown: 'down',
+              ArrowLeft: 'left',
+              ArrowRight: 'right',
+              ArrowUp: 'up',
+            }[event.key] as 'down' | 'left' | 'right' | 'up' | undefined;
+            if (direction !== undefined) {
+              event.preventDefault();
+              event.stopPropagation();
+              move(direction);
+            } else if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              event.stopPropagation();
+              confirm();
+            } else if (event.key === 'Escape' || event.key === 'Backspace') {
+              event.preventDefault();
+              event.stopPropagation();
+              props.onClose();
+            }
+          }}
+          ref={container}
+          role="dialog"
+          tabIndex={-1}
+        >
+          <div aria-live="polite" className="pc-sr-only">
+            {announcement}
+          </div>
+          <header>
+            <div>
+              <span>PixelCore</span>
+              <h2>{props.copy.title}</h2>
+            </div>
+            <button aria-label={props.copy.close} onClick={props.onClose} type="button">
+              ×
             </button>
-          ))}
-        </div>
-        <footer>
-          <span><InputPrompt action="navigate-vertical" label={props.copy.moveHint} />{props.copy.moveHint}</span>
-          <span><InputPrompt action="navigate-horizontal" label={props.copy.adjustHint} />{props.copy.adjustHint}</span>
-          <span><InputPrompt action="confirm" label={props.copy.confirmHint} />{props.copy.confirmHint}</span>
-          <span><InputPromptGroup actions={['back', 'start']} label={props.copy.closeHint} />{props.copy.closeHint}</span>
-        </footer>
-      </aside>
+          </header>
+          <div className="pc-settings-menu">
+            {rows.map((row, index) => (
+              <button
+                aria-current={selectedIndex === index ? 'true' : undefined}
+                className={`${selectedIndex === index ? 'is-selected' : ''}${index === 3 ? ' is-action' : ''}`}
+                key={row.label}
+                onClick={() => (selectedIndex === index ? confirm() : select(index))}
+                type="button"
+              >
+                <span>{row.label}</span>
+                <strong>
+                  {index === 3 ? null : <i aria-hidden="true">‹</i>}
+                  {index === 3 ? row.label : row.value}
+                  {index === 3 ? null : <i aria-hidden="true">›</i>}
+                </strong>
+                {index === 2 ? (
+                  <em
+                    style={
+                      { '--pc-setting-level': `${props.volume * 100}%` } as React.CSSProperties
+                    }
+                  />
+                ) : null}
+              </button>
+            ))}
+          </div>
+          <footer>
+            <span>
+              <InputPrompt action="navigate-vertical" label={props.copy.moveHint} />
+              {props.copy.moveHint}
+            </span>
+            <span>
+              <InputPrompt action="navigate-horizontal" label={props.copy.adjustHint} />
+              {props.copy.adjustHint}
+            </span>
+            <span>
+              <InputPrompt action="confirm" label={props.copy.confirmHint} />
+              {props.copy.confirmHint}
+            </span>
+            <span>
+              <InputPromptGroup actions={['back', 'start']} label={props.copy.closeHint} />
+              {props.copy.closeHint}
+            </span>
+          </footer>
+        </aside>
       </>
     );
   },

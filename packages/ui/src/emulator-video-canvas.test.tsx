@@ -7,10 +7,7 @@ describe('EmulatorVideoCanvas', () => {
   it('extracts independent ambient colors from frame edges', () => {
     const palette = extractAmbientPalette({
       height: 2,
-      pixels: new Uint8Array([
-        255, 0, 0, 255, 255, 0, 0, 255,
-        0, 0, 255, 255, 0, 0, 255, 255,
-      ]),
+      pixels: new Uint8Array([255, 0, 0, 255, 255, 0, 0, 255, 0, 0, 255, 255, 0, 0, 255, 255]),
       width: 2,
     });
     expect(palette.top).not.toBe('rgb(255 255 255)');

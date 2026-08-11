@@ -3,9 +3,18 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "bin": { "pixelcore-plugin": "./dist/cli.js" },
-  "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
-  "files": ["dist"],
+  "bin": {
+    "pixelcore-plugin": "./dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "lint": "eslint src --max-warnings=0",
@@ -13,6 +22,10 @@
     "test": "vitest run --passWithNoTests",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
-  "dependencies": { "@platform/plugin-sdk": "workspace:*" },
-  "devDependencies": { "@types/node": "^24.0.0" }
+  "dependencies": {
+    "@platform/plugin-sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0"
+  }
 }

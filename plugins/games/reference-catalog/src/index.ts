@@ -13,20 +13,28 @@ export const referenceGameCatalog = defineGameMetadata({
   metadata: {
     defaultLocale: 'en-US',
     id: 'org.pixelcore.example.reference-catalog',
-    records: [{
-      artwork: [{ kind: 'cover', path: 'assets/covers/orbit-demo.svg' }],
-      consoleId: 'org.pixelcore.example.reference-handheld',
-      id: 'orbit-demo',
-      provenance: {
-        attribution: 'Original PixelCore example artwork and copy.',
-        license: 'CC0-1.0',
-        source: 'PixelCore reference catalog',
+    records: [
+      {
+        artwork: [{ kind: 'cover', path: 'assets/covers/orbit-demo.svg' }],
+        consoleId: 'org.pixelcore.example.reference-handheld',
+        id: 'orbit-demo',
+        provenance: {
+          attribution: 'Original PixelCore example artwork and copy.',
+          license: 'CC0-1.0',
+          source: 'PixelCore reference catalog',
+        },
+        text: {
+          'en-US': {
+            description: 'Guide a signal through a quiet field of stars.',
+            title: 'Orbit Demo',
+          },
+          'pt-BR': {
+            description: 'Guie um sinal por um campo tranquilo de estrelas.',
+            title: 'Demo Orbital',
+          },
+          'zh-CN': { description: '引导信号穿过宁静的星空。', title: '轨道演示' },
+        },
       },
-      text: {
-        'en-US': { description: 'Guide a signal through a quiet field of stars.', title: 'Orbit Demo' },
-        'pt-BR': { description: 'Guie um sinal por um campo tranquilo de estrelas.', title: 'Demo Orbital' },
-        'zh-CN': { description: '引导信号穿过宁静的星空。', title: '轨道演示' },
-      },
-    }],
+    ],
   },
 });
