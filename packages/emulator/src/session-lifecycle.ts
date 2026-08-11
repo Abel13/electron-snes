@@ -5,6 +5,8 @@ import type {
   EmulatorOperationResult,
   EmulatorPluginDefinition,
   EmulatorRom,
+  EmulatorSaveState,
+  EmulatorSaveStateResult,
   EmulatorSession,
   EmulatorSessionStatus,
   EmulatorVideoFrame,
@@ -89,6 +91,32 @@ export class EmulatorSessionController {
     return session.setInput(input);
   }
 
+  public async captureSaveState(): Promise<EmulatorSaveStateResult> {
+    const session = this.#session;
+    if (session === undefined)
+      return {
+        code: 'invalid-state',
+        message: 'An active emulator session is required to capture a save state.',
+        status: 'error',
+      };
+    if (!this.plugin.emulator.capabilities.saveStates || session.captureSaveState === undefined)
+      return {
+        code: 'unavailable',
+        message: 'The active emulator does not support save states.',
+        status: 'error',
+      };
+    return session.captureSaveState();
+  }
+
+  public async restoreSaveState(saveState: EmulatorSaveState): Promise<EmulatorOperationResult> {
+    const session = this.#session;
+    if (session === undefined)
+      return invalidState('An active emulator session is required to restore a save state.');
+    if (!this.plugin.emulator.capabilities.saveStates || session.restoreSaveState === undefined)
+      return unavailable('The active emulator does not support save states.');
+    return session.restoreSaveState(saveState);
+  }
+
   public async stop(): Promise<EmulatorOperationResult> {
     const session = this.#session;
     if (session === undefined)
@@ -162,6 +190,12 @@ const invalidState = (message: string): EmulatorOperationResult => ({
 
 const unexpected = (message: string): EmulatorOperationResult => ({
   code: 'unexpected',
+  message,
+  status: 'error',
+});
+
+const unavailable = (message: string): EmulatorOperationResult => ({
+  code: 'unavailable',
   message,
   status: 'error',
 });
