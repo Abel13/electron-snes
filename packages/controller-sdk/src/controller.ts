@@ -1,7 +1,9 @@
 import { PluginManifestSchema } from '@platform/plugin-sdk';
 import type { PluginManifest } from '@platform/plugin-sdk';
 
-const IDENTIFIER_PATTERN = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
+const PLUGIN_IDENTIFIER_PATTERN =
+  /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*(?:\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*)+$/;
+const ACTION_IDENTIFIER_PATTERN = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
 const HEX_ID_PATTERN = /^[0-9a-f]{4}$/;
 const MAX_BUTTON_INDEX = 63;
 const MAX_AXIS_INDEX = 15;
@@ -68,8 +70,11 @@ export type ControllerPluginValidationResult =
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
-const isIdentifier = (value: unknown): value is string =>
-  typeof value === 'string' && IDENTIFIER_PATTERN.test(value);
+const isPluginIdentifier = (value: unknown): value is string =>
+  typeof value === 'string' && PLUGIN_IDENTIFIER_PATTERN.test(value);
+
+const isActionIdentifier = (value: unknown): value is string =>
+  typeof value === 'string' && ACTION_IDENTIFIER_PATTERN.test(value);
 
 const diagnostic = (
   path: readonly (number | string)[],
@@ -205,7 +210,7 @@ export const validateControllerPlugin = (input: unknown): ControllerPluginValida
   const match = controller['match'];
   const mappings = controller['mappings'];
 
-  if (!isIdentifier(id) || id !== manifestResult.data.id)
+  if (!isPluginIdentifier(id) || id !== manifestResult.data.id)
     diagnostics.push(
       diagnostic(
         ['controller', 'id'],
@@ -233,7 +238,7 @@ export const validateControllerPlugin = (input: unknown): ControllerPluginValida
     const normalizedActions: string[] = [];
 
     mappings.forEach((mapping, index) => {
-      if (!isRecord(mapping) || !isIdentifier(mapping['normalizedAction'])) {
+      if (!isRecord(mapping) || !isActionIdentifier(mapping['normalizedAction'])) {
         diagnostics.push(
           diagnostic(
             ['controller', 'mappings', index],
