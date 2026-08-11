@@ -26,9 +26,15 @@ export interface ConsoleInputMapping {
   readonly version: 1;
 }
 
+export interface ConsoleGameIdentifier {
+  readonly namespace: string;
+  readonly value: string;
+}
+
 export interface ConsoleDefinition {
   readonly capabilities: readonly string[];
   readonly id: string;
+  readonly identifyRom?: (bytes: Uint8Array) => readonly ConsoleGameIdentifier[];
   readonly inputActions: readonly ConsoleInputAction[];
   readonly inputMapping: ConsoleInputMapping;
   readonly playerPorts: readonly ConsolePlayerPort[];
@@ -136,10 +142,16 @@ export const validateConsolePlugin = (input: unknown): ConsolePluginValidationRe
   const capabilities = definition['capabilities'];
   const id = definition['id'];
   const inputActions = definition['inputActions'];
+  const identifyRom = definition['identifyRom'];
   const inputMapping = definition['inputMapping'];
   const playerPorts = definition['playerPorts'];
   const supportedRomExtensions = definition['supportedRomExtensions'];
   const diagnostics: ConsolePluginDiagnostic[] = [];
+
+  if (identifyRom !== undefined && typeof identifyRom !== 'function')
+    diagnostics.push(
+      diagnostic(['console', 'identifyRom'], 'A ROM identifier extractor must be a function.'),
+    );
 
   if (typeof id !== 'string') {
     diagnostics.push(diagnostic(['console', 'id'], 'A console identifier must be a string.'));

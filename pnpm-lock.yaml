@@ -204,6 +204,12 @@ importers:
       '@platform/emulator-sdk':
         specifier: workspace:*
         version: link:../emulator-sdk
+      '@platform/example-game-reference-catalog':
+        specifier: workspace:*
+        version: link:../../plugins/games/reference-catalog
+      '@platform/game-sdk':
+        specifier: workspace:*
+        version: link:../game-sdk
       '@platform/plugin-console-game-boy-family':
         specifier: workspace:*
         version: link:../../plugins/consoles/game-boy-family

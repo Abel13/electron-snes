@@ -21,6 +21,7 @@ export interface LocalGame {
   readonly extension: '.gb' | '.gbc';
   readonly favorite: boolean;
   readonly id: string;
+  readonly identifiers: readonly { readonly namespace: string; readonly value: string }[];
   readonly lastPlayedAt?: string;
   readonly name: string;
   readonly playtimeMilliseconds: number;
@@ -31,6 +32,7 @@ export interface LocalGame {
 export interface RegisterLocalGame {
   readonly extension: LocalGame['extension'];
   readonly name: string;
+  readonly identifiers?: readonly { readonly namespace: string; readonly value: string }[];
   readonly sourceKey: string;
 }
 
@@ -57,6 +59,7 @@ export class LocalGameLibrary {
       configuration: DEFAULT_GAME_CONFIGURATION,
       favorite: false,
       id: this.createId(),
+      identifiers: input.identifiers ?? [],
       playtimeMilliseconds: 0,
     };
     const stored = await this.storage.write(
@@ -191,6 +194,10 @@ const gamesFromJson = (value: JsonValue): readonly LocalGame[] | undefined => {
         : DEFAULT_GAME_CONFIGURATION,
       favorite: typeof game['favorite'] === 'boolean' ? game['favorite'] : false,
       id: game['id'],
+      identifiers:
+        Array.isArray(game['identifiers']) && game['identifiers'].every(isStoredIdentifier)
+          ? (game['identifiers'] as unknown as LocalGame['identifiers'])
+          : [],
       ...(typeof game['lastPlayedAt'] === 'string' ? { lastPlayedAt: game['lastPlayedAt'] } : {}),
       name: game['name'],
       playtimeMilliseconds:
@@ -199,6 +206,19 @@ const gamesFromJson = (value: JsonValue): readonly LocalGame[] | undefined => {
     };
   });
   return games.every((game): game is LocalGame => game !== undefined) ? games : undefined;
+};
+
+const isStoredIdentifier = (
+  identifier: JsonValue,
+): identifier is { readonly namespace: string; readonly value: string } => {
+  if (typeof identifier !== 'object' || identifier === null || Array.isArray(identifier))
+    return false;
+  const record = identifier as Record<string, JsonValue>;
+  return (
+    Object.keys(record).length === 2 &&
+    typeof record['namespace'] === 'string' &&
+    typeof record['value'] === 'string'
+  );
 };
 
 const isRegisterable = (input: RegisterLocalGame): boolean =>

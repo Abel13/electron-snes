@@ -16,8 +16,9 @@ export const referenceGameCatalog = defineGameMetadata({
     records: [
       {
         artwork: [{ kind: 'cover', path: 'assets/covers/orbit-demo.svg' }],
-        consoleId: 'org.pixelcore.example.reference-handheld',
+        consoleId: 'org.pixelcore.game-boy-family',
         id: 'orbit-demo',
+        identifiers: [{ namespace: 'game-boy-header-title', value: 'PIXELCORE DEMO' }],
         provenance: {
           attribution: 'Original PixelCore example artwork and copy.',
           license: 'CC0-1.0',
