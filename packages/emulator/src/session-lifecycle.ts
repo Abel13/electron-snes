@@ -91,6 +91,15 @@ export class EmulatorSessionController {
     return session.setInput(input);
   }
 
+  public async setRewindActive(active: boolean): Promise<EmulatorOperationResult> {
+    const session = this.#session;
+    if (session === undefined)
+      return invalidState('An active emulator session is required for rewind.');
+    if (!this.plugin.emulator.capabilities.rewind || session.setRewindActive === undefined)
+      return unavailable('The active emulator does not support rewind.');
+    return session.setRewindActive(active);
+  }
+
   public async captureSaveState(): Promise<EmulatorSaveStateResult> {
     const session = this.#session;
     if (session === undefined)

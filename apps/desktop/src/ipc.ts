@@ -2,6 +2,7 @@ import type { ConsoleInputMapping, InputProfile } from '@platform/input';
 import { validateConsoleInputMapping, validateInputProfile } from '@platform/input';
 import { isGlobalPreferences, type GlobalPreferences } from './global-preferences.js';
 import { SAVE_STATE_SLOTS, type SaveStateDescriptor, type SaveStateSlot } from '@platform/emulator';
+import type { EmulatorCapabilities } from '@platform/emulator-sdk';
 
 export const IPC_CHANNELS = {
   importGame: 'pixel-core:import-game',
@@ -10,6 +11,7 @@ export const IPC_CHANNELS = {
   getInputConfiguration: 'pixel-core:get-input-configuration',
   getGlobalPreferences: 'pixel-core:get-global-preferences',
   getHostVersion: 'pixel-core:host-version',
+  getEmulatorCapabilities: 'pixel-core:emulator-capabilities',
   loadRom: 'pixel-core:load-rom',
   listSaveStates: 'pixel-core:list-save-states',
   pauseSession: 'pixel-core:pause-session',
@@ -22,6 +24,7 @@ export const IPC_CHANNELS = {
   selectGameArtwork: 'pixel-core:select-game-artwork',
   selectRom: 'pixel-core:select-rom',
   setSessionInput: 'pixel-core:set-session-input',
+  setRewindActive: 'pixel-core:set-rewind-active',
   startSession: 'pixel-core:start-session',
   startLibraryGame: 'pixel-core:start-library-game',
   stopSession: 'pixel-core:stop-session',
@@ -99,6 +102,7 @@ export interface PixelCoreApi {
   getGlobalPreferences(): Promise<GlobalPreferencesLoadResponse>;
   getInputConfiguration(): Promise<InputConfigurationResponse>;
   getHostVersion(): Promise<HostVersionResponse>;
+  getEmulatorCapabilities(): Promise<EmulatorCapabilities>;
   importGame(): Promise<ImportGameResponse>;
   listLibrary(): Promise<LibraryResponse>;
   listConsolePlugins(): Promise<ConsolePluginsResponse>;
@@ -114,6 +118,7 @@ export interface PixelCoreApi {
   selectGameArtwork(gameId: string): Promise<LibraryMutationResponse>;
   selectRom(): Promise<SelectRomResponse>;
   setSessionInput(input: SessionInputPayload): Promise<SessionCommandResponse>;
+  setRewindActive(active: boolean): Promise<SessionCommandResponse>;
   startSession(selectionId: string): Promise<SessionCommandResponse>;
   startLibraryGame(gameId: string): Promise<SessionCommandResponse>;
   stopSession(): Promise<SessionCommandResponse>;
@@ -171,6 +176,9 @@ export const hasSaveStateSlotPayload = (
   payload: readonly unknown[],
 ): payload is readonly [SaveStateSlot] =>
   payload.length === 1 && SAVE_STATE_SLOTS.includes(payload[0] as SaveStateSlot);
+
+export const hasBooleanPayload = (payload: readonly unknown[]): payload is readonly [boolean] =>
+  payload.length === 1 && typeof payload[0] === 'boolean';
 
 export interface InputConfigurationResponse {
   readonly mapping: ConsoleInputMapping;
@@ -341,6 +349,13 @@ export const isSessionCommandResponse = (value: unknown): value is SessionComman
         value['code'] === 'unexpected') &&
       typeof value['message'] === 'string'));
 
+export const isEmulatorCapabilities = (value: unknown): value is EmulatorCapabilities =>
+  isRecord(value) &&
+  Object.keys(value).length === 3 &&
+  typeof value['fastForward'] === 'boolean' &&
+  typeof value['rewind'] === 'boolean' &&
+  typeof value['saveStates'] === 'boolean';
+
 export const isSaveStateListResponse = (value: unknown): value is SaveStateListResponse =>
   isRecord(value) &&
   ((value['status'] === 'error' &&
@@ -467,6 +482,12 @@ export const createPixelCoreApi = (
 
     return response;
   },
+  async getEmulatorCapabilities(): Promise<EmulatorCapabilities> {
+    const response = await invoke(IPC_CHANNELS.getEmulatorCapabilities);
+    if (!isEmulatorCapabilities(response))
+      throw new Error('Received invalid emulator capabilities.');
+    return response;
+  },
   async quitApplication(): Promise<void> {
     await invoke(IPC_CHANNELS.quitApplication);
   },
@@ -501,6 +522,12 @@ export const createPixelCoreApi = (
     const response = await invoke(IPC_CHANNELS.setSessionInput, input);
     if (!isSessionCommandResponse(response))
       throw new Error('Received an invalid session input response.');
+    return response;
+  },
+  async setRewindActive(active: boolean): Promise<SessionCommandResponse> {
+    const response = await invoke(IPC_CHANNELS.setRewindActive, active);
+    if (!isSessionCommandResponse(response))
+      throw new Error('Received an invalid rewind response.');
     return response;
   },
   async startLibraryGame(gameId: string): Promise<SessionCommandResponse> {

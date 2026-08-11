@@ -40,6 +40,7 @@ import {
 import { BrowserUiAudioService } from '@platform/ui-audio';
 import type { LibraryGame, PixelCoreApi, SessionVideoFrame } from './ipc.js';
 import type { SaveStateDescriptor, SaveStateSlot } from '@platform/emulator';
+import type { EmulatorCapabilities } from '@platform/emulator-sdk';
 import { setLocale, type SupportedLocale } from './localization.js';
 import { buildConsoleCatalog } from './console-catalog.js';
 import './renderer.css';
@@ -174,6 +175,11 @@ const ProductApp = (): React.JSX.Element => {
   const [globalSettingsOpen, setGlobalSettingsOpen] = useState(false);
   const [exitConfirmationOpen, setExitConfirmationOpen] = useState(false);
   const [saveStateSlots, setSaveStateSlots] = useState<readonly SaveStateDescriptor[]>([]);
+  const [emulatorCapabilities, setEmulatorCapabilities] = useState<EmulatorCapabilities>({
+    fastForward: false,
+    rewind: false,
+    saveStates: false,
+  });
   const [inputPromptScheme, setInputPromptScheme] = useState<InputPromptScheme>('desktop');
   const [availableConsoleIds, setAvailableConsoleIds] = useState<readonly string[]>([]);
   const [games, setGames] = useState<readonly LibraryGame[]>([]);
@@ -204,6 +210,8 @@ const ProductApp = (): React.JSX.Element => {
   const sessionScreen = useRef<HTMLDivElement>(null);
   const exitWasRunning = useRef(false);
   const exitConfirmationOpenRef = useRef(false);
+  const rewindActiveRef = useRef(false);
+  const emulatorCapabilitiesRef = useRef(emulatorCapabilities);
   const skipGlobalPreferencesSave = useRef(true);
 
   const consoles = useMemo(
@@ -260,6 +268,12 @@ const ProductApp = (): React.JSX.Element => {
   useEffect(() => {
     exitConfirmationOpenRef.current = exitConfirmationOpen;
   }, [exitConfirmationOpen]);
+  useEffect(() => {
+    void window.pixelCore.getEmulatorCapabilities().then(setEmulatorCapabilities);
+  }, []);
+  useEffect(() => {
+    emulatorCapabilitiesRef.current = emulatorCapabilities;
+  }, [emulatorCapabilities]);
   useEffect(() => {
     profileRef.current = profile;
   }, [profile]);
@@ -554,6 +568,15 @@ const ProductApp = (): React.JSX.Element => {
             ? []
             : readPressedGamepadButtons(selectedSnapshot),
         );
+        const rewindPressed = sessionButtons.has(6);
+        if (
+          emulatorCapabilitiesRef.current.rewind &&
+          statusRef.current === 'running' &&
+          rewindPressed !== rewindActiveRef.current
+        ) {
+          rewindActiveRef.current = rewindPressed;
+          void window.pixelCore.setRewindActive(rewindPressed);
+        }
         const sessionButtonEdges = [...sessionButtons].filter(
           (index) => !previousSessionButtons.has(index),
         );
@@ -617,6 +640,14 @@ const ProductApp = (): React.JSX.Element => {
       const keyboardHandled = keyboard.current.handle({ code: event.code, editable, pressed });
       platformKeyboard.current.handle({ code: event.code, editable, pressed });
       if (statusRef.current === 'running' || statusRef.current === 'paused') {
+        if (emulatorCapabilitiesRef.current.rewind && event.code === 'KeyQ') {
+          event.preventDefault();
+          if (rewindActiveRef.current !== pressed && statusRef.current === 'running') {
+            rewindActiveRef.current = pressed;
+            void window.pixelCore.setRewindActive(pressed);
+          }
+          return;
+        }
         if (pressed && event.code === 'Escape') {
           event.preventDefault();
           if (exitConfirmationOpenRef.current) void cancelSessionExit();
@@ -772,6 +803,10 @@ const ProductApp = (): React.JSX.Element => {
     setStatus('running');
   };
   const runAction = async (action: 'pause' | 'resume' | 'stop'): Promise<void> => {
+    if (action !== 'resume' && rewindActiveRef.current) {
+      rewindActiveRef.current = false;
+      await window.pixelCore.setRewindActive(false);
+    }
     const result = await window.pixelCore[`${action}Session`]();
     if (result.status === 'error') {
       setStatus('error');
@@ -968,6 +1003,9 @@ const ProductApp = (): React.JSX.Element => {
                     );
                   })}
                 </section>
+                {emulatorCapabilities.rewind ? (
+                  <small className="pc-session-advanced-hint">{t('rewind')} · Q / LT</small>
+                ) : null}
                 <button
                   className="pc-primary-button"
                   onClick={() => void runAction('resume')}
