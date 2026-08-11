@@ -19,6 +19,7 @@ export const resolveLocale = (
 const en = {
   translation: {
     addGame: 'Add game',
+    advancedControls: 'Advanced controls',
     allGames: 'All games',
     archive: 'Archive',
     artwork: 'Artwork',
@@ -113,6 +114,7 @@ const en = {
 const pt = {
   translation: {
     addGame: 'Adicionar jogo',
+    advancedControls: 'Controles avancados',
     allGames: 'Todos os jogos',
     archive: 'Arquivo',
     artwork: 'Capa',
@@ -208,6 +210,7 @@ const pt = {
 const zh = {
   translation: {
     addGame: '添加游戏',
+    advancedControls: '高级控制',
     allGames: '所有游戏',
     archive: '档案',
     artwork: '封面',
