@@ -211,6 +211,7 @@ const ProductApp = (): React.JSX.Element => {
   const exitWasRunning = useRef(false);
   const exitConfirmationOpenRef = useRef(false);
   const rewindActiveRef = useRef(false);
+  const fastForwardActiveRef = useRef(false);
   const emulatorCapabilitiesRef = useRef(emulatorCapabilities);
   const skipGlobalPreferencesSave = useRef(true);
 
@@ -577,6 +578,15 @@ const ProductApp = (): React.JSX.Element => {
           rewindActiveRef.current = rewindPressed;
           void window.pixelCore.setRewindActive(rewindPressed);
         }
+        const fastForwardPressed = sessionButtons.has(7);
+        if (
+          emulatorCapabilitiesRef.current.fastForward &&
+          statusRef.current === 'running' &&
+          fastForwardPressed !== fastForwardActiveRef.current
+        ) {
+          fastForwardActiveRef.current = fastForwardPressed;
+          void window.pixelCore.setFastForwardActive(fastForwardPressed);
+        }
         const sessionButtonEdges = [...sessionButtons].filter(
           (index) => !previousSessionButtons.has(index),
         );
@@ -645,6 +655,14 @@ const ProductApp = (): React.JSX.Element => {
           if (rewindActiveRef.current !== pressed && statusRef.current === 'running') {
             rewindActiveRef.current = pressed;
             void window.pixelCore.setRewindActive(pressed);
+          }
+          return;
+        }
+        if (emulatorCapabilitiesRef.current.fastForward && event.code === 'KeyE') {
+          event.preventDefault();
+          if (fastForwardActiveRef.current !== pressed && statusRef.current === 'running') {
+            fastForwardActiveRef.current = pressed;
+            void window.pixelCore.setFastForwardActive(pressed);
           }
           return;
         }
@@ -806,6 +824,10 @@ const ProductApp = (): React.JSX.Element => {
     if (action !== 'resume' && rewindActiveRef.current) {
       rewindActiveRef.current = false;
       await window.pixelCore.setRewindActive(false);
+    }
+    if (action !== 'resume' && fastForwardActiveRef.current) {
+      fastForwardActiveRef.current = false;
+      await window.pixelCore.setFastForwardActive(false);
     }
     const result = await window.pixelCore[`${action}Session`]();
     if (result.status === 'error') {
@@ -1003,8 +1025,15 @@ const ProductApp = (): React.JSX.Element => {
                     );
                   })}
                 </section>
-                {emulatorCapabilities.rewind ? (
-                  <small className="pc-session-advanced-hint">{t('rewind')} · Q / LT</small>
+                {emulatorCapabilities.rewind || emulatorCapabilities.fastForward ? (
+                  <small className="pc-session-advanced-hint">
+                    {[
+                      emulatorCapabilities.rewind ? `${t('rewind')} · Q / LT` : undefined,
+                      emulatorCapabilities.fastForward ? `${t('fastForward')} · E / RT` : undefined,
+                    ]
+                      .filter((label): label is string => label !== undefined)
+                      .join(' · ')}
+                  </small>
                 ) : null}
                 <button
                   className="pc-primary-button"
