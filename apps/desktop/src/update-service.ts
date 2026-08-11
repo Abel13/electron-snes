@@ -10,11 +10,11 @@ export class DesktopUpdateService {
 
   constructor(
     private readonly currentVersion: string,
-    private readonly packaged: boolean,
+    private readonly supported: boolean,
     private readonly getWindow: () => BrowserWindow | undefined,
   ) {
-    this.state = { currentVersion, status: packaged ? 'idle' : 'unsupported' };
-    if (!packaged) return;
+    this.state = { currentVersion, status: supported ? 'idle' : 'unsupported' };
+    if (!supported) return;
     autoUpdater.autoDownload = false;
     autoUpdater.autoInstallOnAppQuit = false;
     autoUpdater.allowPrerelease = true;
@@ -48,7 +48,7 @@ export class DesktopUpdateService {
   }
 
   async check(): Promise<UpdateState> {
-    if (!this.packaged) return this.state;
+    if (!this.supported) return this.state;
     try {
       await autoUpdater.checkForUpdates();
     } catch (error) {
@@ -62,13 +62,13 @@ export class DesktopUpdateService {
   }
 
   async download(): Promise<UpdateState> {
-    if (!this.packaged || this.state.status !== 'available') return this.state;
+    if (!this.supported || this.state.status !== 'available') return this.state;
     await autoUpdater.downloadUpdate();
     return this.state;
   }
 
   install(): void {
-    if (this.packaged && this.state.status === 'downloaded')
+    if (this.supported && this.state.status === 'downloaded')
       autoUpdater.quitAndInstall(false, true);
   }
 

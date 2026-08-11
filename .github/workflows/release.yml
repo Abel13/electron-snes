@@ -55,35 +55,25 @@ jobs:
           node-version: 22
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-      - name: Require Windows signing credentials
-        shell: pwsh
+      - name: Build Microsoft Store submission package
         env:
-          CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
-          CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
-        run: |
-          if ([string]::IsNullOrWhiteSpace($env:CSC_LINK) -or [string]::IsNullOrWhiteSpace($env:CSC_KEY_PASSWORD)) {
-            throw 'Windows signing credentials are required.'
-          }
-      - name: Build signed Windows installer
-        env:
-          CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
-          CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
         run: pnpm --filter @platform/desktop package:windows
-      - name: Verify Windows signature
+      - name: Verify Microsoft Store identity
         shell: pwsh
         run: |
-          $installer = Get-Item 'apps/desktop/release/PixelCore-${{ needs.validate-tag.outputs.version }}-Windows-x64.exe'
-          $signature = Get-AuthenticodeSignature $installer.FullName
-          if ($signature.Status -ne 'Valid') { throw "Invalid Windows signature: $($signature.Status)" }
-      - name: Upload Windows artifact
+          $package = 'apps/desktop/release/PixelCore-${{ needs.validate-tag.outputs.version }}-Windows-Store-x64.appx'
+          $manifest = [xml](tar -xOf $package AppxManifest.xml)
+          if ($manifest.Package.Identity.Name -ne '42548abeldutra.PixelCore') { throw 'Store identity name does not match Partner Center.' }
+          if ($manifest.Package.Identity.Publisher -ne 'CN=2E06CDBC-D3D8-4686-8A98-B5E634031252') { throw 'Store publisher does not match Partner Center.' }
+          if ($manifest.Package.Identity.ProcessorArchitecture -ne 'x64') { throw 'Store package is not x64.' }
+          if ($manifest.Package.Properties.PublisherDisplayName -ne 'Angry Gnar') { throw 'Publisher display name does not match Partner Center.' }
+      - name: Upload Store submission artifact
         uses: actions/upload-artifact@v7
         with:
           if-no-files-found: error
-          name: pixelcore-windows
-          path: |
-            apps/desktop/release/PixelCore-${{ needs.validate-tag.outputs.version }}-Windows-x64.exe
-            apps/desktop/release/PixelCore-${{ needs.validate-tag.outputs.version }}-Windows-x64.exe.blockmap
-            apps/desktop/release/beta.yml
+          name: pixelcore-windows-store-submission
+          path: apps/desktop/release/PixelCore-${{ needs.validate-tag.outputs.version }}-Windows-Store-x64.appx
 
   package-macos:
     name: Package macOS
@@ -199,7 +189,12 @@ jobs:
       - name: Download release artifacts
         uses: actions/download-artifact@v8
         with:
-          merge-multiple: true
+          name: pixelcore-macos
+          path: release-assets
+      - name: Download Linux release artifacts
+        uses: actions/download-artifact@v8
+        with:
+          name: pixelcore-linux
           path: release-assets
       - name: Generate checksums
         working-directory: release-assets
@@ -214,9 +209,22 @@ jobs:
       - name: Publish GitHub prerelease
         env:
           GH_TOKEN: ${{ github.token }}
+          MICROSOFT_STORE_URL: ${{ vars.MICROSOFT_STORE_URL }}
         run: |
+          test -n "$MICROSOFT_STORE_URL"
+          gh api "repos/$GITHUB_REPOSITORY/releases/generate-notes" \
+            -f tag_name="$GITHUB_REF_NAME" \
+            -f target_commitish="$GITHUB_SHA" \
+            --jq .body > generated-notes.md
+          {
+            printf '## Downloads\n\n'
+            printf -- '- Windows: [Microsoft Store](%s)\n' "$MICROSOFT_STORE_URL"
+            printf -- '- macOS: universal DMG attached below\n'
+            printf -- '- Linux: x86_64 AppImage attached below\n\n'
+            cat generated-notes.md
+          } > release-notes.md
           gh release create "$GITHUB_REF_NAME" release-assets/* \
-            --generate-notes \
+            --notes-file release-notes.md \
             --prerelease \
             --repo "$GITHUB_REPOSITORY" \
             --title "PixelCore ${{ needs.validate-tag.outputs.version }}" \
