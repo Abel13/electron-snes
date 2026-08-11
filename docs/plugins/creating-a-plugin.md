@@ -99,6 +99,14 @@ Todo plugin deve incluir:
 - teste da capacidade principal, como mapeamento de input;
 - README com propósito, compatibilidade, permissões, instalação e exemplo mínimo.
 
+Use `validatePluginContract` de `@platform/plugin-test` para que validação local,
+oficial e de CI compartilhem os mesmos gates. O runner recebe um valor já importado e
+nunca carrega ou ativa código em nome do teste.
+
+Execute o contrato público com `runPluginContract` de `@platform/plugin-test`. O mesmo
+runner é usado pelos exemplos e pela CI oficial; ele não carrega arquivos, ativa código
+ou concede permissões.
+
 Ao alterar um contrato público, documente a compatibilidade e inclua um ADR quando a decisão afetar a arquitetura de longo prazo.
 
 Antes de adotar uma API revision nova, siga `api-migration.md`. O guia da revisão deve
