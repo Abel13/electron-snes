@@ -125,4 +125,13 @@ describe('EmulatorSessionController', () => {
       }),
     ).resolves.toMatchObject({ code: 'unavailable' });
   });
+
+  it('does not invoke rewind unless the active plugin declares it', async () => {
+    const session = createSession();
+    session.setRewindActive = vi.fn(async () => ({ status: 'ok' as const }));
+    const controller = new EmulatorSessionController(createPlugin(session));
+    await controller.launch(rom);
+    await expect(controller.setRewindActive(true)).resolves.toMatchObject({ code: 'unavailable' });
+    expect(session.setRewindActive).not.toHaveBeenCalled();
+  });
 });
