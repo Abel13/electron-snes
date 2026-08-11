@@ -1,6 +1,7 @@
 import { EmulatorSessionController } from '@platform/emulator';
 import type { SaveStateDescriptor, SaveStateSlot } from '@platform/emulator';
 import type { EmulatorOperationResult, EmulatorPluginDefinition } from '@platform/emulator-sdk';
+import type { EmulatorSaveState } from '@platform/emulator-sdk';
 
 import type { LoadedRom, SessionCommandResponse } from './ipc.js';
 
@@ -11,6 +12,7 @@ export interface DesktopSessionHost {
     saveKey: string,
     gameId?: string,
     autosaveEnabled?: boolean,
+    restoreState?: EmulatorSaveState,
   ): Promise<SessionCommandResponse>;
   listSaveStates(): Promise<SaveStateListResponse>;
   pause(): Promise<SessionCommandResponse>;
@@ -135,7 +137,7 @@ export const createDesktopSessionHost = (
         };
       }
     },
-    launch: async (rom, saveKey, gameId, autosaveEnabled = false) => {
+    launch: async (rom, saveKey, gameId, autosaveEnabled = false, restoreState) => {
       try {
         const bytes = await outputs.loadCartridgeSave(saveKey);
         activeSaveKey = saveKey;
@@ -143,6 +145,15 @@ export const createDesktopSessionHost = (
         const result = await execute(() =>
           controller.launch(rom, bytes === undefined ? undefined : { bytes }),
         );
+        if (result.status === 'ok' && restoreState !== undefined) {
+          const restored = await execute(() => controller.restoreSaveState(restoreState));
+          if (restored.status === 'error') {
+            await controller.stop();
+            activeSaveKey = undefined;
+            activeGameId = undefined;
+            return restored;
+          }
+        }
         if (result.status === 'error') {
           clearAutosaveTimer();
           clearPlaytimeTimer();

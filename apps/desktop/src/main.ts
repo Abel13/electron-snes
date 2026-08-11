@@ -25,6 +25,7 @@ import {
   hasBooleanPayload,
   hasGlobalPreferencesPayload,
   hasLibraryGameIdPayload,
+  hasLibraryLaunchPayload,
   hasNoIpcPayload,
   hasInputProfilePayload,
   hasRomSelectionIdPayload,
@@ -377,8 +378,8 @@ app.whenReady().then(() => {
   };
 
   ipcMain.handle(IPC_CHANNELS.startLibraryGame, async (_event, ...payload: unknown[]) => {
-    if (!hasLibraryGameIdPayload(payload))
-      throw new Error('The library session requires one game ID.');
+    if (!hasLibraryLaunchPayload(payload))
+      throw new Error('The library session requires a game ID and optional launch mode.');
     const game = await library.find(payload[0]);
     if (!game.ok || basename(game.value.sourceKey) !== game.value.sourceKey)
       return {
@@ -396,11 +397,37 @@ app.whenReady().then(() => {
     const loaded = await loadSelectedRom(selection.id, romSelections, readFile);
     if (loaded.status !== 'loaded')
       return { code: loaded.code, message: loaded.message, status: 'error' };
+    let autosave: import('@platform/emulator-sdk').EmulatorSaveState | undefined;
+    if (
+      game.value.configuration.autosaveEnabled &&
+      officialEmulator.emulator.capabilities.saveStates
+    ) {
+      const stored = await saveStates.read(game.value.id, 'autosave');
+      if (!stored.ok)
+        return { code: 'invalid-state', message: stored.error.message, status: 'error' };
+      if (stored.value?.coreId === officialEmulator.emulator.id) autosave = stored.value;
+    }
+    const mode = payload[1];
+    if (autosave !== undefined && mode === undefined) {
+      const descriptors = await saveStates.list(game.value.id);
+      const descriptor = descriptors.ok
+        ? descriptors.value.find((candidate) => candidate.slot === 'autosave')
+        : undefined;
+      if (descriptor !== undefined)
+        return { status: 'autosave-available', updatedAt: descriptor.updatedAt };
+    }
+    if (mode === 'restore-autosave' && autosave === undefined)
+      return {
+        code: 'invalid-state',
+        message: 'A compatible autosave is not available.',
+        status: 'error',
+      };
     const launched = await sessionHost.launch(
       loaded.rom,
       identifyRom(loaded.rom.bytes),
       game.value.id,
       game.value.configuration.autosaveEnabled,
+      mode === 'restore-autosave' ? autosave : undefined,
     );
     if (launched.status === 'ok') await library.markPlayed(game.value.id);
     return launched;
