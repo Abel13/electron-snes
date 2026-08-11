@@ -45,7 +45,13 @@ import {
   type InputMappingSettingsHandle,
 } from '@platform/ui';
 import { BrowserUiAudioService } from '@platform/ui-audio';
-import type { LibraryGame, LibraryLaunchMode, PixelCoreApi, SessionVideoFrame } from './ipc.js';
+import type {
+  LibraryGame,
+  LibraryLaunchMode,
+  PixelCoreApi,
+  SessionVideoFrame,
+  UpdateState,
+} from './ipc.js';
 import type { SaveStateDescriptor, SaveStateSlot } from '@platform/emulator';
 import type { EmulatorCapabilities } from '@platform/emulator-sdk';
 import { setLocale, type SupportedLocale } from './localization.js';
@@ -203,6 +209,10 @@ const ProductApp = (): React.JSX.Element => {
   const [uiAudioVolume, setUiAudioVolume] = useState(defaultGlobalPreferences.uiAudioVolume);
   const [globalPreferencesReady, setGlobalPreferencesReady] = useState(false);
   const [globalPreferencesWarning, setGlobalPreferencesWarning] = useState(false);
+  const [updateState, setUpdateState] = useState<UpdateState>({
+    currentVersion: '0.0.0',
+    status: 'unsupported',
+  });
   const audio = useRef(new EmulatorAudioPlayer());
   const keyboard = useRef(new KeyboardInputAdapter());
   const platformKeyboard = useRef(new KeyboardInputAdapter());
@@ -276,6 +286,10 @@ const ProductApp = (): React.JSX.Element => {
   useEffect(() => {
     statusRef.current = status;
   }, [status]);
+  useEffect(() => {
+    void window.pixelCore.getUpdateState().then(setUpdateState);
+    return window.pixelCore.subscribeUpdateState(setUpdateState);
+  }, []);
   useEffect(() => {
     screenRef.current = screen;
   }, [screen]);
@@ -1269,6 +1283,7 @@ const ProductApp = (): React.JSX.Element => {
                 sounds: t('feedbackSounds'),
                 soundsOn: t('soundsOn'),
                 title: t('globalSettings'),
+                updates: t('updates'),
                 volume: t('volume'),
               }}
               locale={preferenceLocale}
@@ -1287,9 +1302,32 @@ const ProductApp = (): React.JSX.Element => {
               }}
               onExit={() => void window.pixelCore.quitApplication()}
               onMutedChange={setUiAudioMuted}
+              onUpdate={() => {
+                if (updateState.status === 'available') void window.pixelCore.downloadUpdate();
+                else if (updateState.status === 'downloaded') void window.pixelCore.installUpdate();
+                else if (!['checking', 'downloading', 'unsupported'].includes(updateState.status))
+                  void window.pixelCore.checkForUpdates();
+              }}
               onNavigate={() => uiAudio.play('focus')}
               onVolumeChange={setUiAudioVolume}
               ref={globalSettings}
+              updateValue={
+                updateState.status === 'checking'
+                  ? t('updateChecking')
+                  : updateState.status === 'available'
+                    ? t('updateAvailable', { version: updateState.version })
+                    : updateState.status === 'downloading'
+                      ? t('updateDownloading', { percent: Math.round(updateState.percent) })
+                      : updateState.status === 'downloaded'
+                        ? t('updateReady', { version: updateState.version })
+                        : updateState.status === 'not-available'
+                          ? t('updateCurrent')
+                          : updateState.status === 'error'
+                            ? t('updateError')
+                            : updateState.status === 'unsupported'
+                              ? t('updateUnsupported')
+                              : t('updateCheck')
+              }
               volume={uiAudioVolume}
             />
           ) : null}

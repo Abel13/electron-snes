@@ -39,6 +39,7 @@ import { createRomSelectionStore } from './rom-selection.js';
 import { createDesktopSessionHost } from './session-host.js';
 import { CartridgeSaveStore } from './cartridge-save-store.js';
 import { BinaryFileStorage } from './binary-file-storage.js';
+import { DesktopUpdateService } from './update-service.js';
 
 const { app, BrowserWindow, dialog, ipcMain } = electron;
 
@@ -105,6 +106,7 @@ app.whenReady().then(() => {
   const preferencesStorage = new JsonFileStorage(join(app.getPath('userData'), 'preferences.json'));
   const inputProfiles = new InputProfileRepository(preferencesStorage);
   const globalPreferences = new GlobalPreferencesRepository(preferencesStorage);
+  const updates = new DesktopUpdateService(app.getVersion(), app.isPackaged, () => mainWindow);
 
   const toLibraryGame = async (game: LocalGame) => {
     let artworkDataUrl: string | undefined;
@@ -267,6 +269,25 @@ app.whenReady().then(() => {
   ipcMain.handle(IPC_CHANNELS.getEmulatorCapabilities, (_event, ...payload: unknown[]) => {
     if (!hasNoIpcPayload(payload)) throw new Error('Capabilities do not accept a payload.');
     return officialEmulator.emulator.capabilities;
+  });
+  ipcMain.handle(IPC_CHANNELS.getUpdateState, (_event, ...payload: unknown[]) => {
+    if (!hasNoIpcPayload(payload)) throw new Error('Update state does not accept a payload.');
+    return updates.getState();
+  });
+  ipcMain.handle(IPC_CHANNELS.checkForUpdates, async (_event, ...payload: unknown[]) => {
+    if (!hasNoIpcPayload(payload)) throw new Error('Update checks do not accept a payload.');
+    return updates.check();
+  });
+  ipcMain.handle(IPC_CHANNELS.downloadUpdate, async (_event, ...payload: unknown[]) => {
+    if (!hasNoIpcPayload(payload)) throw new Error('Update downloads do not accept a payload.');
+    return updates.download();
+  });
+  ipcMain.handle(IPC_CHANNELS.installUpdate, async (_event, ...payload: unknown[]) => {
+    if (!hasNoIpcPayload(payload))
+      throw new Error('Update installation does not accept a payload.');
+    if (stopActiveSession !== undefined) await stopActiveSession();
+    quitAfterSaveFlush = true;
+    updates.install();
   });
   ipcMain.handle(IPC_CHANNELS.quitApplication, (_event, ...payload: unknown[]) => {
     if (!hasNoIpcPayload(payload))

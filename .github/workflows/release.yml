@@ -83,6 +83,7 @@ jobs:
           path: |
             apps/desktop/release/PixelCore-${{ needs.validate-tag.outputs.version }}-Windows-x64.exe
             apps/desktop/release/PixelCore-${{ needs.validate-tag.outputs.version }}-Windows-x64.exe.blockmap
+            apps/desktop/release/beta.yml
 
   package-macos:
     name: Package macOS
@@ -141,6 +142,9 @@ jobs:
           path: |
             apps/desktop/release/PixelCore-${{ needs.validate-tag.outputs.version }}-macOS-universal.dmg
             apps/desktop/release/PixelCore-${{ needs.validate-tag.outputs.version }}-macOS-universal.dmg.blockmap
+            apps/desktop/release/PixelCore-${{ needs.validate-tag.outputs.version }}-macOS-universal.zip
+            apps/desktop/release/PixelCore-${{ needs.validate-tag.outputs.version }}-macOS-universal.zip.blockmap
+            apps/desktop/release/beta-mac.yml
 
   package-linux:
     name: Package Linux
@@ -173,7 +177,9 @@ jobs:
         with:
           if-no-files-found: error
           name: pixelcore-linux
-          path: apps/desktop/release/PixelCore-${{ needs.validate-tag.outputs.version }}-Linux-x86_64.AppImage
+          path: |
+            apps/desktop/release/PixelCore-${{ needs.validate-tag.outputs.version }}-Linux-x86_64.AppImage
+            apps/desktop/release/beta-linux.yml
 
   publish:
     name: Publish GitHub prerelease

@@ -18,6 +18,7 @@ export interface GlobalSettingsMenuCopy {
   readonly sounds: string;
   readonly soundsOn: string;
   readonly title: string;
+  readonly updates: string;
   readonly volume: string;
 }
 
@@ -38,13 +39,15 @@ export interface GlobalSettingsMenuProps {
   readonly onLocaleChange: (locale: string) => void;
   readonly onExit: () => void;
   readonly onMutedChange: (muted: boolean) => void;
+  readonly onUpdate: () => void;
   readonly onNavigate: () => void;
   readonly onVolumeChange: (volume: number) => void;
   readonly volume: number;
+  readonly updateValue: string;
 }
 
 export const moveSettingsIndex = (current: number, direction: 'down' | 'up'): number =>
-  Math.max(0, Math.min(3, current + (direction === 'down' ? 1 : -1)));
+  Math.max(0, Math.min(4, current + (direction === 'down' ? 1 : -1)));
 
 export const cycleSettingsOption = (
   current: number,
@@ -69,18 +72,19 @@ export const GlobalSettingsMenu = forwardRef<GlobalSettingsMenuHandle, GlobalSet
         return props.locales.find((locale) => locale.value === props.locale)?.label ?? props.locale;
       if (index === 1) return props.muted ? props.copy.muted : props.copy.soundsOn;
       if (index === 2) return `${Math.round(props.volume * 100)}%`;
+      if (index === 3) return props.updateValue;
       return props.copy.exit;
     };
     const select = (index: number): void => {
       if (index === selectedIndex) return;
       setSelectedIndex(index);
       setAnnouncement(
-        `${[props.copy.language, props.copy.sounds, props.copy.volume, props.copy.exit][index]}. ${valueAt(index)}`,
+        `${[props.copy.language, props.copy.sounds, props.copy.volume, props.copy.updates, props.copy.exit][index]}. ${valueAt(index)}`,
       );
       props.onNavigate();
     };
     const adjust = (direction: 'left' | 'right'): void => {
-      if (selectedIndex === 3) return;
+      if (selectedIndex >= 3) return;
       if (selectedIndex === 0) {
         const current = Math.max(
           0,
@@ -98,7 +102,8 @@ export const GlobalSettingsMenu = forwardRef<GlobalSettingsMenuHandle, GlobalSet
       else adjust(direction);
     };
     const confirm = (): void => {
-      if (selectedIndex === 3) props.onExit();
+      if (selectedIndex === 3) props.onUpdate();
+      else if (selectedIndex === 4) props.onExit();
       else adjust('right');
     };
 
@@ -113,6 +118,7 @@ export const GlobalSettingsMenu = forwardRef<GlobalSettingsMenuHandle, GlobalSet
       { label: props.copy.language, value: valueAt(0) },
       { label: props.copy.sounds, value: valueAt(1) },
       { label: props.copy.volume, value: valueAt(2) },
+      { label: props.copy.updates, value: valueAt(3) },
       { label: props.copy.exit, value: '' },
     ];
 
@@ -165,16 +171,16 @@ export const GlobalSettingsMenu = forwardRef<GlobalSettingsMenuHandle, GlobalSet
             {rows.map((row, index) => (
               <button
                 aria-current={selectedIndex === index ? 'true' : undefined}
-                className={`${selectedIndex === index ? 'is-selected' : ''}${index === 3 ? ' is-action' : ''}`}
+                className={`${selectedIndex === index ? 'is-selected' : ''}${index >= 3 ? ' is-action' : ''}`}
                 key={row.label}
                 onClick={() => (selectedIndex === index ? confirm() : select(index))}
                 type="button"
               >
                 <span>{row.label}</span>
                 <strong>
-                  {index === 3 ? null : <i aria-hidden="true">‹</i>}
-                  {index === 3 ? row.label : row.value}
-                  {index === 3 ? null : <i aria-hidden="true">›</i>}
+                  {index >= 3 ? null : <i aria-hidden="true">‹</i>}
+                  {index === 4 ? row.label : row.value}
+                  {index >= 3 ? null : <i aria-hidden="true">›</i>}
                 </strong>
                 {index === 2 ? (
                   <em

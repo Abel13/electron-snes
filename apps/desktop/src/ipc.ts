@@ -12,11 +12,15 @@ export const IPC_CHANNELS = {
   getInputConfiguration: 'pixel-core:get-input-configuration',
   getGlobalPreferences: 'pixel-core:get-global-preferences',
   getHostVersion: 'pixel-core:host-version',
+  getUpdateState: 'pixel-core:get-update-state',
   getEmulatorCapabilities: 'pixel-core:emulator-capabilities',
   loadRom: 'pixel-core:load-rom',
   listSaveStates: 'pixel-core:list-save-states',
   pauseSession: 'pixel-core:pause-session',
   quitApplication: 'pixel-core:quit-application',
+  checkForUpdates: 'pixel-core:check-for-updates',
+  downloadUpdate: 'pixel-core:download-update',
+  installUpdate: 'pixel-core:install-update',
   resumeSession: 'pixel-core:resume-session',
   captureSaveState: 'pixel-core:capture-save-state',
   restoreSaveState: 'pixel-core:restore-save-state',
@@ -37,6 +41,8 @@ export const SESSION_EVENT_CHANNELS = {
   audio: 'pixel-core:session-audio',
   video: 'pixel-core:session-video',
 } as const;
+
+export const UPDATE_EVENT_CHANNEL = 'pixel-core:update-state' as const;
 
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS];
 
@@ -105,9 +111,12 @@ export type LoadRomResponse =
   | { readonly rom: LoadedRom; readonly status: 'loaded' };
 
 export interface PixelCoreApi {
+  checkForUpdates(): Promise<UpdateState>;
+  downloadUpdate(): Promise<UpdateState>;
   getGlobalPreferences(): Promise<GlobalPreferencesLoadResponse>;
   getInputConfiguration(): Promise<InputConfigurationResponse>;
   getHostVersion(): Promise<HostVersionResponse>;
+  getUpdateState(): Promise<UpdateState>;
   getEmulatorCapabilities(): Promise<EmulatorCapabilities>;
   importGame(): Promise<ImportGameResponse>;
   listLibrary(): Promise<LibraryResponse>;
@@ -117,6 +126,7 @@ export interface PixelCoreApi {
   pauseSession(): Promise<SessionCommandResponse>;
   captureSaveState(slot: SaveStateSlot): Promise<SessionCommandResponse>;
   quitApplication(): Promise<void>;
+  installUpdate(): Promise<void>;
   resumeSession(): Promise<SessionCommandResponse>;
   restoreSaveState(slot: SaveStateSlot): Promise<SessionCommandResponse>;
   saveInputProfile(profile: InputProfile): Promise<InputProfileResponse>;
@@ -131,8 +141,22 @@ export interface PixelCoreApi {
   stopSession(): Promise<SessionCommandResponse>;
   subscribeSessionAudio(listener: (frame: SessionAudioFrame) => void): () => void;
   subscribeSessionVideo(listener: (frame: SessionVideoFrame) => void): () => void;
+  subscribeUpdateState(listener: (state: UpdateState) => void): () => void;
   updateFavorite(gameId: string, favorite: boolean): Promise<LibraryMutationResponse>;
 }
+
+export type UpdateState =
+  | { readonly currentVersion: string; readonly status: 'idle' | 'checking' | 'not-available' }
+  | { readonly currentVersion: string; readonly status: 'unsupported' }
+  | { readonly currentVersion: string; readonly message: string; readonly status: 'error' }
+  | { readonly currentVersion: string; readonly status: 'available'; readonly version: string }
+  | {
+      readonly currentVersion: string;
+      readonly percent: number;
+      readonly status: 'downloading';
+      readonly version: string;
+    }
+  | { readonly currentVersion: string; readonly status: 'downloaded'; readonly version: string };
 
 export interface ConsolePluginsResponse {
   readonly ids: readonly string[];
@@ -215,7 +239,9 @@ export type GlobalPreferencesSaveResponse =
 
 export type IpcInvoker = (channel: IpcChannel, ...payload: readonly unknown[]) => Promise<unknown>;
 export type IpcSubscriber = (
-  channel: (typeof SESSION_EVENT_CHANNELS)[keyof typeof SESSION_EVENT_CHANNELS],
+  channel:
+    | (typeof SESSION_EVENT_CHANNELS)[keyof typeof SESSION_EVENT_CHANNELS]
+    | typeof UPDATE_EVENT_CHANNEL,
   listener: (payload: unknown) => void,
 ) => () => void;
 
@@ -224,6 +250,31 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 
 const isArrayBuffer = (value: unknown): value is ArrayBuffer =>
   Object.prototype.toString.call(value) === '[object ArrayBuffer]';
+
+export const isUpdateState = (value: unknown): value is UpdateState => {
+  if (!isRecord(value) || typeof value['currentVersion'] !== 'string') return false;
+  const status = value['status'];
+  if (
+    status === 'idle' ||
+    status === 'checking' ||
+    status === 'not-available' ||
+    status === 'unsupported'
+  )
+    return Object.keys(value).length === 2;
+  if (status === 'error')
+    return Object.keys(value).length === 3 && typeof value['message'] === 'string';
+  if (status === 'available' || status === 'downloaded')
+    return Object.keys(value).length === 3 && typeof value['version'] === 'string';
+  return (
+    status === 'downloading' &&
+    Object.keys(value).length === 4 &&
+    typeof value['version'] === 'string' &&
+    typeof value['percent'] === 'number' &&
+    Number.isFinite(value['percent']) &&
+    value['percent'] >= 0 &&
+    value['percent'] <= 100
+  );
+};
 
 const isSessionVideoEvent = (value: unknown): value is SessionVideoEvent =>
   isRecord(value) &&
@@ -473,6 +524,16 @@ export const createPixelCoreApi = (
   invoke: IpcInvoker,
   subscribe: IpcSubscriber = () => () => undefined,
 ): PixelCoreApi => ({
+  async checkForUpdates(): Promise<UpdateState> {
+    const response = await invoke(IPC_CHANNELS.checkForUpdates);
+    if (!isUpdateState(response)) throw new Error('Received an invalid update state.');
+    return response;
+  },
+  async downloadUpdate(): Promise<UpdateState> {
+    const response = await invoke(IPC_CHANNELS.downloadUpdate);
+    if (!isUpdateState(response)) throw new Error('Received an invalid update state.');
+    return response;
+  },
   async getGlobalPreferences(): Promise<GlobalPreferencesLoadResponse> {
     const response = await invoke(IPC_CHANNELS.getGlobalPreferences);
     if (!isGlobalPreferencesLoadResponse(response))
@@ -516,6 +577,11 @@ export const createPixelCoreApi = (
 
     return response;
   },
+  async getUpdateState(): Promise<UpdateState> {
+    const response = await invoke(IPC_CHANNELS.getUpdateState);
+    if (!isUpdateState(response)) throw new Error('Received an invalid update state.');
+    return response;
+  },
   async getEmulatorCapabilities(): Promise<EmulatorCapabilities> {
     const response = await invoke(IPC_CHANNELS.getEmulatorCapabilities);
     if (!isEmulatorCapabilities(response))
@@ -524,6 +590,9 @@ export const createPixelCoreApi = (
   },
   async quitApplication(): Promise<void> {
     await invoke(IPC_CHANNELS.quitApplication);
+  },
+  async installUpdate(): Promise<void> {
+    await invoke(IPC_CHANNELS.installUpdate);
   },
   async loadRom(selectionId: string): Promise<LoadRomResponse> {
     const response = await invoke(IPC_CHANNELS.loadRom, selectionId);
@@ -650,5 +719,9 @@ export const createPixelCoreApi = (
           width: payload.width,
         });
       }
+    }),
+  subscribeUpdateState: (listener) =>
+    subscribe(UPDATE_EVENT_CHANNEL, (payload) => {
+      if (isUpdateState(payload)) listener(payload);
     }),
 });

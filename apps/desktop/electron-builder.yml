@@ -54,6 +54,9 @@ mac:
     - arch:
         - universal
       target: dmg
+    - arch:
+        - universal
+      target: zip
 
 dmg:
   iconSize: 128
@@ -70,3 +73,10 @@ linux:
     - arch:
         - x64
       target: AppImage
+
+publish:
+  provider: github
+  owner: Abel13
+  repo: electron-snes
+  releaseType: prerelease
+  channel: beta
