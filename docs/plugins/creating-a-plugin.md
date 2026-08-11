@@ -100,3 +100,7 @@ Todo plugin deve incluir:
 - README com propósito, compatibilidade, permissões, instalação e exemplo mínimo.
 
 Ao alterar um contrato público, documente a compatibilidade e inclua um ADR quando a decisão afetar a arquitetura de longo prazo.
+
+Antes de adotar uma API revision nova, siga `api-migration.md`. O guia da revisão deve
+mostrar as alterações necessárias, os efeitos em permissões e como validar o plugin com
+o runner público. Não dependa de detalhes internos para concluir uma migração.
