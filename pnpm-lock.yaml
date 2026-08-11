@@ -223,6 +223,24 @@ importers:
         specifier: ^4.4.3
         version: 4.4.3
 
+  packages/plugin-test:
+    dependencies:
+      '@platform/console-sdk':
+        specifier: workspace:*
+        version: link:../console-sdk
+      '@platform/controller-sdk':
+        specifier: workspace:*
+        version: link:../controller-sdk
+      '@platform/emulator-sdk':
+        specifier: workspace:*
+        version: link:../emulator-sdk
+      '@platform/game-sdk':
+        specifier: workspace:*
+        version: link:../game-sdk
+      '@platform/plugin-sdk':
+        specifier: workspace:*
+        version: link:../plugin-sdk
+
   packages/shared: {}
 
   packages/theme-sdk:
