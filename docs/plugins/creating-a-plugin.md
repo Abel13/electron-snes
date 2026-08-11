@@ -73,8 +73,22 @@ Use o helper SDK correspondente ao tipo de plugin. A definição deve depender s
 import { defineController } from '@platform/controller-sdk';
 
 export default defineController({
-  id: 'org.example.generic-controller',
-  actions: ['PRIMARY', 'SECONDARY', 'START', 'SELECT'],
+  manifest: {
+    id: 'org.example.generic-controller',
+    name: 'Generic Controller',
+    version: '1.0.0',
+    apiVersion: 1,
+    type: 'controller',
+    capabilities: ['gamepad-mapping'],
+    permissions: [],
+  },
+  controller: {
+    id: 'org.example.generic-controller',
+    match: [{ standardMapping: true }],
+    mappings: [
+      { input: { kind: 'button', index: 0 }, normalizedAction: 'primary' },
+    ],
+  },
 });
 ```
 
@@ -123,3 +137,6 @@ de partida sem introduzir dependências internas.
 Para iniciar um pacote novo, use o comando determinístico descrito em
 `scaffold-cli.md`. Ele gera somente tipos que já podem passar pelo runner completo e
 recusa sobrescrever diretórios existentes.
+
+A referência consolidada de exports, exemplos mínimos, validação e compatibilidade está
+em `sdk-reference.md`.

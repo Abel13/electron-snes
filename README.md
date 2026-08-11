@@ -23,6 +23,7 @@ Estrutura de governança:
 
 - `.github/agents/` (arquitetura, design e revisão)
 - `docs/architecture/` (princípios, plugin system, input)
+- `docs/plugins/` (SDK reference, scaffold, executable examples, and migration policy)
 - `docs/design/` (princípios de UX, tokens, navegação, acessibilidade)
 - `docs/adr/` (decisões arquiteturais)
 
