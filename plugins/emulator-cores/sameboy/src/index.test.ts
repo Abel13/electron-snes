@@ -15,11 +15,11 @@ describe('sameBoyEmulator', () => {
     expect(sameBoyEmulator.emulator.supportedRomExtensions).toEqual(['.gb', '.gbc']);
   });
 
-  it('does not advertise deferred advanced capabilities', () => {
+  it('advertises only implemented advanced capabilities', () => {
     expect(sameBoyEmulator.emulator.capabilities).toEqual({
       fastForward: false,
       rewind: false,
-      saveStates: false,
+      saveStates: true,
     });
   });
 });
