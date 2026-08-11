@@ -194,3 +194,35 @@ size_t sameboy_copy_battery(uint8_t *output, const size_t size)
     GB_clear_battery_dirty(gameboy);
     return required;
 }
+
+EMSCRIPTEN_KEEPALIVE
+size_t sameboy_save_state_size(void)
+{
+    return gameboy == NULL ? 0 : GB_get_save_state_size(gameboy);
+}
+
+EMSCRIPTEN_KEEPALIVE
+size_t sameboy_copy_save_state(uint8_t *output, const size_t size)
+{
+    const size_t required = sameboy_save_state_size();
+    if (output == NULL || required == 0 || size < required) {
+        return 0;
+    }
+    GB_save_state_to_buffer(gameboy, output);
+    return required;
+}
+
+EMSCRIPTEN_KEEPALIVE
+int sameboy_load_save_state(const uint8_t *buffer, const size_t size)
+{
+    if (gameboy == NULL || buffer == NULL || size == 0) {
+        return 0;
+    }
+    const int result = GB_load_state_from_buffer(gameboy, buffer, size);
+    if (result != 0) {
+        return 0;
+    }
+    audio_read_index = 0;
+    audio_write_index = 0;
+    return 1;
+}

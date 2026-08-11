@@ -3,6 +3,7 @@ import type {
   EmulatorCartridgeSave,
   EmulatorOperationResult,
   EmulatorRom,
+  EmulatorSaveState,
   EmulatorSessionStatus,
 } from '@platform/emulator-sdk';
 
@@ -14,6 +15,12 @@ export type SameBoyWorkerRequest =
       readonly type: 'load-rom';
     }
   | { readonly id: string; readonly type: 'pause' | 'resume' | 'start' | 'stop' }
+  | { readonly id: string; readonly type: 'capture-save-state' }
+  | {
+      readonly id: string;
+      readonly saveState: EmulatorSaveState;
+      readonly type: 'restore-save-state';
+    }
   | { readonly id: string; readonly input: EmulatorInput; readonly type: 'set-input' };
 
 export type SameBoyWorkerCommand =
@@ -23,6 +30,8 @@ export type SameBoyWorkerCommand =
       readonly type: 'load-rom';
     }
   | { readonly type: 'pause' | 'resume' | 'start' | 'stop' }
+  | { readonly type: 'capture-save-state' }
+  | { readonly saveState: EmulatorSaveState; readonly type: 'restore-save-state' }
   | { readonly input: EmulatorInput; readonly type: 'set-input' };
 
 export type SameBoyWorkerMessage =

@@ -4,6 +4,8 @@ import type {
   EmulatorInput,
   EmulatorOperationResult,
   EmulatorRom,
+  EmulatorSaveState,
+  EmulatorSaveStateResult,
   EmulatorSession,
   EmulatorSessionStatus,
   EmulatorVideoFrame,
@@ -46,6 +48,17 @@ class SameBoyWorkerSession implements EmulatorSession {
     return this.#status;
   }
 
+  async captureSaveState(): Promise<EmulatorSaveStateResult> {
+    const result = await this.request({ type: 'capture-save-state' });
+    if (result.status === 'error') return result;
+    if ('saveState' in result) return result as EmulatorSaveStateResult;
+    return {
+      code: 'unexpected',
+      message: 'The SameBoy worker returned an invalid save-state response.',
+      status: 'error',
+    };
+  }
+
   loadRom(
     rom: EmulatorRom,
     cartridgeSave?: EmulatorCartridgeSave,
@@ -63,6 +76,14 @@ class SameBoyWorkerSession implements EmulatorSession {
 
   resume(): Promise<EmulatorOperationResult> {
     return this.request({ type: 'resume' });
+  }
+
+  restoreSaveState(saveState: EmulatorSaveState): Promise<EmulatorOperationResult> {
+    const buffer = saveState.bytes.buffer;
+    return this.request(
+      { saveState, type: 'restore-save-state' },
+      buffer instanceof ArrayBuffer ? [buffer] : undefined,
+    );
   }
 
   setInput(input: EmulatorInput): Promise<EmulatorOperationResult> {
