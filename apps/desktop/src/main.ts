@@ -414,6 +414,10 @@ app.whenReady().then(() => {
     if (!hasBooleanPayload(payload)) throw new Error('Rewind requires one boolean state.');
     return sessionHost.setRewindActive(payload[0]);
   });
+  ipcMain.handle(IPC_CHANNELS.setFastForwardActive, async (_event, ...payload: unknown[]) => {
+    if (!hasBooleanPayload(payload)) throw new Error('Fast-forward requires one boolean state.');
+    return sessionHost.setFastForwardActive(payload[0]);
+  });
 
   ipcMain.handle(IPC_CHANNELS.listSaveStates, async (_event, ...payload: unknown[]) => {
     if (!hasNoIpcPayload(payload))

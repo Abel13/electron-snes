@@ -16,6 +16,7 @@ export interface DesktopSessionHost {
   pause(): Promise<SessionCommandResponse>;
   resume(): Promise<SessionCommandResponse>;
   restoreSaveState(slot: SaveStateSlot): Promise<SessionCommandResponse>;
+  setFastForwardActive(active: boolean): Promise<SessionCommandResponse>;
   setRewindActive(active: boolean): Promise<SessionCommandResponse>;
   setInput(playerPortId: string, actions: readonly string[]): Promise<SessionCommandResponse>;
   stop(): Promise<SessionCommandResponse>;
@@ -186,6 +187,7 @@ export const createDesktopSessionHost = (
     },
     setInput: async (playerPortId, actions) =>
       execute(() => controller.setInput({ actions, playerPortId })),
+    setFastForwardActive: async (active) => execute(() => controller.setFastForwardActive(active)),
     setRewindActive: async (active) => execute(() => controller.setRewindActive(active)),
     stop: async () => {
       clearAutosaveTimer();

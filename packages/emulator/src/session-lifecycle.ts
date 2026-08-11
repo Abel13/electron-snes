@@ -100,6 +100,18 @@ export class EmulatorSessionController {
     return session.setRewindActive(active);
   }
 
+  public async setFastForwardActive(active: boolean): Promise<EmulatorOperationResult> {
+    const session = this.#session;
+    if (session === undefined)
+      return invalidState('An active emulator session is required for fast-forward.');
+    if (
+      !this.plugin.emulator.capabilities.fastForward ||
+      session.setFastForwardActive === undefined
+    )
+      return unavailable('The active emulator does not support fast-forward.');
+    return session.setFastForwardActive(active);
+  }
+
   public async captureSaveState(): Promise<EmulatorSaveStateResult> {
     const session = this.#session;
     if (session === undefined)

@@ -24,6 +24,7 @@ export const IPC_CHANNELS = {
   selectGameArtwork: 'pixel-core:select-game-artwork',
   selectRom: 'pixel-core:select-rom',
   setSessionInput: 'pixel-core:set-session-input',
+  setFastForwardActive: 'pixel-core:set-fast-forward-active',
   setRewindActive: 'pixel-core:set-rewind-active',
   startSession: 'pixel-core:start-session',
   startLibraryGame: 'pixel-core:start-library-game',
@@ -118,6 +119,7 @@ export interface PixelCoreApi {
   selectGameArtwork(gameId: string): Promise<LibraryMutationResponse>;
   selectRom(): Promise<SelectRomResponse>;
   setSessionInput(input: SessionInputPayload): Promise<SessionCommandResponse>;
+  setFastForwardActive(active: boolean): Promise<SessionCommandResponse>;
   setRewindActive(active: boolean): Promise<SessionCommandResponse>;
   startSession(selectionId: string): Promise<SessionCommandResponse>;
   startLibraryGame(gameId: string): Promise<SessionCommandResponse>;
@@ -522,6 +524,12 @@ export const createPixelCoreApi = (
     const response = await invoke(IPC_CHANNELS.setSessionInput, input);
     if (!isSessionCommandResponse(response))
       throw new Error('Received an invalid session input response.');
+    return response;
+  },
+  async setFastForwardActive(active: boolean): Promise<SessionCommandResponse> {
+    const response = await invoke(IPC_CHANNELS.setFastForwardActive, active);
+    if (!isSessionCommandResponse(response))
+      throw new Error('Received an invalid fast-forward response.');
     return response;
   },
   async setRewindActive(active: boolean): Promise<SessionCommandResponse> {
