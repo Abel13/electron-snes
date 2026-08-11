@@ -1,13 +1,26 @@
 import { expect, test } from 'vitest';
 
-import { defineEmulator, validateEmulatorPlugin } from './emulator.js';
+import {
+  defineEmulator,
+  validateEmulatorPlugin,
+  validateEmulatorSessionCapabilities,
+} from './emulator.js';
 
 const definition = defineEmulator({
   createSession: async () => ({
+    captureSaveState: async () => ({
+      saveState: {
+        bytes: new Uint8Array([1, 2, 3]),
+        coreId: 'org.pixelcore.reference-emulator',
+        formatVersion: 1,
+      },
+      status: 'ok' as const,
+    }),
     getStatus: () => 'idle' as const,
     loadRom: async () => ({ status: 'ok' as const }),
     pause: async () => ({ status: 'ok' as const }),
     resume: async () => ({ status: 'ok' as const }),
+    restoreSaveState: async () => ({ status: 'ok' as const }),
     setInput: async () => ({ status: 'ok' as const }),
     start: async () => ({ status: 'ok' as const }),
     stop: async () => ({ status: 'ok' as const }),
@@ -42,5 +55,28 @@ test('rejects an emulator declaration with an unsupported manifest type', () => 
       ...definition,
       manifest: { ...definition.manifest, type: 'console' },
     }),
+  ).toMatchObject({ code: 'unavailable', status: 'error' });
+});
+
+test('requires save-state operations when the capability is declared', async () => {
+  const session = await definition.createSession();
+  expect(validateEmulatorSessionCapabilities(session, definition.emulator.capabilities)).toEqual({
+    status: 'ok',
+  });
+
+  const unsupported = {
+    getStatus: session.getStatus,
+    loadRom: session.loadRom,
+    pause: session.pause,
+    resume: session.resume,
+    setInput: session.setInput,
+    start: session.start,
+    stop: session.stop,
+    subscribeAudio: session.subscribeAudio,
+    subscribeCartridgeSave: session.subscribeCartridgeSave,
+    subscribeVideo: session.subscribeVideo,
+  };
+  expect(
+    validateEmulatorSessionCapabilities(unsupported, definition.emulator.capabilities),
   ).toMatchObject({ code: 'unavailable', status: 'error' });
 });
