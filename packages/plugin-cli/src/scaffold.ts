@@ -96,18 +96,23 @@ function manifestLiteral(
   type: PluginScaffoldType,
   capabilities: readonly string[],
 ): string {
-  return JSON.stringify({
-    apiVersion: 1,
-    capabilities,
-    id,
-    name,
-    permissions: [],
-    type,
-    version: '0.1.0',
-  }, null, 2).replaceAll('\n', '\n  ');
+  return JSON.stringify(
+    {
+      apiVersion: 1,
+      capabilities,
+      id,
+      name,
+      permissions: [],
+      type,
+      version: '0.1.0',
+    },
+    null,
+    2,
+  ).replaceAll('\n', '\n  ');
 }
 
-const packageName = (id: string): string => `@plugin/${id.replaceAll('.', '-').replace(/^org-/, '')}`;
+const packageName = (id: string): string =>
+  `@plugin/${id.replaceAll('.', '-').replace(/^org-/, '')}`;
 
 const contractTest = (typeLabel: string): string => `import { expect, test } from 'vitest';
 import { validatePluginContract } from '@platform/plugin-test';
@@ -173,7 +178,9 @@ export const createPluginScaffold = async (
   };
   const manifestResult = PluginManifestSchema.safeParse(manifest);
   if (!manifestResult.success)
-    throw new Error(`Invalid plugin identity: ${manifestResult.error.issues.map(({ message }) => message).join(' ')}`);
+    throw new Error(
+      `Invalid plugin identity: ${manifestResult.error.issues.map(({ message }) => message).join(' ')}`,
+    );
 
   const directory = resolve(options.cwd ?? process.cwd(), options.output);
   await ensureAbsent(directory);
@@ -204,7 +211,13 @@ export const createPluginScaffold = async (
     'tsconfig.json': tsconfig,
   };
 
-  await Promise.all(Object.keys(files).map((file) => mkdir(dirname(resolve(directory, file)), { recursive: true })));
-  await Promise.all(Object.entries(files).map(([file, contents]) => writeFile(resolve(directory, file), contents, { encoding: 'utf8', flag: 'wx' })));
+  await Promise.all(
+    Object.keys(files).map((file) => mkdir(dirname(resolve(directory, file)), { recursive: true })),
+  );
+  await Promise.all(
+    Object.entries(files).map(([file, contents]) =>
+      writeFile(resolve(directory, file), contents, { encoding: 'utf8', flag: 'wx' }),
+    ),
+  );
   return { directory, files: Object.keys(files).sort() };
 };

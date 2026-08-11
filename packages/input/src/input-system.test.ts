@@ -6,8 +6,15 @@ import { describe, expect, it } from 'vitest';
 import { NORMALIZED_INPUT_ACTIONS } from './actions.js';
 import { validateConsoleInputMapping, mapNormalizedActions } from './console-mapping.js';
 import { InputDeviceDiscovery, KEYBOARD_DEVICE } from './device-discovery.js';
-import { DEFAULT_GAMEPAD_BINDINGS, GamepadInputAdapter, readPressedGamepadButtons } from './gamepad-adapter.js';
-import { GamepadPromptActivityTracker, classifyGamepadPromptScheme } from './input-prompt-scheme.js';
+import {
+  DEFAULT_GAMEPAD_BINDINGS,
+  GamepadInputAdapter,
+  readPressedGamepadButtons,
+} from './gamepad-adapter.js';
+import {
+  GamepadPromptActivityTracker,
+  classifyGamepadPromptScheme,
+} from './input-prompt-scheme.js';
 import { DEFAULT_KEYBOARD_BINDINGS, InputProfileRepository } from './input-profiles.js';
 import { KeyboardInputAdapter, isCapturableKeyboardInput } from './keyboard-adapter.js';
 import { PlayerAssignmentManager } from './player-assignment.js';
@@ -91,9 +98,9 @@ describe('universal input', () => {
     expect(isCapturableKeyboardInput({ ...candidate, repeat: true })).toBe(false);
     expect(isCapturableKeyboardInput({ ...candidate, metaKey: true })).toBe(false);
     expect(isCapturableKeyboardInput({ ...candidate, ctrlKey: true })).toBe(false);
-    expect(
-      isCapturableKeyboardInput({ ...candidate, code: 'ControlLeft', ctrlKey: true }),
-    ).toBe(true);
+    expect(isCapturableKeyboardInput({ ...candidate, code: 'ControlLeft', ctrlKey: true })).toBe(
+      true,
+    );
     expect(isCapturableKeyboardInput({ ...candidate, altKey: true })).toBe(false);
     expect(isCapturableKeyboardInput({ ...candidate, code: 'AltLeft', altKey: true })).toBe(true);
   });
@@ -121,7 +128,9 @@ describe('universal input', () => {
     const buttons = Array.from({ length: 16 }, () => ({ pressed: false, value: 0 }));
     const snapshot = (axis: number, pressed = false) => ({
       axes: [axis],
-      buttons: buttons.map((button, index) => index === 0 ? { pressed, value: pressed ? 1 : 0 } : button),
+      buttons: buttons.map((button, index) =>
+        index === 0 ? { pressed, value: pressed ? 1 : 0 } : button,
+      ),
       connected: true,
       id: 'Pad',
       index: 0,
@@ -244,6 +253,8 @@ describe('universal input', () => {
     buttons[9] = { pressed: true, value: 1 };
     const snapshot = { axes: [], buttons, connected: true, id: 'Pad', index: 0 };
     expect(readPressedGamepadButtons(snapshot)).toEqual([4, 9]);
-    expect(new GamepadInputAdapter().readActions(snapshot, DEFAULT_GAMEPAD_BINDINGS)).toContain('select');
+    expect(new GamepadInputAdapter().readActions(snapshot, DEFAULT_GAMEPAD_BINDINGS)).toContain(
+      'select',
+    );
   });
 });

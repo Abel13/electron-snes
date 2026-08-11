@@ -18,13 +18,9 @@ export interface KeyboardCaptureCandidate {
 
 export const isCapturableKeyboardInput = (candidate: KeyboardCaptureCandidate): boolean => {
   if (candidate.code === 'Escape' || candidate.repeat || candidate.metaKey) return false;
-  const isolatedControl =
-    candidate.code === 'ControlLeft' || candidate.code === 'ControlRight';
+  const isolatedControl = candidate.code === 'ControlLeft' || candidate.code === 'ControlRight';
   const isolatedAlt = candidate.code === 'AltLeft' || candidate.code === 'AltRight';
-  return !(
-    (candidate.ctrlKey && !isolatedControl) ||
-    (candidate.altKey && !isolatedAlt)
-  );
+  return !((candidate.ctrlKey && !isolatedControl) || (candidate.altKey && !isolatedAlt));
 };
 
 export class KeyboardInputAdapter {

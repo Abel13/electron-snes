@@ -46,9 +46,7 @@ export interface InvalidPluginContract {
 }
 
 export type PluginContractResult =
-  | InactivePluginContract
-  | InvalidPluginContract
-  | ValidPluginContract;
+  InactivePluginContract | InvalidPluginContract | ValidPluginContract;
 
 type SpecializedValidation =
   | { readonly valid: true }
@@ -83,16 +81,20 @@ const validateSpecializedContract = (type: PluginType, input: unknown): Speciali
     return result.status === 'ok'
       ? { valid: true }
       : {
-          diagnostics: [{ code: 'plugin-contract-invalid', message: result.message, path: ['emulator'] }],
+          diagnostics: [
+            { code: 'plugin-contract-invalid', message: result.message, path: ['emulator'] },
+          ],
           valid: false,
         };
   }
   return {
-    diagnostics: [{
-      code: 'plugin-contract-validator-unavailable',
-      message: `No public definition validator is available for plugin type ${type}.`,
-      path: ['manifest', 'type'],
-    }],
+    diagnostics: [
+      {
+        code: 'plugin-contract-validator-unavailable',
+        message: `No public definition validator is available for plugin type ${type}.`,
+        path: ['manifest', 'type'],
+      },
+    ],
     valid: false,
   };
 };
