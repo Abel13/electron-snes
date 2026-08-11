@@ -102,3 +102,25 @@ test('requires a rewind operation only when the capability is declared', async (
     ),
   ).toEqual({ status: 'ok' });
 });
+
+test('requires a fast-forward operation only when the capability is declared', async () => {
+  const session = await definition.createSession();
+  expect(
+    validateEmulatorSessionCapabilities(session, {
+      ...definition.emulator.capabilities,
+      fastForward: false,
+    }),
+  ).toEqual({ status: 'ok' });
+  expect(
+    validateEmulatorSessionCapabilities(session, {
+      ...definition.emulator.capabilities,
+      fastForward: true,
+    }),
+  ).toMatchObject({ code: 'unavailable', status: 'error' });
+  expect(
+    validateEmulatorSessionCapabilities(
+      { ...session, setFastForwardActive: async () => ({ status: 'ok' }) },
+      { ...definition.emulator.capabilities, fastForward: true },
+    ),
+  ).toEqual({ status: 'ok' });
+});
