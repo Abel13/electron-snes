@@ -11,6 +11,7 @@ export const IPC_CHANNELS = {
   getHostVersion: 'pixel-core:host-version',
   loadRom: 'pixel-core:load-rom',
   pauseSession: 'pixel-core:pause-session',
+  quitApplication: 'pixel-core:quit-application',
   resumeSession: 'pixel-core:resume-session',
   saveInputProfile: 'pixel-core:save-input-profile',
   saveGlobalPreferences: 'pixel-core:save-global-preferences',
@@ -99,6 +100,7 @@ export interface PixelCoreApi {
   listConsolePlugins(): Promise<ConsolePluginsResponse>;
   loadRom(selectionId: string): Promise<LoadRomResponse>;
   pauseSession(): Promise<SessionCommandResponse>;
+  quitApplication(): Promise<void>;
   resumeSession(): Promise<SessionCommandResponse>;
   saveInputProfile(profile: InputProfile): Promise<InputProfileResponse>;
   saveGlobalPreferences(preferences: GlobalPreferences): Promise<GlobalPreferencesSaveResponse>;
@@ -418,6 +420,9 @@ export const createPixelCoreApi = (
     }
 
     return response;
+  },
+  async quitApplication(): Promise<void> {
+    await invoke(IPC_CHANNELS.quitApplication);
   },
   async loadRom(selectionId: string): Promise<LoadRomResponse> {
     const response = await invoke(IPC_CHANNELS.loadRom, selectionId);

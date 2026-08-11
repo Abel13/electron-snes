@@ -11,6 +11,7 @@ export interface GlobalSettingsMenuCopy {
   readonly close: string;
   readonly closeHint: string;
   readonly confirmHint: string;
+  readonly exit: string;
   readonly language: string;
   readonly muted: string;
   readonly moveHint: string;
@@ -35,6 +36,7 @@ export interface GlobalSettingsMenuProps {
   readonly onAdjust: () => void;
   readonly onClose: () => void;
   readonly onLocaleChange: (locale: string) => void;
+  readonly onExit: () => void;
   readonly onMutedChange: (muted: boolean) => void;
   readonly onNavigate: () => void;
   readonly onVolumeChange: (volume: number) => void;
@@ -42,7 +44,7 @@ export interface GlobalSettingsMenuProps {
 }
 
 export const moveSettingsIndex = (current: number, direction: 'down' | 'up'): number =>
-  Math.max(0, Math.min(2, current + (direction === 'down' ? 1 : -1)));
+  Math.max(0, Math.min(3, current + (direction === 'down' ? 1 : -1)));
 
 export const cycleSettingsOption = (
   current: number,
@@ -69,17 +71,19 @@ export const GlobalSettingsMenu = forwardRef<GlobalSettingsMenuHandle, GlobalSet
       if (index === 0)
         return props.locales.find((locale) => locale.value === props.locale)?.label ?? props.locale;
       if (index === 1) return props.muted ? props.copy.muted : props.copy.soundsOn;
-      return `${Math.round(props.volume * 100)}%`;
+      if (index === 2) return `${Math.round(props.volume * 100)}%`;
+      return props.copy.exit;
     };
     const select = (index: number): void => {
       if (index === selectedIndex) return;
       setSelectedIndex(index);
       setAnnouncement(
-        `${[props.copy.language, props.copy.sounds, props.copy.volume][index]}. ${valueAt(index)}`,
+        `${[props.copy.language, props.copy.sounds, props.copy.volume, props.copy.exit][index]}. ${valueAt(index)}`,
       );
       props.onNavigate();
     };
     const adjust = (direction: 'left' | 'right'): void => {
+      if (selectedIndex === 3) return;
       if (selectedIndex === 0) {
         const current = Math.max(0, props.locales.findIndex((item) => item.value === props.locale));
         const next = props.locales[cycleSettingsOption(current, direction, props.locales.length)];
@@ -92,7 +96,10 @@ export const GlobalSettingsMenu = forwardRef<GlobalSettingsMenuHandle, GlobalSet
       if (direction === 'up' || direction === 'down') select(moveSettingsIndex(selectedIndex, direction));
       else adjust(direction);
     };
-    const confirm = (): void => adjust('right');
+    const confirm = (): void => {
+      if (selectedIndex === 3) props.onExit();
+      else adjust('right');
+    };
 
     useImperativeHandle(ref, () => ({
       back: props.onClose,
@@ -105,6 +112,7 @@ export const GlobalSettingsMenu = forwardRef<GlobalSettingsMenuHandle, GlobalSet
       { label: props.copy.language, value: valueAt(0) },
       { label: props.copy.sounds, value: valueAt(1) },
       { label: props.copy.volume, value: valueAt(2) },
+      { label: props.copy.exit, value: '' },
     ];
 
     return (
@@ -144,13 +152,17 @@ export const GlobalSettingsMenu = forwardRef<GlobalSettingsMenuHandle, GlobalSet
           {rows.map((row, index) => (
             <button
               aria-current={selectedIndex === index ? 'true' : undefined}
-              className={selectedIndex === index ? 'is-selected' : ''}
+                className={`${selectedIndex === index ? 'is-selected' : ''}${index === 3 ? ' is-action' : ''}`}
               key={row.label}
               onClick={() => selectedIndex === index ? confirm() : select(index)}
               type="button"
             >
               <span>{row.label}</span>
-              <strong><i aria-hidden="true">‹</i>{row.value}<i aria-hidden="true">›</i></strong>
+              <strong>
+                {index === 3 ? null : <i aria-hidden="true">‹</i>}
+                {index === 3 ? row.label : row.value}
+                {index === 3 ? null : <i aria-hidden="true">›</i>}
+              </strong>
               {index === 2 ? (
                 <em style={{ '--pc-setting-level': `${props.volume * 100}%` } as React.CSSProperties} />
               ) : null}

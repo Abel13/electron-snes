@@ -5,7 +5,8 @@ describe('global settings navigation', () => {
   it('keeps vertical selection within the menu', () => {
     expect(moveSettingsIndex(0, 'up')).toBe(0);
     expect(moveSettingsIndex(0, 'down')).toBe(1);
-    expect(moveSettingsIndex(2, 'down')).toBe(2);
+    expect(moveSettingsIndex(2, 'down')).toBe(3);
+    expect(moveSettingsIndex(3, 'down')).toBe(3);
   });
   it('cycles declared options', () => {
     expect(cycleSettingsOption(0, 'left', 3)).toBe(2);

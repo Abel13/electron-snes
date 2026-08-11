@@ -230,6 +230,10 @@ app.whenReady().then(() => {
 
     return createHostVersionResponse(app.getVersion());
   });
+  ipcMain.handle(IPC_CHANNELS.quitApplication, (_event, ...payload: unknown[]) => {
+    if (!hasNoIpcPayload(payload)) throw new Error('The quit-application channel takes no payload.');
+    setImmediate(() => app.quit());
+  });
 
   ipcMain.handle(IPC_CHANNELS.selectRom, async (event, ...payload: unknown[]) => {
     if (!hasNoIpcPayload(payload)) {

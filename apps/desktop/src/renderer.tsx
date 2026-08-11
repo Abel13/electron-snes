@@ -34,6 +34,7 @@ import {
   ParticleField,
   type ConsoleCarouselHandle,
   type ConsoleLibraryHandle,
+  type EmulatorAmbientPalette,
   type GlobalSettingsMenuHandle,
   type InputMappingSettingsHandle,
 } from '@platform/ui';
@@ -110,7 +111,51 @@ const defaultGlobalPreferences = createDefaultGlobalPreferences(navigator.langua
 type ProductStatus = 'error' | 'loading' | 'paused' | 'ready' | 'running' | 'starting' | 'stopped';
 type AppScreen = 'home' | 'library';
 
-const App = (): React.JSX.Element => {
+interface PixelCoreBatteryManager extends EventTarget {
+  readonly charging: boolean;
+  readonly level: number;
+}
+
+const SystemStatus = (): React.JSX.Element => {
+  const [now, setNow] = useState(() => new Date());
+  const [battery, setBattery] = useState<{ charging: boolean; level: number }>();
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 30_000);
+    const navigatorWithBattery = navigator as Navigator & {
+      getBattery?: () => Promise<PixelCoreBatteryManager>;
+    };
+    let manager: PixelCoreBatteryManager | undefined;
+    const updateBattery = (): void => {
+      if (manager === undefined) return;
+      setBattery({ charging: manager.charging, level: Math.round(manager.level * 100) });
+    };
+    void navigatorWithBattery.getBattery?.().then((resolved) => {
+      manager = resolved;
+      updateBattery();
+      manager.addEventListener('chargingchange', updateBattery);
+      manager.addEventListener('levelchange', updateBattery);
+    });
+    return () => {
+      window.clearInterval(timer);
+      manager?.removeEventListener('chargingchange', updateBattery);
+      manager?.removeEventListener('levelchange', updateBattery);
+    };
+  }, []);
+  const time = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return (
+    <aside className="pc-system-status" aria-label={`${time}${battery === undefined ? '' : `, ${battery.level}%`}`}>
+      <time dateTime={now.toISOString()}>{time}</time>
+      {battery === undefined ? null : (
+        <span className="pc-system-battery" title={`${battery.level}%`}>
+          <i aria-hidden="true"><b style={{ width: `${battery.level}%` }} /></i>
+          <small>{battery.charging ? '+' : ''}{battery.level}%</small>
+        </span>
+      )}
+    </aside>
+  );
+};
+
+const ProductApp = (): React.JSX.Element => {
   const { t } = useTranslation();
   const [frame, setFrame] = useState<SessionVideoFrame>();
   const [message, setMessage] = useState(t('sessionReady'));
@@ -118,6 +163,7 @@ const App = (): React.JSX.Element => {
   const [startupVisible, setStartupVisible] = useState(true);
   const [screen, setScreen] = useState<AppScreen>('home');
   const [globalSettingsOpen, setGlobalSettingsOpen] = useState(false);
+  const [exitConfirmationOpen, setExitConfirmationOpen] = useState(false);
   const [inputPromptScheme, setInputPromptScheme] = useState<InputPromptScheme>('desktop');
   const [availableConsoleIds, setAvailableConsoleIds] = useState<readonly string[]>([]);
   const [games, setGames] = useState<readonly LibraryGame[]>([]);
@@ -145,6 +191,9 @@ const App = (): React.JSX.Element => {
   const consoleLibrary = useRef<ConsoleLibraryHandle>(null);
   const globalSettings = useRef<GlobalSettingsMenuHandle>(null);
   const inputMappingSettings = useRef<InputMappingSettingsHandle>(null);
+  const sessionScreen = useRef<HTMLDivElement>(null);
+  const exitWasRunning = useRef(false);
+  const exitConfirmationOpenRef = useRef(false);
   const skipGlobalPreferencesSave = useRef(true);
 
   const consoles = useMemo(
@@ -158,6 +207,16 @@ const App = (): React.JSX.Element => {
   );
 
   const selectedGame = games.find((game) => game.id === selectedGameId) ?? games[0];
+  const selectedInputDevice = devices.find(
+    (device) => device.fingerprint === profile?.deviceFingerprint,
+  );
+  const sessionInputPromptScheme =
+    profile?.deviceFingerprint === 'keyboard:standard'
+      ? 'desktop'
+      : classifyGamepadPromptScheme(selectedInputDevice?.label ?? '');
+  const sessionInputLabel =
+    selectedInputDevice?.label ??
+    (profile?.deviceFingerprint === 'keyboard:standard' ? 'Keyboard' : 'Gamepad');
 
   const setGlobalSettings = (open: boolean): void => {
     globalSettingsOpenRef.current = open;
@@ -188,6 +247,9 @@ const App = (): React.JSX.Element => {
   useEffect(() => {
     screenRef.current = screen;
   }, [screen]);
+  useEffect(() => {
+    exitConfirmationOpenRef.current = exitConfirmationOpen;
+  }, [exitConfirmationOpen]);
   useEffect(() => {
     profileRef.current = profile;
   }, [profile]);
@@ -349,6 +411,8 @@ const App = (): React.JSX.Element => {
     let previousNavigation = new Set<NormalizedInputAction>();
     let previousCapture = new Set<number>();
     let previousCaptureDevice = '';
+    let previousSessionMenu = false;
+    let previousSessionButtons = new Set<number>();
     const poll = (): void => {
       const discovered = discovery.discover();
       const deviceSignature = discovered
@@ -469,6 +533,31 @@ const App = (): React.JSX.Element => {
           }
           previousNavigation = currentNavigation;
         }
+        const sessionMenuPressed = selectedSnapshot?.buttons[9]?.pressed === true;
+        if (
+          (statusRef.current === 'running' || statusRef.current === 'paused') &&
+          sessionMenuPressed &&
+          !previousSessionMenu &&
+          !exitConfirmationOpenRef.current
+        )
+          void runAction(statusRef.current === 'paused' ? 'resume' : 'pause');
+        previousSessionMenu = sessionMenuPressed;
+        const sessionButtons = new Set(
+          selectedSnapshot === null || selectedSnapshot === undefined
+            ? []
+            : readPressedGamepadButtons(selectedSnapshot),
+        );
+        const sessionButtonEdges = [...sessionButtons].filter(
+          (index) => !previousSessionButtons.has(index),
+        );
+        if (statusRef.current === 'paused') {
+          if (exitConfirmationOpenRef.current) {
+            if (sessionButtonEdges.includes(0)) void cancelSessionExit();
+            else if (sessionButtonEdges.includes(1)) void confirmSessionExit();
+          } else if (sessionButtonEdges.includes(0)) void runAction('resume');
+          else if (sessionButtonEdges.includes(1)) void requestSessionExit();
+        }
+        previousSessionButtons = sessionButtons;
         const mapped =
           deviceId === undefined
             ? []
@@ -521,6 +610,12 @@ const App = (): React.JSX.Element => {
       const keyboardHandled = keyboard.current.handle({ code: event.code, editable, pressed });
       platformKeyboard.current.handle({ code: event.code, editable, pressed });
       if (statusRef.current === 'running' || statusRef.current === 'paused') {
+        if (pressed && event.code === 'Escape') {
+          event.preventDefault();
+          if (exitConfirmationOpenRef.current) void cancelSessionExit();
+          else void runAction(statusRef.current === 'paused' ? 'resume' : 'pause');
+          return;
+        }
         if (keyboardHandled) event.preventDefault();
         return;
       }
@@ -708,6 +803,28 @@ const App = (): React.JSX.Element => {
     }
   };
 
+  const requestSessionExit = async (): Promise<void> => {
+    exitWasRunning.current = statusRef.current === 'running';
+    if (exitWasRunning.current) await runAction('pause');
+    setExitConfirmationOpen(true);
+  };
+  const cancelSessionExit = async (): Promise<void> => {
+    setExitConfirmationOpen(false);
+    if (exitWasRunning.current) await runAction('resume');
+  };
+  const confirmSessionExit = async (): Promise<void> => {
+    setExitConfirmationOpen(false);
+    await runAction('stop');
+  };
+  const applyAmbientPalette = (palette: EmulatorAmbientPalette): void => {
+    const element = sessionScreen.current;
+    if (element === null || statusRef.current === 'paused') return;
+    element.style.setProperty('--ambient-top', palette.top);
+    element.style.setProperty('--ambient-right', palette.right);
+    element.style.setProperty('--ambient-bottom', palette.bottom);
+    element.style.setProperty('--ambient-left', palette.left);
+  };
+
   if (startupVisible) {
     return (
       <main className="pc-startup" aria-label="PixelCore">
@@ -740,16 +857,34 @@ const App = (): React.JSX.Element => {
 
   if (status === 'running' || status === 'paused' || status === 'starting') {
     return (
-      <InputPromptProvider assetMap={kenneyInputPromptAssets} scheme={inputPromptScheme}>
+      <InputPromptProvider assetMap={kenneyInputPromptAssets} scheme={sessionInputPromptScheme}>
         <main className="pc-session-view">
-          <ParticleField />
+          <img
+            alt=""
+            aria-hidden="true"
+            className="pc-session-artwork-background"
+            src={selectedGame?.artworkDataUrl ?? defaultArtworkUrl}
+          />
           <header className="pc-session-header">
             <button
               className="pc-ghost-button"
-              onClick={() => void runAction('stop')}
+              onClick={() => void requestSessionExit()}
               type="button"
             >
-              <Icon name="archive" /> {t('backLibrary')}
+              <Icon name="archive" /> {t('stop')}
+            </button>
+            <h1>{selectedGame?.name ?? message}</h1>
+            <span className="pc-session-controller" aria-label={sessionInputLabel} title={sessionInputLabel}>
+              <InputPrompt action="navigate-all" label={sessionInputLabel} />
+              <small>{sessionInputLabel}</small>
+            </span>
+            <button
+              className="pc-session-pause-button"
+              disabled={status === 'starting'}
+              onClick={() => void runAction(status === 'paused' ? 'resume' : 'pause')}
+              type="button"
+            >
+              {t(status === 'paused' ? 'resume' : 'pause')}
             </button>
             <span className={`pc-status pc-status-${status}`}>
               <i />{' '}
@@ -763,52 +898,39 @@ const App = (): React.JSX.Element => {
             </span>
           </header>
           <section className="pc-session-stage">
-            <div className="pc-session-screen">
-              <EmulatorVideoCanvas {...(frame === undefined ? {} : { frame })} label={message} />
+            <div
+              className={`pc-session-screen${status === 'paused' ? ' is-paused' : ''}`}
+              ref={sessionScreen}
+            >
+              <EmulatorVideoCanvas
+                {...(frame === undefined ? {} : { frame })}
+                label={message}
+                onAmbientPalette={applyAmbientPalette}
+              />
             </div>
-            <aside className="pc-session-panel">
-              <p className="pc-eyebrow">{t('nowPlaying')}</p>
-              <h1>{selectedGame?.name ?? message}</h1>
-              <p>{message}</p>
-              <div className="pc-session-actions">
-                {status === 'paused' ? (
-                  <button
-                    className="pc-primary-button"
-                    onClick={() => void runAction('resume')}
-                    type="button"
-                  >
-                    <Icon name="gamepad" /> {t('resume')}
-                  </button>
-                ) : (
-                  <button
-                    className="pc-primary-button"
-                    disabled={status !== 'running'}
-                    onClick={() => void runAction('pause')}
-                    type="button"
-                  >
-                    {t('pause')}
-                  </button>
-                )}
-                <button
-                  className="pc-ghost-button"
-                  onClick={() => void runAction('stop')}
-                  type="button"
-                >
-                  {t('stop')}
+            {status === 'paused' && !exitConfirmationOpen ? (
+              <div className="pc-session-overlay" role="dialog" aria-modal="true">
+                <strong>{t('statusPaused')}</strong>
+                <button className="pc-primary-button" onClick={() => void runAction('resume')} type="button">
+                  <Icon name="gamepad" /> {t('continuePlaying')}
                 </button>
+                <InputPromptGroup actions={['primary', 'secondary']} label={t('gameControls')} />
               </div>
-              <div className="pc-control-hint">
-                <span>
-                  <InputPrompt action="navigate-all" label={t('settingsMoveHint')} />
-                </span>
-                <span>
-                  <InputPromptGroup actions={['primary', 'secondary']} label={t('gameControls')} />
-                </span>
-                <span>
-                  <InputPromptGroup actions={['start', 'select']} label={t('gameControls')} />
-                </span>
+            ) : null}
+            {exitConfirmationOpen ? (
+              <div className="pc-session-overlay pc-session-exit" role="alertdialog" aria-modal="true">
+                <strong>{t('exitQuestion')}</strong>
+                <div>
+                  <button className="pc-primary-button" onClick={() => void cancelSessionExit()} type="button">
+                    {t('continuePlaying')}
+                  </button>
+                  <button className="pc-ghost-button" onClick={() => void confirmSessionExit()} type="button">
+                    {t('exitToLibrary')}
+                  </button>
+                </div>
+                <InputPromptGroup actions={['primary', 'secondary']} label={t('gameControls')} />
               </div>
-            </aside>
+            ) : null}
           </section>
         </main>
       </InputPromptProvider>
@@ -870,6 +992,7 @@ const App = (): React.JSX.Element => {
                 close: t('close'),
                 closeHint: t('settingsCloseHint'),
                 confirmHint: t('settingsConfirmHint'),
+                exit: t('exitApplication'),
                 language: t('interfaceLanguage'),
                 muted: t('muted'),
                 moveHint: t('settingsMoveHint'),
@@ -892,6 +1015,7 @@ const App = (): React.JSX.Element => {
                 setPreferenceLocale(supportedLocale);
                 void setLocale(supportedLocale as SupportedLocale);
               }}
+              onExit={() => void window.pixelCore.quitApplication()}
               onMutedChange={setUiAudioMuted}
               onNavigate={() => uiAudio.play('focus')}
               onVolumeChange={setUiAudioVolume}
@@ -1026,4 +1150,9 @@ const App = (): React.JSX.Element => {
 
 const root = document.getElementById('root');
 if (root === null) throw new Error('PixelCore renderer root is missing.');
-createRoot(root).render(<App />);
+createRoot(root).render(
+  <>
+    <ProductApp />
+    <SystemStatus />
+  </>,
+);
