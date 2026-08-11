@@ -221,6 +221,16 @@ importers:
         specifier: workspace:*
         version: link:../../plugins/emulator-cores/sameboy
 
+  packages/plugin-cli:
+    dependencies:
+      '@platform/plugin-sdk':
+        specifier: workspace:*
+        version: link:../plugin-sdk
+    devDependencies:
+      '@types/node':
+        specifier: ^24.0.0
+        version: 24.13.3
+
   packages/plugin-sdk:
     dependencies:
       '@platform/core':
