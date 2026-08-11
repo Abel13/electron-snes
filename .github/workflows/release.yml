@@ -64,10 +64,10 @@ jobs:
         run: |
           $package = 'apps/desktop/release/PixelCore-${{ needs.validate-tag.outputs.version }}-Windows-Store-x64.appx'
           $manifest = [xml](tar -xOf $package AppxManifest.xml)
-          if ($manifest.Package.Identity.Name -ne '42548abeldutra.PixelCore') { throw 'Store identity name does not match Partner Center.' }
+          if ($manifest.Package.Identity.Name -ne '42548abeldutra.PixelCoreGame') { throw 'Store identity name does not match Partner Center.' }
           if ($manifest.Package.Identity.Publisher -ne 'CN=2E06CDBC-D3D8-4686-8A98-B5E634031252') { throw 'Store publisher does not match Partner Center.' }
           if ($manifest.Package.Identity.ProcessorArchitecture -ne 'x64') { throw 'Store package is not x64.' }
-          if ($manifest.Package.Properties.PublisherDisplayName -ne 'Angry Gnar') { throw 'Publisher display name does not match Partner Center.' }
+          if ($manifest.Package.Properties.PublisherDisplayName -ne 'Abel Dutra UI') { throw 'Publisher display name does not match Partner Center.' }
       - name: Upload Store submission artifact
         uses: actions/upload-artifact@v7
         with:
