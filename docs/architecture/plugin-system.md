@@ -22,6 +22,9 @@ Fixtures versionadas de contratos em `@platform/plugin-sdk` cobrem manifestos
 válidos, inativos e inválidos sem criar plugins executáveis. Consulte
 `plugin-contract-fixtures.md`.
 
+Definições completas usam o runner neutro `@platform/plugin-test` depois que manifesto
+e compatibilidade passam. Consulte `plugin-contract-runner.md`.
+
 ## Tipos
 
 `console`, `emulator-core`, `controller`, `game-metadata`, `theme`, `integration`.
