@@ -2,12 +2,15 @@ import { err, ok, type JsonStoragePort, type Result } from '@platform/core';
 
 export const SUPPORTED_LOCALES = ['en-US', 'pt-BR', 'zh-CN'] as const;
 export type GlobalPreferenceLocale = (typeof SUPPORTED_LOCALES)[number];
+export const TELEMETRY_CONSENT_VALUES = ['undecided', 'declined', 'granted'] as const;
+export type TelemetryConsent = (typeof TELEMETRY_CONSENT_VALUES)[number];
 
 export interface GlobalPreferences {
   readonly locale: GlobalPreferenceLocale;
+  readonly telemetryConsent: TelemetryConsent;
   readonly uiAudioMuted: boolean;
   readonly uiAudioVolume: number;
-  readonly version: 1;
+  readonly version: 2;
 }
 
 export interface LegacyPreferenceStorage {
@@ -29,9 +32,10 @@ export const isSupportedLocale = (value: unknown): value is GlobalPreferenceLoca
 
 export const isGlobalPreferences = (value: unknown): value is GlobalPreferences =>
   isRecord(value) &&
-  Object.keys(value).length === 4 &&
-  value['version'] === 1 &&
+  Object.keys(value).length === 5 &&
+  value['version'] === 2 &&
   isSupportedLocale(value['locale']) &&
+  TELEMETRY_CONSENT_VALUES.some((consent) => consent === value['telemetryConsent']) &&
   typeof value['uiAudioMuted'] === 'boolean' &&
   typeof value['uiAudioVolume'] === 'number' &&
   Number.isFinite(value['uiAudioVolume']) &&
@@ -48,9 +52,10 @@ export const resolveSystemLocale = (locale: string): GlobalPreferenceLocale => {
 
 export const createDefaultGlobalPreferences = (systemLocale: string): GlobalPreferences => ({
   locale: resolveSystemLocale(systemLocale),
+  telemetryConsent: 'undecided',
   uiAudioMuted: false,
   uiAudioVolume: 0.22,
-  version: 1,
+  version: 2,
 });
 
 export const readLegacyGlobalPreferences = (
@@ -66,12 +71,13 @@ export const readLegacyGlobalPreferences = (
     keys: LEGACY_GLOBAL_PREFERENCE_KEYS.filter((key) => storage.getItem(key) !== null),
     preferences: {
       locale: isSupportedLocale(locale) ? locale : defaults.locale,
+      telemetryConsent: 'undecided',
       uiAudioMuted: muted === 'true' ? true : muted === 'false' ? false : defaults.uiAudioMuted,
       uiAudioVolume:
         Number.isFinite(parsedVolume) && parsedVolume >= 0 && parsedVolume <= 1
           ? parsedVolume
           : defaults.uiAudioVolume,
-      version: 1,
+      version: 2,
     },
   };
 };
@@ -92,9 +98,25 @@ export class GlobalPreferencesRepository {
     const loaded = await this.storage.read('user-preferences', 'global');
     if (!loaded.ok) return loaded;
     if (loaded.value === undefined) return ok(undefined);
-    return isGlobalPreferences(loaded.value)
-      ? ok(loaded.value)
-      : err({ code: 'invalid-input', message: 'Stored global preferences are invalid.' });
+    if (isGlobalPreferences(loaded.value)) return ok(loaded.value);
+    if (
+      isRecord(loaded.value) &&
+      loaded.value['version'] === 1 &&
+      isSupportedLocale(loaded.value['locale']) &&
+      typeof loaded.value['uiAudioMuted'] === 'boolean' &&
+      typeof loaded.value['uiAudioVolume'] === 'number' &&
+      Number.isFinite(loaded.value['uiAudioVolume']) &&
+      loaded.value['uiAudioVolume'] >= 0 &&
+      loaded.value['uiAudioVolume'] <= 1
+    )
+      return ok({
+        locale: loaded.value['locale'],
+        telemetryConsent: 'undecided',
+        uiAudioMuted: loaded.value['uiAudioMuted'],
+        uiAudioVolume: loaded.value['uiAudioVolume'],
+        version: 2,
+      });
+    return err({ code: 'invalid-input', message: 'Stored global preferences are invalid.' });
   }
 
   public save(preferences: GlobalPreferences): Promise<Result<void>> {
@@ -105,6 +127,7 @@ export class GlobalPreferencesRepository {
     const operation = this.writes.then(() =>
       this.storage.write('user-preferences', 'global', {
         locale: preferences.locale,
+        telemetryConsent: preferences.telemetryConsent,
         uiAudioMuted: preferences.uiAudioMuted,
         uiAudioVolume: preferences.uiAudioVolume,
         version: preferences.version,

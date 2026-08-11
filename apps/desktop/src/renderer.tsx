@@ -207,6 +207,9 @@ const ProductApp = (): React.JSX.Element => {
   );
   const [uiAudioMuted, setUiAudioMuted] = useState(defaultGlobalPreferences.uiAudioMuted);
   const [uiAudioVolume, setUiAudioVolume] = useState(defaultGlobalPreferences.uiAudioVolume);
+  const [telemetryConsent, setTelemetryConsent] = useState(
+    defaultGlobalPreferences.telemetryConsent,
+  );
   const [globalPreferencesReady, setGlobalPreferencesReady] = useState(false);
   const [globalPreferencesWarning, setGlobalPreferencesWarning] = useState(false);
   const [updateState, setUpdateState] = useState<UpdateState>({
@@ -340,9 +343,10 @@ const ProductApp = (): React.JSX.Element => {
     }
     const preferences: GlobalPreferences = {
       locale: preferenceLocale,
+      telemetryConsent,
       uiAudioMuted,
       uiAudioVolume,
-      version: 1,
+      version: 2,
     };
     void window.pixelCore.saveGlobalPreferences(preferences).then((response) => {
       if (response.status === 'error') {
@@ -352,7 +356,7 @@ const ProductApp = (): React.JSX.Element => {
         setGlobalPreferencesWarning(true);
       } else setGlobalPreferencesWarning(false);
     });
-  }, [globalPreferencesReady, preferenceLocale, uiAudioMuted, uiAudioVolume]);
+  }, [globalPreferencesReady, preferenceLocale, telemetryConsent, uiAudioMuted, uiAudioVolume]);
 
   useEffect(() => {
     void window.pixelCore
@@ -386,6 +390,7 @@ const ProductApp = (): React.JSX.Element => {
         setPreferenceLocale(preferences.locale);
         setUiAudioMuted(preferences.uiAudioMuted);
         setUiAudioVolume(preferences.uiAudioVolume);
+        setTelemetryConsent(preferences.telemetryConsent);
         uiAudio.setPreferences({
           muted: preferences.uiAudioMuted,
           volume: preferences.uiAudioVolume,
