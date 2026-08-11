@@ -86,6 +86,10 @@ class SameBoyWorkerSession implements EmulatorSession {
     );
   }
 
+  setRewindActive(active: boolean): Promise<EmulatorOperationResult> {
+    return this.request({ active, type: 'set-rewind-active' });
+  }
+
   setInput(input: EmulatorInput): Promise<EmulatorOperationResult> {
     return this.request({ input, type: 'set-input' });
   }

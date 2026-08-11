@@ -7,7 +7,7 @@ export const sameBoyEmulator = defineEmulator({
   emulator: {
     capabilities: {
       fastForward: false,
-      rewind: false,
+      rewind: true,
       saveStates: true,
     },
     compatibleConsoleIds: ['org.pixelcore.game-boy-family'],
