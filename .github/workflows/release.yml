@@ -78,6 +78,7 @@ jobs:
   package-macos:
     name: Package macOS
     needs: validate-tag
+    environment: release
     runs-on: macos-latest
     timeout-minutes: 40
     steps:
