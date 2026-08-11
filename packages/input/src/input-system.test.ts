@@ -15,7 +15,15 @@ import {
   GamepadPromptActivityTracker,
   classifyGamepadPromptScheme,
 } from './input-prompt-scheme.js';
-import { DEFAULT_KEYBOARD_BINDINGS, InputProfileRepository } from './input-profiles.js';
+import {
+  DEFAULT_ADVANCED_KEYBOARD_BINDINGS,
+  DEFAULT_KEYBOARD_BINDINGS,
+  InputProfileRepository,
+  gamepadButtonForAdvancedCommand,
+  keyboardCodeForAdvancedCommand,
+  rebindAdvancedGamepad,
+  rebindAdvancedKeyboard,
+} from './input-profiles.js';
 import { KeyboardInputAdapter, isCapturableKeyboardInput } from './keyboard-adapter.js';
 import { PlayerAssignmentManager } from './player-assignment.js';
 import { UniversalInputRuntime } from './runtime.js';
@@ -211,13 +219,15 @@ describe('universal input', () => {
     const storage = new MemoryStorage();
     const repository = new InputProfileRepository(storage);
     const profile = {
+      advancedGamepadBindings: [],
+      advancedKeyboardBindings: DEFAULT_ADVANCED_KEYBOARD_BINDINGS,
       deviceFingerprint: 'keyboard:standard',
       gamepadBindings: [],
       id: 'default',
-      keyboardBindings: DEFAULT_KEYBOARD_BINDINGS,
+      keyboardBindings: DEFAULT_KEYBOARD_BINDINGS.map((binding) => ({ ...binding })),
       mapping,
       name: 'Default',
-      version: 3,
+      version: 4,
     } as const;
     await expect(repository.save(profile)).resolves.toEqual({ ok: true, value: undefined });
     await expect(repository.load('default')).resolves.toEqual({ ok: true, value: profile });
@@ -237,14 +247,52 @@ describe('universal input', () => {
       ok: true,
       value: {
         deviceFingerprint: 'keyboard:standard',
+        advancedGamepadBindings: [],
+        advancedKeyboardBindings: DEFAULT_ADVANCED_KEYBOARD_BINDINGS,
         gamepadBindings: [],
         id: 'legacy',
         keyboardBindings: DEFAULT_KEYBOARD_BINDINGS,
         mapping,
         name: 'Legacy',
-        version: 3,
+        version: 4,
       },
     });
+  });
+
+  it('migrates advanced shortcuts and resolves device-specific defaults', async () => {
+    const storage = new MemoryStorage();
+    storage.values.set('user-preferences:input-profile:legacy-advanced', {
+      deviceFingerprint: 'keyboard:standard',
+      gamepadBindings: [],
+      id: 'legacy-advanced',
+      keyboardBindings: DEFAULT_KEYBOARD_BINDINGS.map((binding) => ({ ...binding })),
+      mapping,
+      name: 'Legacy advanced',
+      version: 3,
+    });
+    const result = await new InputProfileRepository(storage).load('legacy-advanced');
+    expect(result.ok).toBe(true);
+    if (!result.ok || result.value === undefined) return;
+    expect(keyboardCodeForAdvancedCommand(result.value, 'rewind')).toBe('KeyQ');
+    expect(keyboardCodeForAdvancedCommand(result.value, 'fast-forward')).toBe('KeyE');
+    expect(gamepadButtonForAdvancedCommand(result.value, 'generic-pad', 'rewind')).toBe(6);
+    expect(gamepadButtonForAdvancedCommand(result.value, 'generic-pad', 'fast-forward')).toBe(7);
+  });
+
+  it('swaps conflicting advanced shortcuts and preserves reserved menu input', () => {
+    expect(rebindAdvancedKeyboard(DEFAULT_ADVANCED_KEYBOARD_BINDINGS, 'rewind', 'KeyE')).toEqual([
+      { code: 'KeyE', command: 'rewind' },
+      { code: 'KeyQ', command: 'fast-forward' },
+    ]);
+    const defaults = [
+      { command: 'rewind' as const, index: 6, kind: 'button' as const },
+      { command: 'fast-forward' as const, index: 7, kind: 'button' as const },
+    ];
+    expect(rebindAdvancedGamepad(defaults, 'rewind', 7)).toEqual([
+      { command: 'rewind', index: 7, kind: 'button' },
+      { command: 'fast-forward', index: 6, kind: 'button' },
+    ]);
+    expect(rebindAdvancedGamepad(defaults, 'rewind', 9)).toBe(defaults);
   });
 
   it('maps and captures physical gamepad buttons with a reserved menu button', () => {

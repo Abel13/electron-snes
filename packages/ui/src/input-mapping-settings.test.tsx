@@ -7,6 +7,9 @@ describe('InputMappingSettings', () => {
   it('renders accessible device and action controls', () => {
     const markup = renderToStaticMarkup(
       <InputMappingSettings
+        advancedBindings={[
+          { command: 'rewind', gamepadIndex: 6, keyboardCode: 'KeyQ', label: 'Rewind' },
+        ]}
         devices={[
           {
             connected: true,
@@ -34,6 +37,8 @@ describe('InputMappingSettings', () => {
     expect(markup).toContain('Portable console blueprint');
     expect(markup).toContain('PRIMARY');
     expect(markup).toContain('Keyboard');
+    expect(markup).toContain('Advanced controls');
+    expect(markup).toContain('Rewind');
     expect(markup).toContain('Choose a device, then confirm to configure its buttons.');
     expect(markup).toContain('aria-current="true"');
     expect(markup).not.toContain('<select');
