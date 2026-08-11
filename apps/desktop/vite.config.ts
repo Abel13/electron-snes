@@ -15,7 +15,12 @@ export default defineConfig({
       apply: 'serve',
       name: 'pixelcore-development-csp',
       transformIndexHtml: (html) =>
-        html.replace("style-src 'self';", "style-src 'self' 'unsafe-inline';"),
+        html
+          .replace("style-src 'self';", "style-src 'self' 'unsafe-inline';")
+          .replace(
+            '<script src="../src/renderer.tsx" type="module"></script>',
+            '<script src="/react-performance-compat.js"></script><script src="../src/renderer.tsx" type="module"></script>',
+          ),
     },
   ],
   server: {
