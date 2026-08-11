@@ -17,6 +17,10 @@ Obrigado por contribuir com a plataforma. Antes de abrir uma pull request (PR), 
 4. Atualize a documentação pública quando alterar SDKs, contratos, configuração ou comportamento observável.
 5. Preencha integralmente o template de PR.
 
+Mudanças em contratos públicos de plugin também devem seguir
+`docs/plugins/api-migration.md`, incluindo classificação de compatibilidade, fixtures e
+instruções de migração quando aplicável.
+
 ## Branches (Git Flow)
 
 As branches permanentes são:

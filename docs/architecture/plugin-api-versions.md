@@ -18,6 +18,9 @@ Additive changes that preserve the public contract retain the current API revisi
 Breaking changes require a new revision, migration guidance, compatibility tests, and
 an ADR when they have architectural impact.
 
+The complete classification, deprecation, support-window, and migration requirements
+are defined in `docs/plugins/api-migration.md`.
+
 ## Compatibility boundary
 
 `assessPluginApiCompatibility` compares an already-parsed plugin API revision with a
