@@ -2995,6 +2995,39 @@ summary:focus-visible {
 .pc-session-overlay > .pc-input-prompt-group {
   opacity: 0.72;
 }
+.pc-save-state-panel {
+  display: grid;
+  width: min(720px, 82vw);
+  gap: 8px;
+}
+.pc-save-state-panel article {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid rgba(83, 231, 239, 0.2);
+  border-radius: 14px;
+  background: rgba(5, 10, 27, 0.82);
+}
+.pc-save-state-panel article div {
+  display: grid;
+  gap: 3px;
+}
+.pc-save-state-panel small {
+  color: var(--pc-text-muted);
+}
+.pc-save-state-panel button {
+  min-width: 82px;
+  padding: 9px 12px;
+  border: 1px solid rgba(83, 231, 239, 0.28);
+  border-radius: 999px;
+  color: var(--pc-text);
+  background: rgba(13, 25, 49, 0.92);
+}
+.pc-save-state-panel button:disabled {
+  opacity: 0.38;
+}
 
 @media (prefers-reduced-motion: reduce) {
   .pc-session-screen {

@@ -12,6 +12,8 @@ import {
   isLibraryResponse,
   isSelectRomResponse,
   isSessionInputPayload,
+  hasSaveStateSlotPayload,
+  isSaveStateListResponse,
 } from './ipc.js';
 
 describe('IPC boundary contracts', () => {
@@ -134,6 +136,18 @@ describe('IPC boundary contracts', () => {
       false,
     );
     expect(isSessionInputPayload({ actions: ['KeyZ'], playerPortId: 'player-one' })).toBe(false);
+  });
+
+  it('validates save-state slots and renderer-safe descriptors', () => {
+    expect(hasSaveStateSlotPayload(['slot-1'])).toBe(true);
+    expect(hasSaveStateSlotPayload(['../../state'])).toBe(false);
+    expect(
+      isSaveStateListResponse({
+        capability: true,
+        slots: [{ sizeBytes: 42, slot: 'slot-1', updatedAt: '2026-08-11T00:00:00.000Z' }],
+        status: 'ok',
+      }),
+    ).toBe(true);
   });
 
   it('accepts renderer-safe library records and rejects filesystem paths', () => {

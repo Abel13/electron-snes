@@ -39,6 +39,7 @@ import {
 } from '@platform/ui';
 import { BrowserUiAudioService } from '@platform/ui-audio';
 import type { LibraryGame, PixelCoreApi, SessionVideoFrame } from './ipc.js';
+import type { SaveStateDescriptor, SaveStateSlot } from '@platform/emulator';
 import { setLocale, type SupportedLocale } from './localization.js';
 import { buildConsoleCatalog } from './console-catalog.js';
 import './renderer.css';
@@ -172,6 +173,7 @@ const ProductApp = (): React.JSX.Element => {
   const [screen, setScreen] = useState<AppScreen>('home');
   const [globalSettingsOpen, setGlobalSettingsOpen] = useState(false);
   const [exitConfirmationOpen, setExitConfirmationOpen] = useState(false);
+  const [saveStateSlots, setSaveStateSlots] = useState<readonly SaveStateDescriptor[]>([]);
   const [inputPromptScheme, setInputPromptScheme] = useState<InputPromptScheme>('desktop');
   const [availableConsoleIds, setAvailableConsoleIds] = useState<readonly string[]>([]);
   const [games, setGames] = useState<readonly LibraryGame[]>([]);
@@ -779,10 +781,26 @@ const ProductApp = (): React.JSX.Element => {
     }
     const next = result.sessionStatus as ProductStatus;
     setStatus(next);
+    if (action === 'pause') {
+      const listed = await window.pixelCore.listSaveStates();
+      if (listed.status === 'ok') setSaveStateSlots(listed.slots);
+    }
     uiAudio.play(action === 'stop' ? 'back' : action);
     if (action === 'stop') {
       setFrame(undefined);
     }
+  };
+  const runSaveStateAction = async (action: 'capture' | 'restore', slot: SaveStateSlot) => {
+    const result =
+      await window.pixelCore[action === 'capture' ? 'captureSaveState' : 'restoreSaveState'](slot);
+    if (result.status === 'error') {
+      setMessage(result.message);
+      uiAudio.play('error');
+      return;
+    }
+    const listed = await window.pixelCore.listSaveStates();
+    if (listed.status === 'ok') setSaveStateSlots(listed.slots);
+    uiAudio.play('success');
   };
   const toggleFavorite = async (game: LibraryGame): Promise<void> => {
     const response = await window.pixelCore.updateFavorite(game.id, !game.favorite);
@@ -920,6 +938,36 @@ const ProductApp = (): React.JSX.Element => {
             {status === 'paused' && !exitConfirmationOpen ? (
               <div className="pc-session-overlay" role="dialog" aria-modal="true">
                 <strong>{t('statusPaused')}</strong>
+                <section className="pc-save-state-panel" aria-label={t('saveStates')}>
+                  {(['slot-1', 'slot-2', 'slot-3'] as const).map((slot, index) => {
+                    const saved = saveStateSlots.find((entry) => entry.slot === slot);
+                    return (
+                      <article key={slot}>
+                        <div>
+                          <b>{t('saveSlot', { number: index + 1 })}</b>
+                          <small>
+                            {saved === undefined
+                              ? t('emptySlot')
+                              : new Date(saved.updatedAt).toLocaleString()}
+                          </small>
+                        </div>
+                        <button
+                          onClick={() => void runSaveStateAction('capture', slot)}
+                          type="button"
+                        >
+                          {t('saveState')}
+                        </button>
+                        <button
+                          disabled={saved === undefined}
+                          onClick={() => void runSaveStateAction('restore', slot)}
+                          type="button"
+                        >
+                          {t('loadState')}
+                        </button>
+                      </article>
+                    );
+                  })}
+                </section>
                 <button
                   className="pc-primary-button"
                   onClick={() => void runAction('resume')}

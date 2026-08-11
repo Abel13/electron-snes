@@ -111,4 +111,18 @@ describe('EmulatorSessionController', () => {
 
     expect(session.setInput).toHaveBeenCalledWith(input);
   });
+
+  it('gates save-state operations through the declared capability', async () => {
+    const session = createSession();
+    const controller = new EmulatorSessionController(createPlugin(session));
+    await controller.launch(rom);
+    await expect(controller.captureSaveState()).resolves.toMatchObject({ code: 'unavailable' });
+    await expect(
+      controller.restoreSaveState({
+        bytes: new Uint8Array([1]),
+        coreId: 'org.pixelcore.test-emulator',
+        formatVersion: 1,
+      }),
+    ).resolves.toMatchObject({ code: 'unavailable' });
+  });
 });

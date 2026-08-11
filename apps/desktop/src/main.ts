@@ -7,6 +7,7 @@ import { createHash, randomUUID } from 'node:crypto';
 
 import { createSecureWindowOptions } from './electron-security.js';
 import { InputProfileRepository } from '@platform/input';
+import { SaveStateRepository } from '@platform/emulator';
 import { LocalGameLibrary } from '@platform/library';
 import type { LocalGame } from '@platform/library';
 import {
@@ -24,6 +25,7 @@ import {
   hasNoIpcPayload,
   hasInputProfilePayload,
   hasRomSelectionIdPayload,
+  hasSaveStateSlotPayload,
   hasSessionInputPayload,
 } from './ipc.js';
 import { JsonFileStorage } from './json-file-storage.js';
@@ -32,6 +34,7 @@ import { loadSelectedRom } from './rom-loader.js';
 import { createRomSelectionStore } from './rom-selection.js';
 import { createDesktopSessionHost } from './session-host.js';
 import { CartridgeSaveStore } from './cartridge-save-store.js';
+import { BinaryFileStorage } from './binary-file-storage.js';
 
 const { app, BrowserWindow, dialog, ipcMain } = electron;
 
@@ -79,6 +82,9 @@ app.whenReady().then(() => {
   const artworkDirectory = join(app.getPath('userData'), 'artwork');
   const cartridgeSaves = new CartridgeSaveStore(
     join(app.getPath('userData'), 'saves', 'cartridge'),
+  );
+  const saveStates = new SaveStateRepository(
+    new BinaryFileStorage(join(app.getPath('userData'), 'saves', 'states')),
   );
   const preferencesStorage = new JsonFileStorage(join(app.getPath('userData'), 'preferences.json'));
   const inputProfiles = new InputProfileRepository(preferencesStorage);
@@ -314,8 +320,18 @@ app.whenReady().then(() => {
   });
 
   const sessionHost = createDesktopSessionHost(officialEmulator, {
+    listSaveStates: async (gameId) => {
+      const result = await saveStates.list(gameId);
+      if (!result.ok) throw new Error(result.error.message);
+      return result.value;
+    },
     loadCartridgeSave: (key) => cartridgeSaves.read(key),
     persistCartridgeSave: (key, bytes) => cartridgeSaves.write(key, bytes),
+    readSaveState: async (gameId, slot) => {
+      const result = await saveStates.read(gameId, slot);
+      if (!result.ok) throw new Error(result.error.message);
+      return result.value;
+    },
     sendAudio: (frame) =>
       mainWindow?.webContents.send(SESSION_EVENT_CHANNELS.audio, {
         channels: frame.channels,
@@ -328,6 +344,10 @@ app.whenReady().then(() => {
         pixels: frame.pixels.buffer,
         width: frame.width,
       }),
+    writeSaveState: async (gameId, slot, state) => {
+      const result = await saveStates.write(gameId, slot, state);
+      if (!result.ok) throw new Error(result.error.message);
+    },
   });
   stopActiveSession = async () => {
     await sessionHost.stop();
@@ -353,7 +373,11 @@ app.whenReady().then(() => {
     const loaded = await loadSelectedRom(selection.id, romSelections, readFile);
     if (loaded.status !== 'loaded')
       return { code: loaded.code, message: loaded.message, status: 'error' };
-    const launched = await sessionHost.launch(loaded.rom, identifyRom(loaded.rom.bytes));
+    const launched = await sessionHost.launch(
+      loaded.rom,
+      identifyRom(loaded.rom.bytes),
+      game.value.id,
+    );
     if (launched.status === 'ok') await library.markPlayed(game.value.id);
     return launched;
   });
@@ -380,6 +404,27 @@ app.whenReady().then(() => {
       throw new Error('The session input references an unavailable console action.');
     return sessionHost.setInput(payload[0].playerPortId, payload[0].actions);
   });
+
+  ipcMain.handle(IPC_CHANNELS.listSaveStates, async (_event, ...payload: unknown[]) => {
+    if (!hasNoIpcPayload(payload))
+      throw new Error('The save-state list does not accept a payload.');
+    return sessionHost.listSaveStates();
+  });
+  for (const [channel, action] of [
+    [
+      IPC_CHANNELS.captureSaveState,
+      (slot: import('@platform/emulator').SaveStateSlot) => sessionHost.captureSaveState(slot),
+    ],
+    [
+      IPC_CHANNELS.restoreSaveState,
+      (slot: import('@platform/emulator').SaveStateSlot) => sessionHost.restoreSaveState(slot),
+    ],
+  ] as const) {
+    ipcMain.handle(channel, async (_event, ...payload: unknown[]) => {
+      if (!hasSaveStateSlotPayload(payload)) throw new Error(`${channel} requires one valid slot.`);
+      return action(payload[0]);
+    });
+  }
 
   for (const [channel, action] of [
     [IPC_CHANNELS.pauseSession, () => sessionHost.pause()],

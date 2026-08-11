@@ -1,6 +1,7 @@
 import type { ConsoleInputMapping, InputProfile } from '@platform/input';
 import { validateConsoleInputMapping, validateInputProfile } from '@platform/input';
 import { isGlobalPreferences, type GlobalPreferences } from './global-preferences.js';
+import { SAVE_STATE_SLOTS, type SaveStateDescriptor, type SaveStateSlot } from '@platform/emulator';
 
 export const IPC_CHANNELS = {
   importGame: 'pixel-core:import-game',
@@ -10,9 +11,12 @@ export const IPC_CHANNELS = {
   getGlobalPreferences: 'pixel-core:get-global-preferences',
   getHostVersion: 'pixel-core:host-version',
   loadRom: 'pixel-core:load-rom',
+  listSaveStates: 'pixel-core:list-save-states',
   pauseSession: 'pixel-core:pause-session',
   quitApplication: 'pixel-core:quit-application',
   resumeSession: 'pixel-core:resume-session',
+  captureSaveState: 'pixel-core:capture-save-state',
+  restoreSaveState: 'pixel-core:restore-save-state',
   saveInputProfile: 'pixel-core:save-input-profile',
   saveGlobalPreferences: 'pixel-core:save-global-preferences',
   selectGameArtwork: 'pixel-core:select-game-artwork',
@@ -98,10 +102,13 @@ export interface PixelCoreApi {
   importGame(): Promise<ImportGameResponse>;
   listLibrary(): Promise<LibraryResponse>;
   listConsolePlugins(): Promise<ConsolePluginsResponse>;
+  listSaveStates(): Promise<SaveStateListResponse>;
   loadRom(selectionId: string): Promise<LoadRomResponse>;
   pauseSession(): Promise<SessionCommandResponse>;
+  captureSaveState(slot: SaveStateSlot): Promise<SessionCommandResponse>;
   quitApplication(): Promise<void>;
   resumeSession(): Promise<SessionCommandResponse>;
+  restoreSaveState(slot: SaveStateSlot): Promise<SessionCommandResponse>;
   saveInputProfile(profile: InputProfile): Promise<InputProfileResponse>;
   saveGlobalPreferences(preferences: GlobalPreferences): Promise<GlobalPreferencesSaveResponse>;
   selectGameArtwork(gameId: string): Promise<LibraryMutationResponse>;
@@ -147,6 +154,23 @@ export interface SessionInputPayload {
   readonly actions: readonly string[];
   readonly playerPortId: string;
 }
+
+export type SaveStateListResponse =
+  | {
+      readonly capability: true;
+      readonly slots: readonly SaveStateDescriptor[];
+      readonly status: 'ok';
+    }
+  | {
+      readonly code: 'invalid-state' | 'unavailable' | 'unexpected';
+      readonly message: string;
+      readonly status: 'error';
+    };
+
+export const hasSaveStateSlotPayload = (
+  payload: readonly unknown[],
+): payload is readonly [SaveStateSlot] =>
+  payload.length === 1 && SAVE_STATE_SLOTS.includes(payload[0] as SaveStateSlot);
 
 export interface InputConfigurationResponse {
   readonly mapping: ConsoleInputMapping;
@@ -317,6 +341,23 @@ export const isSessionCommandResponse = (value: unknown): value is SessionComman
         value['code'] === 'unexpected') &&
       typeof value['message'] === 'string'));
 
+export const isSaveStateListResponse = (value: unknown): value is SaveStateListResponse =>
+  isRecord(value) &&
+  ((value['status'] === 'error' &&
+    typeof value['message'] === 'string' &&
+    ['invalid-state', 'unavailable', 'unexpected'].includes(String(value['code']))) ||
+    (value['status'] === 'ok' &&
+      value['capability'] === true &&
+      Array.isArray(value['slots']) &&
+      value['slots'].every(
+        (slot) =>
+          isRecord(slot) &&
+          Object.keys(slot).length === 3 &&
+          SAVE_STATE_SLOTS.includes(slot['slot'] as SaveStateSlot) &&
+          typeof slot['sizeBytes'] === 'number' &&
+          typeof slot['updatedAt'] === 'string',
+      )));
+
 export const isInputConfigurationResponse = (
   value: unknown,
 ): value is InputConfigurationResponse => {
@@ -406,6 +447,11 @@ export const createPixelCoreApi = (
       throw new Error('Received an invalid console plugin response.');
     return response;
   },
+  async listSaveStates(): Promise<SaveStateListResponse> {
+    const response = await invoke(IPC_CHANNELS.listSaveStates);
+    if (!isSaveStateListResponse(response)) throw new Error('Received an invalid save-state list.');
+    return response;
+  },
   async getInputConfiguration(): Promise<InputConfigurationResponse> {
     const response = await invoke(IPC_CHANNELS.getInputConfiguration);
     if (!isInputConfigurationResponse(response))
@@ -475,10 +521,22 @@ export const createPixelCoreApi = (
       throw new Error('Received an invalid session response.');
     return response;
   },
+  async captureSaveState(slot: SaveStateSlot): Promise<SessionCommandResponse> {
+    const response = await invoke(IPC_CHANNELS.captureSaveState, slot);
+    if (!isSessionCommandResponse(response))
+      throw new Error('Received an invalid save-state response.');
+    return response;
+  },
   async resumeSession(): Promise<SessionCommandResponse> {
     const response = await invoke(IPC_CHANNELS.resumeSession);
     if (!isSessionCommandResponse(response))
       throw new Error('Received an invalid session response.');
+    return response;
+  },
+  async restoreSaveState(slot: SaveStateSlot): Promise<SessionCommandResponse> {
+    const response = await invoke(IPC_CHANNELS.restoreSaveState, slot);
+    if (!isSessionCommandResponse(response))
+      throw new Error('Received an invalid save-state response.');
     return response;
   },
   async selectRom(): Promise<SelectRomResponse> {
