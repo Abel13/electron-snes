@@ -10,7 +10,8 @@ describe('global settings navigation', () => {
     expect(moveSettingsIndex(0, 'up')).toBe(0);
     expect(moveSettingsIndex(0, 'down')).toBe(1);
     expect(moveSettingsIndex(2, 'down')).toBe(3);
-    expect(moveSettingsIndex(3, 'down')).toBe(3);
+    expect(moveSettingsIndex(3, 'down')).toBe(4);
+    expect(moveSettingsIndex(4, 'down')).toBe(4);
   });
   it('cycles declared options', () => {
     expect(cycleSettingsOption(0, 'left', 3)).toBe(2);
