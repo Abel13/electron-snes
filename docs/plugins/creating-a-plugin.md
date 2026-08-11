@@ -117,14 +117,6 @@ Use `validatePluginContract` de `@platform/plugin-test` para que validação loc
 oficial e de CI compartilhem os mesmos gates. O runner recebe um valor já importado e
 nunca carrega ou ativa código em nome do teste.
 
-Execute o contrato público com `runPluginContract` de `@platform/plugin-test`. O mesmo
-runner é usado pelos exemplos e pela CI oficial; ele não carrega arquivos, ativa código
-ou concede permissões.
-
-O exemplo completo de console está em `examples/plugins/console`. Ele usa uma identidade
-e um formato fictícios para demonstrar manifesto, definição, mapeamento e testes sem
-incorporar conteúdo comercial.
-
 Ao alterar um contrato público, documente a compatibilidade e inclua um ADR quando a decisão afetar a arquitetura de longo prazo.
 
 Antes de adotar uma API revision nova, siga `api-migration.md`. O guia da revisão deve
