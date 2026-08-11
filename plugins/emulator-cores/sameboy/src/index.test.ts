@@ -1,11 +1,14 @@
-import { validateEmulatorPlugin } from '@platform/emulator-sdk';
+import { validatePluginContract } from '@platform/plugin-test';
 import { describe, expect, it } from 'vitest';
 
 import { sameBoyEmulator } from './index.js';
 
 describe('sameBoyEmulator', () => {
   it('declares a validated Game Boy family emulator plugin', () => {
-    expect(validateEmulatorPlugin(sameBoyEmulator)).toEqual({ status: 'ok' });
+    expect(validatePluginContract(sameBoyEmulator)).toMatchObject({
+      status: 'valid',
+      type: 'emulator-core',
+    });
     expect(sameBoyEmulator.emulator.compatibleConsoleIds).toEqual([
       'org.pixelcore.game-boy-family',
     ]);

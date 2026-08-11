@@ -300,6 +300,10 @@ importers:
       '@platform/console-sdk':
         specifier: workspace:*
         version: link:../../../packages/console-sdk
+    devDependencies:
+      '@platform/plugin-test':
+        specifier: workspace:*
+        version: link:../../../packages/plugin-test
 
   plugins/consoles/reference-handheld:
     dependencies:
@@ -326,6 +330,10 @@ importers:
       '@platform/emulator-sdk':
         specifier: workspace:*
         version: link:../../../packages/emulator-sdk
+    devDependencies:
+      '@platform/plugin-test':
+        specifier: workspace:*
+        version: link:../../../packages/plugin-test
 
   plugins/games/reference-catalog:
     dependencies:

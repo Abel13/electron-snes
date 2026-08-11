@@ -6,8 +6,8 @@ const PLAYSTATION_ID = /playstation|dualshock|dualsense|wireless controller|sony
 const XBOX_ID = /xbox|xinput|microsoft|045e/i;
 
 export const classifyGamepadPromptScheme = (id: string): InputPromptScheme => {
-  if (PLAYSTATION_ID.test(id)) return 'playstation';
   if (XBOX_ID.test(id)) return 'xbox';
+  if (PLAYSTATION_ID.test(id)) return 'playstation';
   return 'xbox';
 };
 
