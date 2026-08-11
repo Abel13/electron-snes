@@ -159,6 +159,35 @@ describe('DesktopSessionHost', () => {
     vi.useRealTimers();
   });
 
+  it('restores an explicitly selected autosave after launch', async () => {
+    const plugin = createPlugin(true);
+    const session = await plugin.createSession();
+    const restored = vi.fn(async () => ({ status: 'ok' as const }));
+    session.captureSaveState = async () => ({
+      saveState: { bytes: new Uint8Array([1]), coreId: plugin.emulator.id, formatVersion: 1 },
+      status: 'ok',
+    });
+    session.restoreSaveState = restored;
+    const state = { bytes: new Uint8Array([7]), coreId: plugin.emulator.id, formatVersion: 1 };
+    const host = createDesktopSessionHost(plugin, {
+      loadCartridgeSave: async () => undefined,
+      persistCartridgeSave: async () => undefined,
+      sendAudio: () => undefined,
+      sendVideo: () => undefined,
+    });
+    await expect(
+      host.launch(
+        { bytes: new Uint8Array([1]), extension: '.gb', name: 'auto.gb', selectionId: 'id' },
+        'save-key',
+        'game-1',
+        true,
+        state,
+      ),
+    ).resolves.toMatchObject({ status: 'ok' });
+    expect(restored).toHaveBeenCalledWith(state);
+    await host.stop();
+  });
+
   it('checkpoints wall-clock playtime across pauses and flushes on stop', async () => {
     vi.useFakeTimers();
     let now = 0;

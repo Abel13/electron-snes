@@ -5,12 +5,14 @@ import {
   createPixelCoreApi,
   hasGlobalPreferencesPayload,
   hasBooleanPayload,
+  hasLibraryLaunchPayload,
   hasNoIpcPayload,
   isHostVersionResponse,
   isGlobalPreferencesLoadResponse,
   isGlobalPreferencesSaveResponse,
   isConsolePluginsResponse,
   isLibraryResponse,
+  isLibraryLaunchResponse,
   isSelectRomResponse,
   isSessionInputPayload,
   isEmulatorCapabilities,
@@ -25,6 +27,25 @@ describe('IPC boundary contracts', () => {
     uiAudioVolume: 0.22,
     version: 1,
   } as const;
+
+  it('validates autosave launch negotiation without exposing state data', () => {
+    expect(hasLibraryLaunchPayload(['game-1'])).toBe(true);
+    expect(hasLibraryLaunchPayload(['game-1', 'restore-autosave'])).toBe(true);
+    expect(hasLibraryLaunchPayload(['game-1', 'invalid'])).toBe(false);
+    expect(
+      isLibraryLaunchResponse({
+        status: 'autosave-available',
+        updatedAt: '2026-08-11T12:00:00.000Z',
+      }),
+    ).toBe(true);
+    expect(
+      isLibraryLaunchResponse({
+        bytes: new Uint8Array([1]),
+        status: 'autosave-available',
+        updatedAt: '2026-08-11T12:00:00.000Z',
+      }),
+    ).toBe(false);
+  });
 
   it('validates global preference payloads and responses strictly', async () => {
     expect(hasGlobalPreferencesPayload([globalPreferences])).toBe(true);
