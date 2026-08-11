@@ -119,3 +119,7 @@ o runner público. Não dependa de detalhes internos para concluir uma migraçã
 
 Consulte `examples.md` para pacotes completos e executáveis que podem servir como ponto
 de partida sem introduzir dependências internas.
+
+Para iniciar um pacote novo, use o comando determinístico descrito em
+`scaffold-cli.md`. Ele gera somente tipos que já podem passar pelo runner completo e
+recusa sobrescrever diretórios existentes.

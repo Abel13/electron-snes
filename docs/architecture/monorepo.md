@@ -20,6 +20,7 @@ packages/
   library/
   plugin-sdk/
   plugin-test/
+  plugin-cli/
   plugin-test/
   console-sdk/
   emulator-sdk/
@@ -50,6 +51,7 @@ plugins/
 | `packages/library` | `@platform/library` | Game identification, metadata and artwork references, favorites, recents, and playtime. |
 | `packages/plugin-sdk` | `@platform/plugin-sdk` | Plugin manifest, compatibility, and common plugin authoring contracts. |
 | `packages/plugin-test` | `@platform/plugin-test` | Framework-neutral contract validation for plugin definitions and CI. |
+| `packages/plugin-cli` | `@platform/plugin-cli` | Deterministic authoring scaffold for validated plugin packages. |
 | `packages/plugin-test` | `@platform/plugin-test` | Public plugin contract validation tooling for authors and CI. |
 | `packages/console-sdk` | `@platform/console-sdk` | Console plugin contracts and capabilities. |
 | `packages/emulator-sdk` | `@platform/emulator-sdk` | Emulator-core contracts and capabilities. |
@@ -91,6 +93,7 @@ Rules:
 - `@platform/plugin-sdk` depends on core contracts and shared primitives.
 - Specialized SDKs depend on `@platform/plugin-sdk` and shared types.
 - `@platform/plugin-test` depends on public specialized SDKs and `@platform/plugin-sdk`; runtime packages never depend on it.
+- `@platform/plugin-cli` depends on public plugin contracts and owns authoring-time filesystem writes; runtime packages never depend on it.
 - `@platform/plugin-test` may depend on public specialized SDKs for authoring and CI;
   no runtime package or SDK depends on it.
 - `@platform/input` depends on core contracts, `@platform/controller-sdk`, and shared types.
