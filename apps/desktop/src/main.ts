@@ -377,6 +377,7 @@ app.whenReady().then(() => {
       loaded.rom,
       identifyRom(loaded.rom.bytes),
       game.value.id,
+      game.value.configuration.autosaveEnabled,
     );
     if (launched.status === 'ok') await library.markPlayed(game.value.id);
     return launched;
