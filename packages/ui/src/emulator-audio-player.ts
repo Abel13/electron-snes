@@ -14,6 +14,7 @@ export class EmulatorAudioPlayer {
   #context: AudioContext | undefined;
   #nextStartTime = 0;
   #sources = new Set<AudioBufferSourceNode>();
+  readonly #maximumScheduledLeadSeconds = 0.12;
 
   public constructor(options: EmulatorAudioPlayerOptions = {}) {
     this.#createAudioContext = options.createAudioContext ?? (() => new AudioContext());
@@ -28,6 +29,7 @@ export class EmulatorAudioPlayer {
   public enqueue(frame: EmulatorAudioFrameData): void {
     const context = this.#context;
     if (context === undefined || context.state !== 'running' || frame.samples.length === 0) return;
+    if (this.#nextStartTime - context.currentTime > this.#maximumScheduledLeadSeconds) return;
 
     const frames = frame.samples.length / frame.channels;
     if (!Number.isInteger(frames)) return;

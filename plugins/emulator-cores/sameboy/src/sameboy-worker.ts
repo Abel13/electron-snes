@@ -34,6 +34,8 @@ let hasRom = false;
 let status: EmulatorSessionStatus = 'idle';
 let timer: ReturnType<typeof setTimeout> | undefined;
 let framesSinceSaveCheck = 0;
+const frameDurationMs = 1000 / 59.7275;
+let nextFrameAt: number | undefined;
 
 port.on('message', (request: SameBoyWorkerRequest) => {
   void handle(request);
@@ -127,6 +129,7 @@ const start = (): EmulatorOperationResult => {
   if (status !== 'idle' && status !== 'stopped')
     return invalid('SameBoy can start only from an idle or stopped state.');
   status = 'running';
+  nextFrameAt = performance.now();
   scheduleFrame();
   return ok();
 };
@@ -138,7 +141,11 @@ const setInput = (portId: string, actions: readonly string[]): EmulatorOperation
   return ok();
 };
 const scheduleFrame = (): void => {
-  if (status === 'running') timer = setTimeout(runFrame, 16);
+  if (status !== 'running') return;
+  const now = performance.now();
+  if (nextFrameAt === undefined || now - nextFrameAt > frameDurationMs * 4) nextFrameAt = now;
+  nextFrameAt += frameDurationMs;
+  timer = setTimeout(runFrame, Math.max(0, nextFrameAt - now));
 };
 const runFrame = (): void => {
   if (status !== 'running') return;
@@ -167,6 +174,7 @@ const runFrame = (): void => {
 const stopClock = (): void => {
   if (timer !== undefined) clearTimeout(timer);
   timer = undefined;
+  nextFrameAt = undefined;
 };
 const ok = (): EmulatorOperationResult => ({ status: 'ok' });
 const invalid = (message: string): EmulatorOperationResult => ({
