@@ -1,6 +1,8 @@
 {
   "name": "@platform/desktop",
-  "version": "0.0.0",
+  "version": "0.1.0-beta.1",
+  "description": "A modern, extensible desktop platform for preserving and playing retro games.",
+  "author": "PixelCore contributors",
   "private": true,
   "type": "module",
   "main": "dist/main.js",
@@ -11,6 +13,7 @@
     "build": "vite build && vite build --config vite.preload.config.ts && tsc -p tsconfig.build.json",
     "dev": "node scripts/dev.mjs",
     "lint": "eslint src --max-warnings=0",
+    "package:windows": "pnpm build && electron-builder --config electron-builder.yml --win nsis --x64",
     "start": "pnpm build && env -u ELECTRON_RUN_AS_NODE electron .",
     "test": "vitest run --passWithNoTests",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.renderer.json --noEmit"
@@ -42,6 +45,7 @@
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "5.0.2",
     "electron": "^43.3.0",
+    "electron-builder": "^26.15.3",
     "vite": "7.1.7"
   }
 }
