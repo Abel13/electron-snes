@@ -44,3 +44,17 @@ nsis:
   oneClick: false
   perMachine: false
   shortcutName: PixelCore
+
+mac:
+  artifactName: PixelCore-${version}-macOS-universal.${ext}
+  category: public.app-category.games
+  hardenedRuntime: true
+  icon: assets/brand/pixelcore-icon.png
+  target:
+    - arch:
+        - universal
+      target: dmg
+
+dmg:
+  iconSize: 128
+  title: PixelCore ${version}
