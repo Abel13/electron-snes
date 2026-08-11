@@ -80,6 +80,7 @@ export interface EmulatorSession {
   pause(): Promise<EmulatorOperationResult>;
   resume(): Promise<EmulatorOperationResult>;
   restoreSaveState?(saveState: EmulatorSaveState): Promise<EmulatorOperationResult>;
+  setRewindActive?(active: boolean): Promise<EmulatorOperationResult>;
   setInput(input: EmulatorInput): Promise<EmulatorOperationResult>;
   start(): Promise<EmulatorOperationResult>;
   stop(): Promise<EmulatorStopResult>;
@@ -102,6 +103,13 @@ export const validateEmulatorSessionCapabilities = (
     return {
       code: 'unavailable',
       message: 'The emulator session does not implement its declared save-state capability.',
+      status: 'error',
+    };
+
+  if (capabilities.rewind && typeof session.setRewindActive !== 'function')
+    return {
+      code: 'unavailable',
+      message: 'The emulator session does not implement its declared rewind capability.',
       status: 'error',
     };
 

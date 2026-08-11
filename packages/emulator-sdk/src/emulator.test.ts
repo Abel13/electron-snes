@@ -80,3 +80,25 @@ test('requires save-state operations when the capability is declared', async () 
     validateEmulatorSessionCapabilities(unsupported, definition.emulator.capabilities),
   ).toMatchObject({ code: 'unavailable', status: 'error' });
 });
+
+test('requires a rewind operation only when the capability is declared', async () => {
+  const session = await definition.createSession();
+  expect(
+    validateEmulatorSessionCapabilities(session, {
+      ...definition.emulator.capabilities,
+      rewind: false,
+    }),
+  ).toEqual({ status: 'ok' });
+  expect(
+    validateEmulatorSessionCapabilities(session, {
+      ...definition.emulator.capabilities,
+      rewind: true,
+    }),
+  ).toMatchObject({ code: 'unavailable', status: 'error' });
+  expect(
+    validateEmulatorSessionCapabilities(
+      { ...session, setRewindActive: async () => ({ status: 'ok' }) },
+      { ...definition.emulator.capabilities, rewind: true },
+    ),
+  ).toEqual({ status: 'ok' });
+});
