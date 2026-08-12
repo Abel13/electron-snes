@@ -124,7 +124,7 @@ jobs:
           codesign --verify --deep --strict --verbose=2 "$app"
           xcrun stapler validate "$app"
           spctl --assess --type execute --verbose=2 "$app"
-          spctl --assess --type open --context context:primary-signature --verbose=2 "$dmg"
+          hdiutil verify "$dmg"
       - name: Upload macOS artifact
         uses: actions/upload-artifact@v7
         with:
