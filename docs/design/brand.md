@@ -33,8 +33,9 @@ empacotamento Electron; não devem substituir os masters.
 - Não recriar o símbolo com texto, CSS ou SVG improvisado quando o master oficial for
   adequado.
 
-## Integração futura
+## Integração
 
-O renderer e o empacotamento Electron ainda não existem neste recorte do projeto. Ao
-serem implementados, devem referenciar estes arquivos para a splash screen, a tela
-Sobre, o ícone de janela e os artefatos de instalação em Windows, macOS e Linux.
+O desktop usa estes masters na abertura, na navegação e nos artefatos de distribuição.
+Conversões de pacote devem continuar derivadas dos masters, sem substituir os arquivos
+de origem. Consulte [Assets](assets.md) para a produção de ilustrações que convivem
+com a marca.

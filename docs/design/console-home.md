@@ -36,3 +36,7 @@ unavailable feedback.
 Console illustrations are original, brandless product representations. They may suggest a hardware
 generation but must not reproduce logos, copyrighted characters, packaging, or exact industrial
 designs. Artwork is decorative; system identity and availability are always present as text.
+
+Production constraints, safe areas, naming, lighting, responsive behavior, and cartridge label
+masks are defined in [Assets](assets.md). The console catalog owns which illustration and visual
+profile applies to a system; the carousel does not contain console-specific presentation rules.
