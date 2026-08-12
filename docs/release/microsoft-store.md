@@ -10,9 +10,9 @@ The AppX manifest must exactly match the currently authorized Partner Center ide
 
 | Manifest field | Partner Center value |
 | --- | --- |
-| `Identity.Name` | `42548abeldutra.PixelCore` |
+| `Identity.Name` | `42548abeldutra.PixelCoreGame` |
 | `Identity.Publisher` | `CN=2E06CDBC-D3D8-4686-8A98-B5E634031252` |
-| `Properties.PublisherDisplayName` | `Angry Gnar` |
+| `Properties.PublisherDisplayName` | `Abel Dutra UI` |
 
 If Partner Center approves a new publisher display name, update the builder configuration,
 validation workflow, this record, and package evidence together before submission. Never change
