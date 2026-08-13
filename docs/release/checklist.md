@@ -22,7 +22,7 @@ Use this checklist for every public release. A release is approved only when eve
 ## 3. Validate credentials
 
 - [ ] The Windows AppX identity exactly matches the reserved Partner Center product.
-- [ ] The `MICROSOFT_STORE_URL` environment variable points to the certified public product.
+- [ ] The `MICROSOFT_STORE_URL` environment variable is `https://apps.microsoft.com/detail/9P76TZ83Q994`.
 - [ ] macOS Developer ID and App Store Connect API secrets are available only to the protected `release` environment.
 - [ ] The environment requires an authorized reviewer and does not expose secrets to pull requests.
 - [ ] No secret value appears in logs, artifacts, source files, release notes, or checksums.

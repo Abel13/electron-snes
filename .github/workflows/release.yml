@@ -63,11 +63,7 @@ jobs:
         shell: pwsh
         run: |
           $package = 'apps/desktop/release/PixelCore-${{ needs.validate-tag.outputs.version }}-Windows-Store-x64.appx'
-          $manifest = [xml](tar -xOf $package AppxManifest.xml)
-          if ($manifest.Package.Identity.Name -ne '42548abeldutra.PixelCoreGame') { throw 'Store identity name does not match Partner Center.' }
-          if ($manifest.Package.Identity.Publisher -ne 'CN=2E06CDBC-D3D8-4686-8A98-B5E634031252') { throw 'Store publisher does not match Partner Center.' }
-          if ($manifest.Package.Identity.ProcessorArchitecture -ne 'x64') { throw 'Store package is not x64.' }
-          if ($manifest.Package.Properties.PublisherDisplayName -ne 'Abel Dutra UI') { throw 'Publisher display name does not match Partner Center.' }
+          ./apps/desktop/scripts/verify-appx-package.ps1 -PackagePath $package
       - name: Upload Store submission artifact
         uses: actions/upload-artifact@v7
         with:
@@ -215,8 +211,8 @@ jobs:
           test -n "$MICROSOFT_STORE_URL"
           node -e '
             const url = new URL(process.env.MICROSOFT_STORE_URL);
-            if (url.protocol !== "https:" || url.hostname !== "apps.microsoft.com") {
-              throw new Error("MICROSOFT_STORE_URL must be an official HTTPS apps.microsoft.com URL.");
+            if (url.protocol !== "https:" || url.hostname !== "apps.microsoft.com" || url.pathname !== "/detail/9P76TZ83Q994") {
+              throw new Error("MICROSOFT_STORE_URL must be the PixelCore Microsoft Store URL: https://apps.microsoft.com/detail/9P76TZ83Q994");
             }
           '
           gh api "repos/$GITHUB_REPOSITORY/releases/generate-notes" \

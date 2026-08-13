@@ -6,6 +6,8 @@ on:
       - '.github/workflows/package-validation.yml'
       - '.github/workflows/release.yml'
       - 'apps/desktop/electron-builder.yml'
+      - 'apps/desktop/build/appx/**'
+      - 'apps/desktop/scripts/verify-appx-package.ps1'
       - 'apps/desktop/package.json'
       - 'pnpm-lock.yaml'
   workflow_dispatch:
@@ -41,17 +43,7 @@ jobs:
         run: |
           $version = (Get-Content apps/desktop/package.json | ConvertFrom-Json).version
           $package = "apps/desktop/release/PixelCore-$version-Windows-Store-x64.appx"
-          if (-not (Test-Path $package)) { throw 'Microsoft Store package is missing.' }
-          if ((Get-Item $package).Length -lt 10MB) { throw 'Microsoft Store package is unexpectedly small.' }
-          $manifest = [xml](tar -xOf $package AppxManifest.xml)
-          if ($manifest.Package.Identity.Name -ne '42548abeldutra.PixelCoreGame') { throw 'Store identity name does not match Partner Center.' }
-          if ($manifest.Package.Identity.Publisher -ne 'CN=2E06CDBC-D3D8-4686-8A98-B5E634031252') { throw 'Store publisher does not match Partner Center.' }
-          if ($manifest.Package.Identity.ProcessorArchitecture -ne 'x64') { throw 'Store package is not x64.' }
-          if ($manifest.Package.Properties.PublisherDisplayName -ne 'Abel Dutra UI') { throw 'Publisher display name does not match Partner Center.' }
-          tar -tf $package | Select-String -Quiet 'resources/app.asar$' | Out-Null
-          if ($LASTEXITCODE -ne 0) { throw 'Packaged application is missing.' }
-          tar -tf $package | Select-String -Quiet '\.wasm$' | Out-Null
-          if ($LASTEXITCODE -ne 0) { throw 'SameBoy WASM runtime is missing.' }
+          ./apps/desktop/scripts/verify-appx-package.ps1 -PackagePath $package
       - uses: actions/upload-artifact@v7
         with:
           if-no-files-found: error
