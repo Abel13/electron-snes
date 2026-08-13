@@ -36,3 +36,17 @@ A experiência Phase 4 materializa os tokens como propriedades CSS `--pc-*` no d
 
 Motion usa apenas transform e opacity para entradas, foco e transição de sessão. O
 fallback de movimento reduzido desativa partículas e animações decorativas.
+
+## Tokens de cena
+
+Assets e cenas devem usar tokens, não cores ou intensidades livres dentro dos componentes:
+
+- `console-accent`: cor de destaque declarada pelo catálogo do console;
+- `scene-atmosphere`: cor difusa de fundo e halos ambientais;
+- `scene-frame`: borda, glow e sombra da superfície de vídeo;
+- `scene-particles`: opacidade e densidade de partículas decorativas;
+- `scene-motion`: duração e intensidade de transições não essenciais.
+
+O perfil visual do console fornece valores para esses tokens. A UI pode aplicá-los, mas
+não infere a aparência pelo identificador do console. Em reduced motion, `scene-motion`
+é reduzido a troca curta de opacidade e `scene-particles` é desativado.
