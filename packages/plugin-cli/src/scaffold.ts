@@ -35,7 +35,6 @@ const templates: Readonly<Record<PluginScaffoldType, (id: string, name: string) 
 export const plugin = defineConsole({
   console: {
     assets: {
-      cartridgeLabelLayout: 'standard',
       consoleHero: 'assets/consoles/example-console-hero.png',
     },
     capabilities: ['cartridge-playback'],

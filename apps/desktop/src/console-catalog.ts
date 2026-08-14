@@ -8,7 +8,13 @@ export const buildConsoleCatalog = (
       readonly cartridgeUrl?: string;
       readonly blueprintUrl?: string;
       readonly sessionBackdropUrl?: string;
-      readonly cartridgeLabelLayout?: 'standard' | 'wide';
+      readonly cartridgeLabelMap?: {
+        readonly aspectRatio: number;
+        readonly topLeft: { readonly x: number; readonly y: number; readonly radius: number };
+        readonly topRight: { readonly x: number; readonly y: number; readonly radius: number };
+        readonly bottomRight: { readonly x: number; readonly y: number; readonly radius: number };
+        readonly bottomLeft: { readonly x: number; readonly y: number; readonly radius: number };
+      };
       readonly controlDiagram?: {
         readonly alt: string;
         readonly controlPoints: readonly {

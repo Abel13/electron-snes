@@ -12,6 +12,7 @@ import type { ConsoleCatalogItem } from '@platform/ui-contracts';
 import { Icon } from './icons.js';
 import { InputPrompt } from './input-prompts.js';
 import type { LibraryGameView } from './product-shell.js';
+import { PerspectiveLabelCanvas, type PerspectiveLabelMap } from './perspective-label-canvas.js';
 
 export type ConsoleLibraryCategory = 'library' | 'favorites' | 'recent' | 'settings';
 
@@ -38,7 +39,7 @@ export interface ConsoleLibraryHandle {
 export interface ConsoleLibraryProps {
   readonly artworkFor: (game: LibraryGameView) => string | undefined;
   readonly cartridgeUrl?: string;
-  readonly cartridgeLabelLayout?: 'standard' | 'wide';
+  readonly cartridgeLabelMap?: PerspectiveLabelMap;
   readonly children?: ReactNode;
   readonly console: ConsoleCatalogItem;
   readonly copy: ConsoleLibraryCopy;
@@ -107,14 +108,14 @@ export const getCarouselSlots = (
 const Cartridge = (props: {
   readonly artworkUrl: string | undefined;
   readonly cartridgeUrl?: string;
-  readonly cartridgeLabelLayout?: 'standard' | 'wide';
+  readonly cartridgeLabelMap?: ConsoleLibraryProps['cartridgeLabelMap'];
 }): React.JSX.Element => (
-  <span className={`pc-cartridge pc-cartridge--${props.cartridgeLabelLayout ?? 'standard'}`}>
+  <span className="pc-cartridge">
     {props.cartridgeUrl === undefined ? null : (
       <img alt="" className="pc-cartridge-shell" src={props.cartridgeUrl} />
     )}
-    {props.artworkUrl === undefined ? null : (
-      <img alt="" className="pc-cartridge-label" src={props.artworkUrl} />
+    {props.artworkUrl === undefined || props.cartridgeLabelMap === undefined ? null : (
+      <PerspectiveLabelCanvas imageUrl={props.artworkUrl} map={props.cartridgeLabelMap} />
     )}
   </span>
 );
@@ -272,12 +273,17 @@ export const ConsoleLibrary = forwardRef<ConsoleLibraryHandle, ConsoleLibraryPro
               {slots.map(({ game, offset }) => (
                 <button
                   aria-label={game.name}
-                  className={`pc-cartridge-slot pc-cartridge-slot--${props.cartridgeLabelLayout ?? 'standard'} is-offset-${offset < 0 ? `n${Math.abs(offset)}` : offset}${offset === 0 && detailedGameId === game.id ? ' is-detailed' : ''}`}
+                  className={`pc-cartridge-slot is-offset-${offset < 0 ? `n${Math.abs(offset)}` : offset}${offset === 0 && detailedGameId === game.id ? ' is-detailed' : ''}`}
                   key={game.id}
                   onClick={() => {
                     if (offset === 0) confirm();
                     else selectIndex(moveGameOffset(selectedIndex, offset, categoryGames.length));
                   }}
+                  style={
+                    props.cartridgeLabelMap === undefined
+                      ? undefined
+                      : { aspectRatio: props.cartridgeLabelMap.aspectRatio }
+                  }
                   type="button"
                 >
                   <Cartridge
@@ -285,9 +291,9 @@ export const ConsoleLibrary = forwardRef<ConsoleLibraryHandle, ConsoleLibraryPro
                     {...(props.cartridgeUrl === undefined
                       ? {}
                       : { cartridgeUrl: props.cartridgeUrl })}
-                    {...(props.cartridgeLabelLayout === undefined
+                    {...(props.cartridgeLabelMap === undefined
                       ? {}
-                      : { cartridgeLabelLayout: props.cartridgeLabelLayout })}
+                      : { cartridgeLabelMap: props.cartridgeLabelMap })}
                   />
                 </button>
               ))}

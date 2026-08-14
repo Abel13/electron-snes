@@ -48,7 +48,13 @@ export interface ConsoleAssetProfile {
   readonly blueprint?: string;
   readonly sessionBackdrop?: string;
   readonly cartridgeLabelMask?: string;
-  readonly cartridgeLabelLayout?: 'standard' | 'wide';
+  readonly cartridgeLabelMap?: {
+    readonly aspectRatio: number;
+    readonly topLeft: { readonly x: number; readonly y: number; readonly radius: number };
+    readonly topRight: { readonly x: number; readonly y: number; readonly radius: number };
+    readonly bottomRight: { readonly x: number; readonly y: number; readonly radius: number };
+    readonly bottomLeft: { readonly x: number; readonly y: number; readonly radius: number };
+  };
   readonly controlDiagram?: {
     readonly alt: string;
     readonly controlPoints: readonly {
@@ -238,15 +244,11 @@ export const validateConsolePlugin = (input: unknown): ConsolePluginValidationRe
           );
         }
       }
-      if (
-        assets['cartridgeLabelLayout'] !== undefined &&
-        assets['cartridgeLabelLayout'] !== 'standard' &&
-        assets['cartridgeLabelLayout'] !== 'wide'
-      )
+      if (assets['cartridge'] !== undefined && assets['cartridgeLabelMap'] === undefined)
         diagnostics.push(
           diagnostic(
-            ['console', 'assets', 'cartridgeLabelLayout'],
-            'Cartridge label layout must be standard or wide.',
+            ['console', 'assets', 'cartridgeLabelMap'],
+            'A cartridge label map is required when a cartridge asset is declared.',
           ),
         );
       const diagram = assets['controlDiagram'];
@@ -396,6 +398,61 @@ export const validateConsolePlugin = (input: unknown): ConsolePluginValidationRe
             'A player port may reference each declared console input action at most once.',
           ),
         );
+      }
+      const cartridgeLabelMap = isRecord(assets) ? assets['cartridgeLabelMap'] : undefined;
+      if (cartridgeLabelMap !== undefined) {
+        const validMap =
+          isRecord(cartridgeLabelMap) &&
+          typeof cartridgeLabelMap['aspectRatio'] === 'number' &&
+          ['topLeft', 'topRight', 'bottomRight', 'bottomLeft'].every((corner) => {
+            const point = cartridgeLabelMap[corner];
+            return (
+              isRecord(point) &&
+              typeof point['x'] === 'number' &&
+              typeof point['y'] === 'number' &&
+              typeof point['radius'] === 'number'
+            );
+          });
+        if (!validMap) {
+          diagnostics.push(
+            diagnostic(
+              ['console', 'assets', 'cartridgeLabelMap'],
+              'A cartridge label map must declare numeric geometry fields.',
+            ),
+          );
+        } else {
+          const map = cartridgeLabelMap as Record<string, unknown>;
+          const points = ['topLeft', 'topRight', 'bottomRight', 'bottomLeft'].map(
+            (corner) => map[corner] as Record<string, number>,
+          );
+          if (
+            (map['aspectRatio'] as number) <= 0 ||
+            points.some(
+              (point) =>
+                point['x']! < 0 ||
+                point['x']! > 100 ||
+                point['y']! < 0 ||
+                point['y']! > 100 ||
+                point['radius']! < 0,
+            ) ||
+            Math.abs(
+              points[0]!['x']! * points[1]!['y']! +
+                points[1]!['x']! * points[2]!['y']! +
+                points[2]!['x']! * points[3]!['y']! +
+                points[3]!['x']! * points[0]!['y']! -
+                points[1]!['y']! * points[2]!['x']! -
+                points[2]!['y']! * points[3]!['x']! -
+                points[3]!['y']! * points[0]!['x']! -
+                points[0]!['y']! * points[1]!['x']!,
+            ) < 0.001
+          )
+            diagnostics.push(
+              diagnostic(
+                ['console', 'assets', 'cartridgeLabelMap'],
+                'A cartridge label map must fit inside the cartridge canvas.',
+              ),
+            );
+        }
       }
     });
 

@@ -32,8 +32,14 @@ export const gameBoyAdvanceConsole = defineConsole({
     assets: {
       sessionBackdrop: 'assets/backdrops/game-boy-advance-session-backdrop.png',
       cartridge: 'assets/cartridges/game-boy-advance-cartridge.webp',
-      cartridgeLabelLayout: 'wide',
       consoleHero: 'assets/consoles/game-boy-advance-console-hero.png',
+      cartridgeLabelMap: {
+        aspectRatio: 1,
+        topLeft: { x: 23.5, y: 32.5, radius: 8 },
+        topRight: { x: 77, y: 40.5, radius: 8 },
+        bottomRight: { x: 72, y: 66, radius: 8 },
+        bottomLeft: { x: 18, y: 56.5, radius: 8 },
+      },
       blueprint: 'assets/blueprints/game-boy-advance-blueprint.png',
       controlDiagram: {
         alt: 'Game Boy Advance control blueprint',

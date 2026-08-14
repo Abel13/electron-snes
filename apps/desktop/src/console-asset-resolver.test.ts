@@ -15,6 +15,8 @@ describe('resolveConsoleAssets', () => {
     const assets = await resolveConsoleAssets(root, plugin.console.assets);
 
     expect(assets.consoleHeroUrl).toMatch(/^data:image\/png;base64,/);
+    expect(assets.cartridgeUrl).toMatch(/^data:image\/webp;base64,/);
+    expect(assets.cartridgeLabelMap).toEqual(plugin.console.assets.cartridgeLabelMap);
     expect(assets.blueprintUrl).toMatch(/^data:image\/png;base64,/);
     expect(assets.sessionBackdropUrl).toMatch(/^data:image\/png;base64,/);
     expect(assets.consoleHeroUrl).not.toContain('game-boy-advance');

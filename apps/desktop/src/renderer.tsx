@@ -1368,9 +1368,9 @@ const ProductApp = (): React.JSX.Element => {
               {...(activeConsole.assets?.cartridgeUrl === undefined
                 ? {}
                 : { cartridgeUrl: activeConsole.assets.cartridgeUrl })}
-              {...(activeConsole.assets?.cartridgeLabelLayout === undefined
+              {...(activeConsole.assets?.cartridgeLabelMap === undefined
                 ? {}
-                : { cartridgeLabelLayout: activeConsole.assets.cartridgeLabelLayout })}
+                : { cartridgeLabelMap: activeConsole.assets.cartridgeLabelMap })}
               console={activeConsole}
               copy={{
                 addGame: t('addGame'),

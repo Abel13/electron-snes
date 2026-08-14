@@ -26,9 +26,9 @@ const run = (command, args, options = {}) => {
   return child;
 };
 
-const buildOfficialConsolePlugins = () =>
+const buildWorkspace = (filters) =>
   new Promise((resolve, reject) => {
-    const child = spawn('pnpm', ['--filter', './plugins/consoles/**', 'build'], {
+    const child = spawn('pnpm', [...filters, 'build'], {
       cwd: new URL('../../..', import.meta.url).pathname,
       env: process.env,
       stdio: 'inherit',
@@ -36,9 +36,14 @@ const buildOfficialConsolePlugins = () =>
     child.once('error', reject);
     child.once('exit', (code) => {
       if (code === 0) resolve();
-      else reject(new Error(`Console plugin build failed with exit code ${code ?? 'unknown'}.`));
+      else reject(new Error(`Workspace build failed with exit code ${code ?? 'unknown'}.`));
     });
   });
+
+const buildOfficialConsolePlugins = async () => {
+  await buildWorkspace(['--filter', '@platform/official-plugins...']);
+  await buildWorkspace(['--filter', '@platform/ui']);
+};
 
 const startElectron = () => {
   const { ELECTRON_RUN_AS_NODE: _ignored, ...environment } = process.env;

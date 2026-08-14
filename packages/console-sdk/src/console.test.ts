@@ -117,6 +117,92 @@ test('accepts normalized plugin-owned visual assets', () => {
   expect(result.status).toBe('valid');
 });
 
+test('rejects a cartridge asset without its label map', () => {
+  const result = validateConsolePlugin({
+    ...gameBoyConsole,
+    console: {
+      ...gameBoyConsole.console,
+      assets: {
+        consoleHero: 'assets/consoles/game-boy-family-console-hero.png',
+        cartridge: 'assets/cartridges/game-boy-family-cartridge.webp',
+      },
+    },
+  });
+
+  expect(result.status).toBe('invalid');
+  if (result.status === 'invalid') {
+    expect(result.diagnostics).toContainEqual(
+      expect.objectContaining({ path: ['console', 'assets', 'cartridgeLabelMap'] }),
+    );
+  }
+});
+
+test('accepts console-specific cartridge label geometry', () => {
+  const result = validateConsolePlugin({
+    ...gameBoyConsole,
+    console: {
+      ...gameBoyConsole.console,
+      assets: {
+        consoleHero: 'assets/consoles/game-boy-family-console-hero.png',
+        cartridge: 'assets/cartridges/game-boy-family-cartridge.webp',
+        cartridgeLabelMap: {
+          aspectRatio: 1,
+          topLeft: { x: 27, y: 14.5, radius: 3 },
+          topRight: { x: 87, y: 14.5, radius: 3 },
+          bottomRight: { x: 87, y: 73.5, radius: 3 },
+          bottomLeft: { x: 27, y: 73.5, radius: 3 },
+        },
+      },
+    },
+  });
+
+  expect(result.status).toBe('valid');
+});
+
+test('rejects cartridge label geometry outside the cartridge canvas', () => {
+  const result = validateConsolePlugin({
+    ...gameBoyConsole,
+    console: {
+      ...gameBoyConsole.console,
+      assets: {
+        consoleHero: 'assets/consoles/game-boy-family-console-hero.png',
+        cartridge: 'assets/cartridges/game-boy-family-cartridge.webp',
+        cartridgeLabelMap: {
+          aspectRatio: 1,
+          topLeft: { x: 40, y: 20, radius: 3 },
+          topRight: { x: 110, y: 20, radius: 3 },
+          bottomRight: { x: 110, y: 90, radius: 3 },
+          bottomLeft: { x: 40, y: 90, radius: 3 },
+        },
+      },
+    },
+  });
+
+  expect(result.status).toBe('invalid');
+});
+
+test('rejects negative corner radius and degenerate label geometry', () => {
+  const result = validateConsolePlugin({
+    ...gameBoyConsole,
+    console: {
+      ...gameBoyConsole.console,
+      assets: {
+        consoleHero: 'assets/consoles/game-boy-family-console-hero.png',
+        cartridge: 'assets/cartridges/game-boy-family-cartridge.webp',
+        cartridgeLabelMap: {
+          aspectRatio: 1,
+          topLeft: { x: 20, y: 20, radius: -1 },
+          topRight: { x: 20, y: 20, radius: 3 },
+          bottomRight: { x: 20, y: 20, radius: 3 },
+          bottomLeft: { x: 20, y: 20, radius: 3 },
+        },
+      },
+    },
+  });
+
+  expect(result.status).toBe('invalid');
+});
+
 test.each(['../outside.png', '/absolute.png', 'https://example.com/hero.png', 'assets/hero.jpg'])(
   'rejects unsafe console asset reference %s',
   (asset) => {

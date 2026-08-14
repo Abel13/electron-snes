@@ -9,7 +9,7 @@ export interface ResolvedConsoleAssets {
   readonly blueprintUrl?: string;
   readonly sessionBackdropUrl?: string;
   readonly cartridgeLabelMaskUrl?: string;
-  readonly cartridgeLabelLayout?: ConsoleAssetProfile['cartridgeLabelLayout'];
+  readonly cartridgeLabelMap?: ConsoleAssetProfile['cartridgeLabelMap'];
   readonly controlDiagram?: ConsoleAssetProfile['controlDiagram'];
 }
 
@@ -50,8 +50,6 @@ export const resolveConsoleAssets = async (
   ...(profile.cartridgeLabelMask === undefined
     ? {}
     : { cartridgeLabelMaskUrl: await readAsset(root, profile.cartridgeLabelMask) }),
-  ...(profile.cartridgeLabelLayout === undefined
-    ? {}
-    : { cartridgeLabelLayout: profile.cartridgeLabelLayout }),
+  ...(profile.cartridgeLabelMap === undefined ? {} : { cartridgeLabelMap: profile.cartridgeLabelMap }),
   ...(profile.controlDiagram === undefined ? {} : { controlDiagram: profile.controlDiagram }),
 });
