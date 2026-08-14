@@ -6,7 +6,7 @@ resolved by the host through the console asset contract.
 | Class            | File                                              | Purpose                              |
 | ---------------- | ------------------------------------------------- | ------------------------------------ |
 | console hero     | `consoles/game-boy-advance-console-hero.png`      | Console selector artwork             |
-| cartridge        | `cartridges/game-boy-advance-cartridge.png`       | Library cartridge shell              |
+| cartridge        | `cartridges/game-boy-advance-cartridge.webp`      | Library cartridge shell              |
 | blueprint        | `blueprints/game-boy-advance-blueprint.png`       | GBA input mapping diagram            |
 | session backdrop | `backdrops/game-boy-advance-session-backdrop.png` | Low-emphasis wide session atmosphere |
 
