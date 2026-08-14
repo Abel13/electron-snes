@@ -227,11 +227,10 @@ const ProductApp = (): React.JSX.Element => {
     0,
     consoles.findIndex((console) => console.id === activeConsole?.id),
   );
+  const selectedGame = games.find((game) => game.id === selectedGameId) ?? games[0];
   const sessionConsole = consoles.find((console) =>
     console.extensions.includes(selectedGame?.extension ?? ''),
   );
-
-  const selectedGame = games.find((game) => game.id === selectedGameId) ?? games[0];
   const selectedInputDevice = devices.find(
     (device) => device.fingerprint === profile?.deviceFingerprint,
   );
