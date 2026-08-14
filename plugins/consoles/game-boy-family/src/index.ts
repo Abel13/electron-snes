@@ -5,6 +5,7 @@ export const gameBoyFamilyAssetRoot = new URL('../assets/', import.meta.url);
 export const gameBoyFamilyConsole = defineConsole({
   console: {
     assets: {
+      cartridgeLabelLayout: 'standard',
       cartridge: 'assets/cartridges/game-boy-family-cartridge.webp',
       consoleHero: 'assets/consoles/game-boy-family-console-hero.webp',
       blueprint: 'assets/blueprints/game-boy-family-blueprint.png',

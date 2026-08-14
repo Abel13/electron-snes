@@ -48,6 +48,7 @@ export interface ConsoleAssetProfile {
   readonly blueprint?: string;
   readonly sessionBackdrop?: string;
   readonly cartridgeLabelMask?: string;
+  readonly cartridgeLabelLayout?: 'standard' | 'wide';
   readonly controlDiagram?: {
     readonly alt: string;
     readonly controlPoints: readonly {
@@ -237,6 +238,17 @@ export const validateConsolePlugin = (input: unknown): ConsolePluginValidationRe
           );
         }
       }
+      if (
+        assets['cartridgeLabelLayout'] !== undefined &&
+        assets['cartridgeLabelLayout'] !== 'standard' &&
+        assets['cartridgeLabelLayout'] !== 'wide'
+      )
+        diagnostics.push(
+          diagnostic(
+            ['console', 'assets', 'cartridgeLabelLayout'],
+            'Cartridge label layout must be standard or wide.',
+          ),
+        );
       const diagram = assets['controlDiagram'];
       if (diagram !== undefined) {
         if (

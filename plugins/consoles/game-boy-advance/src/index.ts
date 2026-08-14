@@ -32,6 +32,7 @@ export const gameBoyAdvanceConsole = defineConsole({
     assets: {
       sessionBackdrop: 'assets/backdrops/game-boy-advance-session-backdrop.png',
       cartridge: 'assets/cartridges/game-boy-advance-cartridge.webp',
+      cartridgeLabelLayout: 'wide',
       consoleHero: 'assets/consoles/game-boy-advance-console-hero.png',
       blueprint: 'assets/blueprints/game-boy-advance-blueprint.png',
       controlDiagram: {

@@ -8,6 +8,7 @@ export interface ConsoleCatalogItem {
     readonly cartridgeUrl?: string;
     readonly blueprintUrl?: string;
     readonly sessionBackdropUrl?: string;
+    readonly cartridgeLabelLayout?: 'standard' | 'wide';
     readonly controlDiagram?: {
       readonly alt: string;
       readonly controlPoints: readonly {

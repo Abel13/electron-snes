@@ -950,6 +950,13 @@ summary:focus-visible {
   transform: perspective(900px) rotateY(17deg) skewY(3deg);
   opacity: 0.7;
 }
+.pc-cartridge--wide .pc-cartridge-label {
+  left: 20%;
+  top: 21%;
+  width: 58%;
+  height: 54%;
+  transform: perspective(900px) rotateY(18deg) skewY(5deg);
+}
 .pc-game-focus {
   position: absolute;
   left: 50%;
