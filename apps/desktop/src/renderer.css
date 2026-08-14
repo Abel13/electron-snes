@@ -713,7 +713,9 @@ summary:focus-visible {
   isolation: isolate;
   display: grid;
   grid-template: 92px minmax(0, 1fr) 42px / 190px minmax(0, 1fr);
+  height: 100vh;
   min-height: 100vh;
+  max-height: 100vh;
   overflow: hidden;
   background:
     radial-gradient(
@@ -2711,7 +2713,9 @@ summary:focus-visible {
 .pc-session-view {
   position: relative;
   overflow: hidden;
+  height: 100vh;
   min-height: 100vh;
+  max-height: 100vh;
   padding: 22px clamp(22px, 3.5vw, 58px) 34px;
   background:
     radial-gradient(circle at 50% 42%, rgba(19, 99, 150, 0.14), transparent 42%),
@@ -2937,7 +2941,8 @@ summary:focus-visible {
   z-index: 2;
   display: grid;
   place-items: center;
-  min-height: calc(100vh - 100px);
+  min-height: 0;
+  height: calc(100vh - 100px);
   max-width: min(1500px, 94vw);
   margin: auto;
 }
