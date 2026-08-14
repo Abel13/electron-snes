@@ -222,7 +222,7 @@ const handle = async (request: MgbaWorkerRequest): Promise<void> => {
     result.status === 'ok' && 'cartridgeSave' in result && result.cartridgeSave
       ? [result.cartridgeSave.bytes.buffer as ArrayBuffer]
       : result.status === 'ok' && 'saveState' in result
-      ? [result.saveState.bytes.buffer as ArrayBuffer]
+        ? [result.saveState.bytes.buffer as ArrayBuffer]
         : undefined;
   post({ id: request.id, result, status, type: 'result' }, transferable);
 };

@@ -23,6 +23,7 @@
     "@platform/emulator-sdk": "workspace:*",
     "@platform/game-sdk": "workspace:*",
     "@platform/example-game-reference-catalog": "workspace:*",
+    "@platform/example-game-boy-advance-catalog": "workspace:*",
     "@platform/plugin-console-game-boy-advance": "workspace:*",
     "@platform/plugin-console-game-boy-family": "workspace:*",
     "@platform/plugin-emulator-mgba": "workspace:*",

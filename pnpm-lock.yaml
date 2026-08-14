@@ -210,6 +210,9 @@ importers:
       '@platform/emulator-sdk':
         specifier: workspace:*
         version: link:../emulator-sdk
+      '@platform/example-game-boy-advance-catalog':
+        specifier: workspace:*
+        version: link:../../plugins/games/game-boy-advance-catalog
       '@platform/example-game-reference-catalog':
         specifier: workspace:*
         version: link:../../plugins/games/reference-catalog
@@ -371,6 +374,16 @@ importers:
       '@platform/emulator-sdk':
         specifier: workspace:*
         version: link:../../../packages/emulator-sdk
+    devDependencies:
+      '@platform/plugin-test':
+        specifier: workspace:*
+        version: link:../../../packages/plugin-test
+
+  plugins/games/game-boy-advance-catalog:
+    dependencies:
+      '@platform/game-sdk':
+        specifier: workspace:*
+        version: link:../../../packages/game-sdk
     devDependencies:
       '@platform/plugin-test':
         specifier: workspace:*

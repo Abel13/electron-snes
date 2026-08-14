@@ -21,8 +21,15 @@ describe('ROM loader', () => {
   it('loads a selected GBA ROM', async () => {
     const selections = createRomSelectionStore();
     const selection = selections.register('/library/game.gba');
-    const result = await loadSelectedRom(selection?.id ?? '', selections, async () => new Uint8Array([1, 2]));
-    expect(result).toMatchObject({ status: 'loaded', rom: { extension: '.gba', name: 'game.gba' } });
+    const result = await loadSelectedRom(
+      selection?.id ?? '',
+      selections,
+      async () => new Uint8Array([1, 2]),
+    );
+    expect(result).toMatchObject({
+      status: 'loaded',
+      rom: { extension: '.gba', name: 'game.gba' },
+    });
   });
 
   it('returns safe outcomes for absent, empty, oversized, and unreadable files', async () => {

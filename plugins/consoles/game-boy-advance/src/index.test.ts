@@ -5,7 +5,10 @@ import { gameBoyAdvanceConsole } from './index.js';
 test('declares the GBA console contract', () => {
   expect(validatePluginContract(gameBoyAdvanceConsole).status).toBe('valid');
   expect(gameBoyAdvanceConsole.console.supportedRomExtensions).toEqual(['.gba']);
-  expect(gameBoyAdvanceConsole.console.videoPresentation?.nativeResolution).toEqual({ width: 240, height: 160 });
+  expect(gameBoyAdvanceConsole.console.videoPresentation?.nativeResolution).toEqual({
+    width: 240,
+    height: 160,
+  });
 });
 
 test('extracts title and game code from a valid GBA header', () => {

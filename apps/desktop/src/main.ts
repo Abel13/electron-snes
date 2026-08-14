@@ -280,8 +280,10 @@ app.whenReady().then(() => {
   });
   ipcMain.handle(IPC_CHANNELS.getEmulatorCapabilities, (_event, ...payload: unknown[]) => {
     if (!hasNoIpcPayload(payload)) throw new Error('Capabilities do not accept a payload.');
-    return emulatorForExtension(activeSessionExtension)?.emulator.capabilities ??
-      officialEmulator.emulator.capabilities;
+    return (
+      emulatorForExtension(activeSessionExtension)?.emulator.capabilities ??
+      officialEmulator.emulator.capabilities
+    );
   });
   ipcMain.handle(IPC_CHANNELS.getUpdateState, (_event, ...payload: unknown[]) => {
     if (!hasNoIpcPayload(payload)) throw new Error('Update state does not accept a payload.');
@@ -350,9 +352,12 @@ app.whenReady().then(() => {
     return {
       mapping: {
         consoleId: (consoleForExtension(activeSessionExtension) ?? officialConsole).console.id,
-        entries: (consoleForExtension(activeSessionExtension) ?? officialConsole).console.inputMapping.entries,
-        playerPortId: (consoleForExtension(activeSessionExtension) ?? officialConsole).console.inputMapping.playerPortId,
-        version: (consoleForExtension(activeSessionExtension) ?? officialConsole).console.inputMapping.version,
+        entries: (consoleForExtension(activeSessionExtension) ?? officialConsole).console
+          .inputMapping.entries,
+        playerPortId: (consoleForExtension(activeSessionExtension) ?? officialConsole).console
+          .inputMapping.playerPortId,
+        version: (consoleForExtension(activeSessionExtension) ?? officialConsole).console
+          .inputMapping.version,
       },
       ...(loaded.value === undefined ? {} : { profile: loaded.value }),
     };
@@ -385,9 +390,7 @@ app.whenReady().then(() => {
       : { message: saved.error.message, status: 'error' };
   });
 
-  const sessionHost = createDesktopSessionHost(
-    (rom) => emulatorForExtension(rom.extension),
-    {
+  const sessionHost = createDesktopSessionHost((rom) => emulatorForExtension(rom.extension), {
     listSaveStates: async (gameId) => {
       const result = await saveStates.list(gameId);
       if (!result.ok) throw new Error(result.error.message);
@@ -420,8 +423,7 @@ app.whenReady().then(() => {
       const result = await saveStates.write(gameId, slot, state);
       if (!result.ok) throw new Error(result.error.message);
     },
-    },
-  );
+  });
   stopActiveSession = async () => {
     await sessionHost.stop();
   };

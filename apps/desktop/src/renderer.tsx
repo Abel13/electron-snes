@@ -94,13 +94,39 @@ const gameBoyControlDiagram = {
     { action: 'select', x: 41, y: 73.3 },
   ],
 } as const;
+const gbaControlDiagram = {
+  alt: 'Game Boy Advance control blueprint',
+  assetUrl: new URL(
+    '../assets/consoles/game-boy-advance/game-boy-advance-blueprint.png',
+    import.meta.url,
+  ).href,
+  controlPoints: [
+    { action: 'up', x: 32, y: 45 },
+    { action: 'down', x: 32, y: 64 },
+    { action: 'left', x: 24, y: 54 },
+    { action: 'right', x: 40, y: 54 },
+    { action: 'a', x: 69, y: 42 },
+    { action: 'b', x: 77, y: 52 },
+    { action: 'l', x: 25, y: 18 },
+    { action: 'r', x: 75, y: 18 },
+    { action: 'start', x: 58, y: 72 },
+    { action: 'select', x: 42, y: 72 },
+  ],
+} as const;
 const consoleArtwork = {
-  'game-boy-advance': new URL('../assets/consoles/game-boy-family.webp', import.meta.url).href,
+  'game-boy-advance': new URL(
+    '../assets/consoles/game-boy-advance/game-boy-advance-console-hero.png',
+    import.meta.url,
+  ).href,
   'game-boy-family': new URL('../assets/consoles/game-boy-family.webp', import.meta.url).href,
   'n64-era': new URL('../assets/consoles/n64-era.webp', import.meta.url).href,
   'nes-era': new URL('../assets/consoles/nes-era.webp', import.meta.url).href,
   'snes-era': new URL('../assets/consoles/snes-era.webp', import.meta.url).href,
 } as const;
+const gbaBackdropUrl = new URL(
+  '../assets/consoles/game-boy-advance/game-boy-advance-session-backdrop.png',
+  import.meta.url,
+).href;
 const soundUrl = (name: string): string =>
   new URL(`../assets/audio/${name}.wav`, import.meta.url).href;
 const uiAudio = new BrowserUiAudioService({
@@ -443,30 +469,32 @@ const ProductApp = (): React.JSX.Element => {
     };
   }, [globalPreferencesReady]);
 
-  const applyInputConfiguration = (configuration: Awaited<ReturnType<typeof window.pixelCore.getInputConfiguration>>): void => {
-      const compatibleProfile =
-        configuration.profile?.mapping.consoleId === configuration.mapping.consoleId &&
-        configuration.profile.keyboardBindings.length === DEFAULT_KEYBOARD_BINDINGS.length
-          ? configuration.profile
-          : undefined;
-      const resolvedProfile: InputProfile = compatibleProfile ?? {
-        advancedGamepadBindings: [],
-        advancedKeyboardBindings: DEFAULT_ADVANCED_KEYBOARD_BINDINGS,
-        gamepadBindings: [],
-        deviceFingerprint: 'keyboard:standard',
-        id: 'default',
-        keyboardBindings: DEFAULT_KEYBOARD_BINDINGS,
-        mapping: configuration.mapping,
-        name: 'Default input profile',
-        version: 4,
-      };
-      inputRuntime.current.assignments.prefer(
-        resolvedProfile.mapping.playerPortId,
-        resolvedProfile.deviceFingerprint,
-      );
-      profileRef.current = resolvedProfile;
-      keyboard.current.setBindings(resolvedProfile.keyboardBindings);
-      setProfile(resolvedProfile);
+  const applyInputConfiguration = (
+    configuration: Awaited<ReturnType<typeof window.pixelCore.getInputConfiguration>>,
+  ): void => {
+    const compatibleProfile =
+      configuration.profile?.mapping.consoleId === configuration.mapping.consoleId &&
+      configuration.profile.keyboardBindings.length === DEFAULT_KEYBOARD_BINDINGS.length
+        ? configuration.profile
+        : undefined;
+    const resolvedProfile: InputProfile = compatibleProfile ?? {
+      advancedGamepadBindings: [],
+      advancedKeyboardBindings: DEFAULT_ADVANCED_KEYBOARD_BINDINGS,
+      gamepadBindings: [],
+      deviceFingerprint: 'keyboard:standard',
+      id: 'default',
+      keyboardBindings: DEFAULT_KEYBOARD_BINDINGS,
+      mapping: configuration.mapping,
+      name: 'Default input profile',
+      version: 4,
+    };
+    inputRuntime.current.assignments.prefer(
+      resolvedProfile.mapping.playerPortId,
+      resolvedProfile.deviceFingerprint,
+    );
+    profileRef.current = resolvedProfile;
+    keyboard.current.setBindings(resolvedProfile.keyboardBindings);
+    setProfile(resolvedProfile);
   };
 
   useEffect(() => {
@@ -1106,6 +1134,14 @@ const ProductApp = (): React.JSX.Element => {
             className="pc-session-artwork-background"
             src={selectedGame?.artworkDataUrl ?? defaultArtworkUrl}
           />
+          {selectedGame?.extension === '.gba' ? (
+            <img
+              alt=""
+              aria-hidden="true"
+              className="pc-session-console-backdrop"
+              src={gbaBackdropUrl}
+            />
+          ) : null}
           <header className="pc-session-header">
             <button
               className="pc-ghost-button"
@@ -1463,7 +1499,11 @@ const ProductApp = (): React.JSX.Element => {
                     pressInput: t('mappingPressInput'),
                   }}
                   devices={devices}
-                  diagram={gameBoyControlDiagram}
+                  diagram={
+                    profile.mapping.consoleId === 'org.pixelcore.game-boy-advance'
+                      ? gbaControlDiagram
+                      : gameBoyControlDiagram
+                  }
                   entries={profile.mapping.entries}
                   keyboardBindings={profile.keyboardBindings}
                   onBackFeedback={() => uiAudio.play('back')}

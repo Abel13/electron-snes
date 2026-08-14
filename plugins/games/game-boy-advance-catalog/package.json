@@ -1,5 +1,5 @@
 {
-  "name": "@platform/plugin-emulator-mgba",
+  "name": "@platform/example-game-boy-advance-catalog",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -10,22 +10,20 @@
     }
   },
   "files": [
+    "assets",
     "dist",
-    "manifest.json",
-    "wasm"
+    "manifest.json"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
-    "build:wasm": "sh scripts/build-wasm.sh",
     "lint": "eslint src --max-warnings=0",
     "test": "vitest run --passWithNoTests",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@platform/emulator-sdk": "workspace:*"
+    "@platform/game-sdk": "workspace:*"
   },
   "devDependencies": {
-    "@platform/plugin-test": "workspace:*",
-    "@types/node": "^24.0.0"
+    "@platform/plugin-test": "workspace:*"
   }
 }

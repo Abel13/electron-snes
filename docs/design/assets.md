@@ -23,13 +23,13 @@ box, logo, character, or exact hardware industrial design.
 
 ## Asset classes
 
-| Class | Purpose | Requirements |
-| --- | --- | --- |
-| `console-hero` | Centerpiece in the console selector | Transparent PNG, original hardware representation, no embedded text |
-| `cartridge` | Game selection surface | Transparent PNG plus a separately declared label mask and safe area |
-| `blueprint` | Control-configuration diagram | SVG or transparent PNG with stable normalized anchor points |
-| `session-backdrop` | Low-emphasis atmosphere around video | Decorative only; must preserve contrast and reserved HUD space |
-| `cover-mask` | Places user-provided cover art inside a cartridge | No branding; contains only the label aperture and perspective metadata |
+| Class              | Purpose                                           | Requirements                                                           |
+| ------------------ | ------------------------------------------------- | ---------------------------------------------------------------------- |
+| `console-hero`     | Centerpiece in the console selector               | Transparent PNG, original hardware representation, no embedded text    |
+| `cartridge`        | Game selection surface                            | Transparent PNG plus a separately declared label mask and safe area    |
+| `blueprint`        | Control-configuration diagram                     | SVG or transparent PNG with stable normalized anchor points            |
+| `session-backdrop` | Low-emphasis atmosphere around video              | Decorative only; must preserve contrast and reserved HUD space         |
+| `cover-mask`       | Places user-provided cover art inside a cartridge | No branding; contains only the label aperture and perspective metadata |
 
 ## Source and export rules
 
@@ -42,6 +42,8 @@ box, logo, character, or exact hardware industrial design.
   `game-boy-advance-console-hero.png`.
 - Record author, source, license, creation date, and any generation/editing method in the asset
   inventory or adjacent `NOTICE.md`.
+- Group runtime files under `assets/consoles/<console-slug>/` when a console has more than one
+  declared asset class; do not place a console cartridge beside unrelated library assets.
 - Third-party content is allowed only with verified redistribution rights. User-provided game covers
   are local data and are never shipped as PixelCore assets.
 
@@ -87,12 +89,12 @@ Every official console provides a declarative profile that references these asse
 its video presentation, accent values, and layout intent. It may vary in silhouette, cartridge shape,
 frame composition, and proportion while retaining the PixelCore visual direction.
 
-| Console family | Hero and cartridge intent | Native video |
-| --- | --- | --- |
-| Game Boy Family | Compact vertical portable and near-square label | `160x144` |
-| Game Boy Advance | Wide ergonomic portable and wide label | `240x160` |
-| NES | Horizontal home-console composition and cartridge profile | Console-declared |
-| SNES | Layered 16-bit home-console composition and cartridge profile | Console-declared |
-| Nintendo 64 | Spatial 3D composition with broader scene depth | Console-declared |
+| Console family   | Hero and cartridge intent                                     | Native video     |
+| ---------------- | ------------------------------------------------------------- | ---------------- |
+| Game Boy Family  | Compact vertical portable and near-square label               | `160x144`        |
+| Game Boy Advance | Wide ergonomic portable and wide label                        | `240x160`        |
+| NES              | Horizontal home-console composition and cartridge profile     | Console-declared |
+| SNES             | Layered 16-bit home-console composition and cartridge profile | Console-declared |
+| Nintendo 64      | Spatial 3D composition with broader scene depth               | Console-declared |
 
 Exact display behavior belongs to [Console video presentation](../architecture/console-video-presentation.md).

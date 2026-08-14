@@ -87,26 +87,27 @@ export const createDesktopSessionHost = (
   let activePlugin: EmulatorPluginDefinition | undefined =
     typeof plugin === 'function' ? undefined : plugin;
   let controller = new EmulatorSessionController(
-    activePlugin ?? ({
-      createSession: async () => {
-        throw new Error('No emulator plugin has been selected.');
-      },
-      emulator: {
-        capabilities: { fastForward: false, rewind: false, saveStates: false },
-        compatibleConsoleIds: [],
-        id: 'org.pixelcore.unselected',
-        supportedRomExtensions: [],
-      },
-      manifest: {
-        apiVersion: 1,
-        capabilities: ['placeholder'],
-        id: 'org.pixelcore.unselected',
-        name: 'Unselected emulator',
-        permissions: [],
-        type: 'emulator-core',
-        version: '0.0.0',
-      },
-    } satisfies EmulatorPluginDefinition),
+    activePlugin ??
+      ({
+        createSession: async () => {
+          throw new Error('No emulator plugin has been selected.');
+        },
+        emulator: {
+          capabilities: { fastForward: false, rewind: false, saveStates: false },
+          compatibleConsoleIds: [],
+          id: 'org.pixelcore.unselected',
+          supportedRomExtensions: [],
+        },
+        manifest: {
+          apiVersion: 1,
+          capabilities: ['placeholder'],
+          id: 'org.pixelcore.unselected',
+          name: 'Unselected emulator',
+          permissions: [],
+          type: 'emulator-core',
+          version: '0.0.0',
+        },
+      } satisfies EmulatorPluginDefinition),
     outputsForController,
   );
 

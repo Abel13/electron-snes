@@ -123,7 +123,10 @@ const validateGamepadBindingSets = (input: unknown): Result<readonly GamepadBind
 };
 
 const validateKeyboardBindings = (input: unknown): Result<readonly KeyboardBinding[]> => {
-  if (!Array.isArray(input) || (input.length !== 8 && input.length !== NORMALIZED_INPUT_ACTIONS.length))
+  if (
+    !Array.isArray(input) ||
+    (input.length !== 8 && input.length !== NORMALIZED_INPUT_ACTIONS.length)
+  )
     return err({ code: 'invalid-input', message: 'A complete keyboard binding set is required.' });
   const bindings: KeyboardBinding[] = [];
   for (const value of input) {

@@ -9,13 +9,20 @@
       "default": "./dist/index.js"
     }
   },
-  "files": ["dist", "manifest.json"],
+  "files": [
+    "dist",
+    "manifest.json"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "lint": "eslint src --max-warnings=0",
     "test": "vitest run --passWithNoTests",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
-  "dependencies": {"@platform/console-sdk": "workspace:*"},
-  "devDependencies": {"@platform/plugin-test": "workspace:*"}
+  "dependencies": {
+    "@platform/console-sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "@platform/plugin-test": "workspace:*"
+  }
 }

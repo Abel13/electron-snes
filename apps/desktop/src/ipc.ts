@@ -468,7 +468,9 @@ const isLibraryGame = (value: unknown): value is LibraryGame =>
     ].includes(key),
   ) &&
   typeof value['addedAt'] === 'string' &&
-  (value['extension'] === '.gb' || value['extension'] === '.gbc' || value['extension'] === '.gba') &&
+  (value['extension'] === '.gb' ||
+    value['extension'] === '.gbc' ||
+    value['extension'] === '.gba') &&
   typeof value['favorite'] === 'boolean' &&
   typeof value['id'] === 'string' &&
   typeof value['name'] === 'string' &&

@@ -7,6 +7,7 @@ import type { EmulatorPluginDefinition } from '@platform/emulator-sdk';
 import type { GameMetadataPluginDefinition } from '@platform/game-sdk';
 import { validateGameMetadataPlugin } from '@platform/game-sdk';
 import { referenceGameCatalog } from '@platform/example-game-reference-catalog';
+import { gameBoyAdvanceExampleCatalog } from '@platform/example-game-boy-advance-catalog';
 
 const officialEmulatorPlugins = new Map<string, EmulatorPluginDefinition>([
   [mgbaEmulator.emulator.id, mgbaEmulator],
@@ -34,5 +35,11 @@ export const listOfficialConsolePluginIds = (): readonly string[] =>
 export const resolveOfficialEmulatorPlugin = (id: string): EmulatorPluginDefinition | undefined =>
   officialEmulatorPlugins.get(id);
 
-export const listOfficialGameMetadataPlugins = (): readonly GameMetadataPluginDefinition[] =>
-  officialGameMetadataPlugins;
+const gbaGameMetadataValidation = validateGameMetadataPlugin(gameBoyAdvanceExampleCatalog);
+if (gbaGameMetadataValidation.status !== 'valid')
+  throw new Error('The official GBA game metadata catalog is invalid.');
+
+export const listOfficialGameMetadataPlugins = (): readonly GameMetadataPluginDefinition[] => [
+  ...officialGameMetadataPlugins,
+  gbaGameMetadataValidation.definition,
+];

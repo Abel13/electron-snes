@@ -6,7 +6,15 @@ export interface MgbaModule {
   _malloc(size: number): number;
   _free(pointer: number): void;
   _mgbawasm_init(): void;
-  _mgbawasm_load(rom: number, bytes: number, bios: number, biosBytes: number, platform: number, gbModel: number, skipBios: number): number;
+  _mgbawasm_load(
+    rom: number,
+    bytes: number,
+    bios: number,
+    biosBytes: number,
+    platform: number,
+    gbModel: number,
+    skipBios: number,
+  ): number;
   _mgbawasm_unload(): void;
   _mgbawasm_platform(): number;
   _mgbawasm_run_frame(): void;

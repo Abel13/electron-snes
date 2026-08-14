@@ -1,0 +1,9 @@
+{
+  "apiVersion": 1,
+  "capabilities": ["localized-game-metadata"],
+  "id": "org.pixelcore.example.game-boy-advance-catalog",
+  "name": "Game Boy Advance Example Catalog",
+  "permissions": [],
+  "type": "game-metadata",
+  "version": "1.0.0"
+}

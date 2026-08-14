@@ -11,7 +11,13 @@ export const mgbaEmulator = defineEmulator({
   },
   manifest: {
     apiVersion: 1,
-    capabilities: ['audio-output', 'video-output', 'game-boy-advance', 'cartridge-saves', 'save-states'],
+    capabilities: [
+      'audio-output',
+      'video-output',
+      'game-boy-advance',
+      'cartridge-saves',
+      'save-states',
+    ],
     id: 'org.pixelcore.mgba',
     name: 'mGBA',
     permissions: [],

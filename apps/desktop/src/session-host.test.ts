@@ -10,7 +10,11 @@ import { createDesktopSessionHost } from './session-host.js';
 
 const inputSnapshots: (readonly string[])[] = [];
 
-const createPlugin = (saveStates = false): EmulatorPluginDefinition => {
+const createPlugin = (
+  saveStates = false,
+  extension: '.gb' | '.gbc' | '.gba' = '.gb',
+  resolution: { readonly height: number; readonly width: number } = { height: 144, width: 160 },
+): EmulatorPluginDefinition => {
   let status: EmulatorSessionStatus = 'idle';
   let audio:
     ((frame: { channels: 2; sampleRate: number; samples: Float32Array }) => void) | undefined;
@@ -31,10 +35,10 @@ const createPlugin = (saveStates = false): EmulatorPluginDefinition => {
     start: async () => {
       status = 'running';
       video?.({
-        height: 144,
+        height: resolution.height,
         pixelFormat: 'rgba8888',
-        pixels: new Uint8Array(160 * 144 * 4),
-        width: 160,
+        pixels: new Uint8Array(resolution.width * resolution.height * 4),
+        width: resolution.width,
       });
       audio?.({ channels: 2, sampleRate: 48000, samples: new Float32Array([0, 0]) });
       return { status: 'ok' };
@@ -50,7 +54,7 @@ const createPlugin = (saveStates = false): EmulatorPluginDefinition => {
       capabilities: { fastForward: false, rewind: false, saveStates },
       compatibleConsoleIds: ['org.pixelcore.game-boy-family'],
       id: 'org.pixelcore.fixture',
-      supportedRomExtensions: ['.gb', '.gbc'],
+      supportedRomExtensions: extension === '.gba' ? ['.gba'] : ['.gb', '.gbc'],
     },
     manifest: {
       apiVersion: 1,
@@ -96,6 +100,38 @@ describe('DesktopSessionHost', () => {
     await expect(host.stop()).resolves.toEqual({ sessionStatus: 'stopped', status: 'ok' });
     expect(audio).toHaveLength(1);
     expect(video).toHaveLength(1);
+  });
+
+  it('preserves the GBA native frame dimensions and cartridge-save boundary', async () => {
+    const persisted: Uint8Array[] = [];
+    const frames: { readonly height: number; readonly width: number }[] = [];
+    const host = createDesktopSessionHost(
+      createPlugin(false, '.gba', { height: 160, width: 240 }),
+      {
+        loadCartridgeSave: async () => new Uint8Array([1, 2, 3]),
+        persistCartridgeSave: async (_key, bytes) => {
+          persisted.push(bytes);
+        },
+        sendAudio: () => undefined,
+        sendVideo: (frame) => frames.push({ height: frame.height, width: frame.width }),
+      },
+    );
+
+    await expect(
+      host.launch(
+        {
+          bytes: new Uint8Array([1, 2]),
+          extension: '.gba',
+          name: 'fixture.gba',
+          selectionId: 'gba-id',
+        },
+        'c'.repeat(64),
+      ),
+    ).resolves.toEqual({ sessionStatus: 'running', status: 'ok' });
+    await host.stop();
+
+    expect(frames).toEqual([{ height: 160, width: 240 }]);
+    expect(persisted).toEqual([]);
   });
 
   it('loads and persists cartridge data using an opaque ROM identity', async () => {

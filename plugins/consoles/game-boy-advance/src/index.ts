@@ -31,9 +31,16 @@ export const gameBoyAdvanceConsole = defineConsole({
     id: 'org.pixelcore.game-boy-advance',
     identifyRom,
     inputActions: [
-      { id: 'up' }, { id: 'down' }, { id: 'left' }, { id: 'right' },
-      { id: 'a' }, { id: 'b' }, { id: 'l' }, { id: 'r' },
-      { id: 'start' }, { id: 'select' },
+      { id: 'up' },
+      { id: 'down' },
+      { id: 'left' },
+      { id: 'right' },
+      { id: 'a' },
+      { id: 'b' },
+      { id: 'l' },
+      { id: 'r' },
+      { id: 'start' },
+      { id: 'select' },
     ],
     inputMapping: {
       entries: [
@@ -51,10 +58,12 @@ export const gameBoyAdvanceConsole = defineConsole({
       playerPortId: 'player-one',
       version: 1,
     },
-    playerPorts: [{
-      id: 'player-one',
-      inputActions: ['up', 'down', 'left', 'right', 'a', 'b', 'l', 'r', 'start', 'select'],
-    }],
+    playerPorts: [
+      {
+        id: 'player-one',
+        inputActions: ['up', 'down', 'left', 'right', 'a', 'b', 'l', 'r', 'start', 'select'],
+      },
+    ],
     supportedRomExtensions: ['.gba'],
     videoPresentation: {
       nativeResolution: { width: 240, height: 160 },
