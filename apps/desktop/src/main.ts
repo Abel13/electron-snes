@@ -76,7 +76,12 @@ const createMainWindow = (): ElectronBrowserWindow => {
   window.webContents.on('did-fail-load', (_event, code, description, url) => {
     console.error(`Renderer failed to load ${url}: ${code} ${description}`);
   });
-  window.once('ready-to-show', () => window.show());
+  window.once('ready-to-show', () => {
+    if (!window.isDestroyed()) window.show();
+  });
+  window.on('closed', () => {
+    if (mainWindow === window) mainWindow = undefined;
+  });
   const developmentServerUrl = process.env['PIXELCORE_DEV_SERVER_URL'];
   if (developmentServerUrl === undefined) {
     void window.loadFile(join(currentDirectory, 'renderer', 'renderer', 'index.html'));
@@ -98,7 +103,10 @@ const hasSingleInstanceLock = app.requestSingleInstanceLock();
 if (!hasSingleInstanceLock) app.quit();
 
 app.on('second-instance', () => {
-  if (mainWindow === undefined) return;
+  if (mainWindow === undefined || mainWindow.isDestroyed()) {
+    mainWindow = undefined;
+    return;
+  }
   if (mainWindow.isMinimized()) mainWindow.restore();
   mainWindow.focus();
 });
