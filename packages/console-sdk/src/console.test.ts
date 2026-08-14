@@ -30,6 +30,7 @@ const gameBoyConsole = defineConsole({
       playerPortId: 'player-one',
       version: 1,
     },
+    maxRomBytes: 8 * 1024 * 1024,
     playerPorts: [
       {
         id: 'player-one',
@@ -53,6 +54,20 @@ test('accepts a generic Game Boy family console declaration', () => {
   const result = validateConsolePlugin(gameBoyConsole);
 
   expect(result.status).toBe('valid');
+});
+
+test('rejects an unsafe ROM size limit', () => {
+  const result = validateConsolePlugin({
+    ...gameBoyConsole,
+    console: { ...gameBoyConsole.console, maxRomBytes: 65 * 1024 * 1024 },
+  });
+
+  expect(result.status).toBe('invalid');
+  if (result.status === 'invalid') {
+    expect(result.diagnostics).toContainEqual(
+      expect.objectContaining({ path: ['console', 'maxRomBytes'] }),
+    );
+  }
 });
 
 test('rejects a declaration with an action missing from its player port', () => {

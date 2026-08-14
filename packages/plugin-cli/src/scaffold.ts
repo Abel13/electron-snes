@@ -43,6 +43,7 @@ export const plugin = defineConsole({
       version: 1,
     },
     playerPorts: [{ id: 'player-one', inputActions: ['action'] }],
+    maxRomBytes: 8 * 1024 * 1024,
     supportedRomExtensions: ['.demo'],
   },
   manifest: ${manifestLiteral(id, name, 'console', ['cartridge-playback'])},

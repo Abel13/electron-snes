@@ -10,7 +10,9 @@ The future emulator worker needs ROM bytes after explicit user selection without
 
 ## Decision
 
-Resolve one opaque selection ID only in Electron main, read the selected file with an 8 MiB maximum, and return copied bytes with safe metadata. Invalid and unavailable files use structured results.
+Resolve one opaque selection ID only in Electron main, read the selected file with the maximum size
+declared by its resolved console plugin, and return copied bytes with safe metadata. Invalid and
+unavailable files use structured results. The host also enforces a hard upper bound on declarations.
 
 ## Alternatives considered
 

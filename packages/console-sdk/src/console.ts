@@ -66,6 +66,7 @@ export interface ConsoleGameIdentifier {
 export interface ConsoleDefinition {
   readonly assets?: ConsoleAssetProfile;
   readonly generationKey?: string;
+  readonly maxRomBytes: number;
   readonly capabilities: readonly string[];
   readonly id: string;
   readonly identifyRom?: (bytes: Uint8Array) => readonly ConsoleGameIdentifier[];
@@ -183,7 +184,21 @@ export const validateConsolePlugin = (input: unknown): ConsolePluginValidationRe
   const supportedRomExtensions = definition['supportedRomExtensions'];
   const assets = definition['assets'];
   const generationKey = definition['generationKey'];
+  const maxRomBytes = definition['maxRomBytes'];
   const diagnostics: ConsolePluginDiagnostic[] = [];
+
+  if (
+    typeof maxRomBytes !== 'number' ||
+    !Number.isSafeInteger(maxRomBytes) ||
+    maxRomBytes <= 0 ||
+    maxRomBytes > 64 * 1024 * 1024
+  )
+    diagnostics.push(
+      diagnostic(
+        ['console', 'maxRomBytes'],
+        'A console must declare a positive ROM limit up to 64 MiB.',
+      ),
+    );
 
   if (
     generationKey !== undefined &&

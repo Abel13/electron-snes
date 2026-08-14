@@ -32,6 +32,19 @@ describe('ROM loader', () => {
     });
   });
 
+  it('accepts a 16 MiB GBA ROM under the console-declared 32 MiB limit', async () => {
+    const selections = createRomSelectionStore();
+    const selection = selections.register('/library/game.gba');
+    const result = await loadSelectedRom(
+      selection?.id ?? '',
+      selections,
+      async () => new Uint8Array(16 * 1024 * 1024),
+      () => 32 * 1024 * 1024,
+    );
+
+    expect(result.status).toBe('loaded');
+  });
+
   it('returns safe outcomes for absent, empty, oversized, and unreadable files', async () => {
     const selections = createRomSelectionStore();
     const selection = selections.register('/library/game.gb');

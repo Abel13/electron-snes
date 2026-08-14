@@ -51,6 +51,7 @@ export const gameBoyAdvanceConsole = defineConsole({
       },
     },
     generationKey: 'generationHandheld',
+    maxRomBytes: 32 * 1024 * 1024,
     capabilities: ['cartridge-playback', 'wide-portable-video'],
     id: 'org.pixelcore.game-boy-advance',
     identifyRom,

@@ -23,6 +23,7 @@ export const gameBoyFamilyConsole = defineConsole({
       },
     },
     generationKey: 'generationHandheld',
+    maxRomBytes: 8 * 1024 * 1024,
     capabilities: ['cartridge-playback'],
     id: 'org.pixelcore.game-boy-family',
     identifyRom: (bytes: Uint8Array) => {

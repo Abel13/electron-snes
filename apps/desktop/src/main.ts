@@ -35,7 +35,7 @@ import {
 } from './ipc.js';
 import { JsonFileStorage } from './json-file-storage.js';
 import { GlobalPreferencesRepository } from './global-preferences.js';
-import { loadSelectedRom } from './rom-loader.js';
+import { formatBytes, loadSelectedRom, MAX_ROM_BYTES } from './rom-loader.js';
 import { createRomSelectionStore } from './rom-selection.js';
 import { createDesktopSessionHost } from './session-host.js';
 import { CartridgeSaveStore } from './cartridge-save-store.js';
@@ -65,6 +65,8 @@ const emulatorForExtension = (extension: string) =>
   extension === '.gba' ? officialGbaEmulator : officialEmulator;
 const identifiersForRom = (extension: string, bytes: Uint8Array) =>
   consoleForExtension(extension)?.console.identifyRom?.(bytes) ?? [];
+const romSizeLimitForExtension = (extension: string): number =>
+  consoleForExtension(extension)?.console.maxRomBytes ?? MAX_ROM_BYTES;
 
 const createMainWindow = (): ElectronBrowserWindow => {
   const window = new BrowserWindow(
@@ -171,6 +173,8 @@ app.whenReady().then(() => {
       const extension = extname(sourceKey).toLowerCase();
       if (!['.gb', '.gbc', '.gba'].includes(extension) || knownSources.has(sourceKey)) continue;
       const bytes = await readFile(join(romDirectory, sourceKey));
+      if (bytes.byteLength === 0 || bytes.byteLength > romSizeLimitForExtension(extension))
+        continue;
       await library.add({
         extension: extension as LocalGame['extension'],
         identifiers: identifiersForRom(extension, bytes),
@@ -243,8 +247,12 @@ app.whenReady().then(() => {
       if (!['.gb', '.gbc', '.gba'].includes(extension))
         return { message: 'Choose a supported .gb, .gbc or .gba ROM.', status: 'error' };
       const file = await stat(filePath);
-      if (file.size <= 0 || file.size > 8 * 1024 * 1024)
-        return { message: 'The ROM must be between 1 byte and 8 MiB.', status: 'error' };
+      const maximumBytes = romSizeLimitForExtension(extension);
+      if (file.size <= 0 || file.size > maximumBytes)
+        return {
+          message: `The ROM must be between 1 byte and ${formatBytes(maximumBytes)}.`,
+          status: 'error',
+        };
       await mkdir(romDirectory, { recursive: true });
       const sourceKey = `${randomUUID()}-${basename(filePath)}`;
       const bytes = await readFile(filePath);
@@ -377,7 +385,7 @@ app.whenReady().then(() => {
   ipcMain.handle(IPC_CHANNELS.loadRom, async (_event, ...payload: unknown[]) => {
     if (!hasRomSelectionIdPayload(payload))
       throw new Error('The load-ROM IPC channel requires one opaque selection ID.');
-    return loadSelectedRom(payload[0], romSelections, readFile);
+    return loadSelectedRom(payload[0], romSelections, readFile, romSizeLimitForExtension);
   });
 
   ipcMain.handle(IPC_CHANNELS.getInputConfiguration, async (_event, ...payload: unknown[]) => {
@@ -481,7 +489,12 @@ app.whenReady().then(() => {
         message: 'The library entry is not a supported ROM.',
         status: 'error',
       };
-    const loaded = await loadSelectedRom(selection.id, romSelections, readFile);
+    const loaded = await loadSelectedRom(
+      selection.id,
+      romSelections,
+      readFile,
+      romSizeLimitForExtension,
+    );
     if (loaded.status !== 'loaded')
       return { code: loaded.code, message: loaded.message, status: 'error' };
     let autosave: import('@platform/emulator-sdk').EmulatorSaveState | undefined;
@@ -525,7 +538,12 @@ app.whenReady().then(() => {
   ipcMain.handle(IPC_CHANNELS.startSession, async (_event, ...payload: unknown[]) => {
     if (!hasRomSelectionIdPayload(payload))
       throw new Error('The start-session IPC channel requires one opaque selection ID.');
-    const loaded = await loadSelectedRom(payload[0], romSelections, readFile);
+    const loaded = await loadSelectedRom(
+      payload[0],
+      romSelections,
+      readFile,
+      romSizeLimitForExtension,
+    );
     if (loaded.status === 'loaded') {
       activeSessionExtension = loaded.rom.extension;
       return sessionHost.launch(loaded.rom, identifyRom(loaded.rom.bytes));
