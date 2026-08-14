@@ -10,6 +10,7 @@ the [asset guide](../../../docs/design/assets.md).
 | `cartridges/game-boy-advance-cartridge.png`       | PixelCore contributors | Original generated artwork   | CC0-1.0 | 2026-08-14 |
 | `blueprints/game-boy-advance-blueprint.png`       | PixelCore contributors | Original generated blueprint | CC0-1.0 | 2026-08-14 |
 | `backdrops/game-boy-advance-session-backdrop.png` | PixelCore contributors | Original generated artwork   | CC0-1.0 | 2026-08-14 |
+| `cartridges/portable-cartridge.webp`              | PixelCore contributors | Existing application asset   | Project | Existing   |
 
 These assets are original abstract representations and do not reproduce proprietary logos or
 commercial artwork. They use transparent raster cutouts where applicable and include safe margins

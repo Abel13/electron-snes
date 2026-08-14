@@ -75,7 +75,7 @@ declare global {
 const logoUrl = new URL('../assets/brand/pixelcore-logo.png', import.meta.url).href;
 const iconUrl = new URL('../assets/brand/pixelcore-icon.png', import.meta.url).href;
 const defaultArtworkUrl = new URL('../assets/library/default-game-cover.png', import.meta.url).href;
-const cartridgeUrl = new URL('../assets/library/portable-cartridge.webp', import.meta.url).href;
+const cartridgeUrl = new URL('../assets/cartridges/portable-cartridge.webp', import.meta.url).href;
 const gameBoyBlueprintUrl = new URL(
   '../assets/consoles/game-boy-family-outline.png',
   import.meta.url,
