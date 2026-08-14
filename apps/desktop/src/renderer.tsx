@@ -75,7 +75,6 @@ declare global {
 
 const logoUrl = new URL('../assets/brand/pixelcore-logo.png', import.meta.url).href;
 const iconUrl = new URL('../assets/brand/pixelcore-icon.png', import.meta.url).href;
-const defaultArtworkUrl = new URL('../assets/library/default-game-cover.png', import.meta.url).href;
 const soundUrl = (name: string): string =>
   new URL(`../assets/audio/${name}.wav`, import.meta.url).href;
 const uiAudio = new BrowserUiAudioService({
@@ -1080,12 +1079,14 @@ const ProductApp = (): React.JSX.Element => {
     return (
       <InputPromptProvider assetMap={kenneyInputPromptAssets} scheme={sessionInputPromptScheme}>
         <main className="pc-session-view">
-          <img
-            alt=""
-            aria-hidden="true"
-            className="pc-session-artwork-background"
-            src={selectedGame?.artworkDataUrl ?? defaultArtworkUrl}
-          />
+          {selectedGame?.artworkDataUrl === undefined ? null : (
+            <img
+              alt=""
+              aria-hidden="true"
+              className="pc-session-artwork-background"
+              src={selectedGame.artworkDataUrl}
+            />
+          )}
           {sessionConsole?.assets?.sessionBackdropUrl === undefined ? null : (
             <img
               alt=""
@@ -1363,7 +1364,7 @@ const ProductApp = (): React.JSX.Element => {
         {activeConsole === undefined ? null : (
           <>
             <ConsoleLibrary
-              artworkFor={(game) => game.artworkDataUrl ?? defaultArtworkUrl}
+              artworkFor={(game) => game.artworkDataUrl}
               {...(activeConsole.assets?.cartridgeUrl === undefined
                 ? {}
                 : { cartridgeUrl: activeConsole.assets.cartridgeUrl })}
