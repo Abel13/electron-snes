@@ -42,8 +42,8 @@ box, logo, character, or exact hardware industrial design.
   `game-boy-advance-console-hero.png`.
 - Record author, source, license, creation date, and any generation/editing method in the asset
   inventory or adjacent `NOTICE.md`.
-- Group runtime files under `assets/consoles/<console-slug>/` when a console has more than one
-  declared asset class; do not place a console cartridge beside unrelated library assets.
+- Group runtime files by class under `assets/consoles/`, `assets/cartridges/`,
+  `assets/blueprints/`, and `assets/backdrops/`; keep the console slug in every filename.
 - Third-party content is allowed only with verified redistribution rights. User-provided game covers
   are local data and are never shipped as PixelCore assets.
 

@@ -96,10 +96,7 @@ const gameBoyControlDiagram = {
 } as const;
 const gbaControlDiagram = {
   alt: 'Game Boy Advance control blueprint',
-  assetUrl: new URL(
-    '../assets/consoles/game-boy-advance/game-boy-advance-blueprint.png',
-    import.meta.url,
-  ).href,
+  assetUrl: new URL('../assets/blueprints/game-boy-advance-blueprint.png', import.meta.url).href,
   controlPoints: [
     { action: 'up', x: 32, y: 45 },
     { action: 'down', x: 32, y: 64 },
@@ -115,7 +112,7 @@ const gbaControlDiagram = {
 } as const;
 const consoleArtwork = {
   'game-boy-advance': new URL(
-    '../assets/consoles/game-boy-advance/game-boy-advance-console-hero.png',
+    '../assets/consoles/game-boy-advance-console-hero.png',
     import.meta.url,
   ).href,
   'game-boy-family': new URL('../assets/consoles/game-boy-family.webp', import.meta.url).href,
@@ -124,7 +121,7 @@ const consoleArtwork = {
   'snes-era': new URL('../assets/consoles/snes-era.webp', import.meta.url).href,
 } as const;
 const gbaBackdropUrl = new URL(
-  '../assets/consoles/game-boy-advance/game-boy-advance-session-backdrop.png',
+  '../assets/backdrops/game-boy-advance-session-backdrop.png',
   import.meta.url,
 ).href;
 const soundUrl = (name: string): string =>
@@ -212,6 +209,7 @@ const ProductApp = (): React.JSX.Element => {
   const [status, setStatus] = useState<ProductStatus>('loading');
   const [startupVisible, setStartupVisible] = useState(true);
   const [screen, setScreen] = useState<AppScreen>('home');
+  const [selectedConsoleId, setSelectedConsoleId] = useState<string>();
   const [globalSettingsOpen, setGlobalSettingsOpen] = useState(false);
   const [exitConfirmationOpen, setExitConfirmationOpen] = useState(false);
   const [autosaveChoice, setAutosaveChoice] = useState<{
@@ -276,6 +274,11 @@ const ProductApp = (): React.JSX.Element => {
         (key) => consoleArtwork[key],
       ),
     [availableConsoleIds, t],
+  );
+  const activeConsole = consoles.find((console) => console.id === selectedConsoleId) ?? consoles[0];
+  const activeConsoleIndex = Math.max(
+    0,
+    consoles.findIndex((console) => console.id === activeConsole?.id),
   );
 
   const selectedGame = games.find((game) => game.id === selectedGameId) ?? games[0];
@@ -1291,6 +1294,7 @@ const ProductApp = (): React.JSX.Element => {
               unavailable: (name) => t('unavailableSystem', { name }),
             }}
             items={consoles}
+            initialIndex={activeConsoleIndex}
             logoUrl={logoUrl}
             onConfirm={(item) => {
               if (item.availability === 'coming-soon') {
@@ -1298,6 +1302,7 @@ const ProductApp = (): React.JSX.Element => {
                 return;
               }
               uiAudio.play('select');
+              setSelectedConsoleId(item.id);
               setGlobalSettingsOpen(false);
               setScreen('library');
             }}
@@ -1406,12 +1411,12 @@ const ProductApp = (): React.JSX.Element => {
   return (
     <InputPromptProvider assetMap={kenneyInputPromptAssets} scheme={inputPromptScheme}>
       <>
-        {consoles[0] === undefined ? null : (
+        {activeConsole === undefined ? null : (
           <>
             <ConsoleLibrary
               artworkFor={(game) => game.artworkDataUrl ?? defaultArtworkUrl}
               cartridgeUrl={cartridgeUrl}
-              console={consoles[0]}
+              console={activeConsole}
               copy={{
                 addGame: t('addGame'),
                 artwork: t('artwork'),
@@ -1425,7 +1430,7 @@ const ProductApp = (): React.JSX.Element => {
                 removeFavorite: t('removeFavorite'),
                 settings: t('settings'),
               }}
-              games={games.filter((game) => consoles[0]?.extensions.includes(game.extension))}
+              games={games.filter((game) => activeConsole.extensions.includes(game.extension))}
               logoUrl={logoUrl}
               onAddGame={() => void importGame()}
               onArtwork={(game) => void selectArtwork(game as LibraryGame)}
