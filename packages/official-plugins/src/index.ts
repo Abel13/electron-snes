@@ -1,4 +1,6 @@
 import { sameBoyEmulator } from '@platform/plugin-emulator-sameboy';
+import { mgbaEmulator } from '@platform/plugin-emulator-mgba';
+import { gameBoyAdvanceConsole } from '@platform/plugin-console-game-boy-advance';
 import { gameBoyFamilyConsole } from '@platform/plugin-console-game-boy-family';
 import type { ConsolePluginDefinition } from '@platform/console-sdk';
 import type { EmulatorPluginDefinition } from '@platform/emulator-sdk';
@@ -7,9 +9,11 @@ import { validateGameMetadataPlugin } from '@platform/game-sdk';
 import { referenceGameCatalog } from '@platform/example-game-reference-catalog';
 
 const officialEmulatorPlugins = new Map<string, EmulatorPluginDefinition>([
+  [mgbaEmulator.emulator.id, mgbaEmulator],
   [sameBoyEmulator.emulator.id, sameBoyEmulator],
 ]);
 const officialConsolePlugins = new Map<string, ConsolePluginDefinition>([
+  [gameBoyAdvanceConsole.console.id, gameBoyAdvanceConsole],
   [gameBoyFamilyConsole.console.id, gameBoyFamilyConsole],
 ]);
 const gameMetadataValidation = validateGameMetadataPlugin(referenceGameCatalog);

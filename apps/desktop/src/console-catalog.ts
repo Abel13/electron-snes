@@ -2,7 +2,7 @@ import type { ConsoleCatalogItem } from '@platform/ui-contracts';
 
 interface ProductConsoleEntry {
   readonly accentColor: string;
-  readonly artworkKey: 'game-boy-family' | 'n64-era' | 'nes-era' | 'snes-era';
+  readonly artworkKey: 'game-boy-family' | 'game-boy-advance' | 'n64-era' | 'nes-era' | 'snes-era';
   readonly extensions: readonly string[];
   readonly generationKey: string;
   readonly id: string;
@@ -10,6 +10,14 @@ interface ProductConsoleEntry {
 }
 
 export const PRODUCT_CONSOLE_CATALOG: readonly ProductConsoleEntry[] = [
+  {
+    accentColor: '#6edcff',
+    artworkKey: 'game-boy-advance',
+    extensions: ['.gba'],
+    generationKey: 'generationHandheld',
+    id: 'org.pixelcore.game-boy-advance',
+    name: 'Game Boy Advance',
+  },
   {
     accentColor: '#27e3dc',
     artworkKey: 'game-boy-family',

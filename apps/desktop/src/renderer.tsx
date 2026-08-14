@@ -95,6 +95,7 @@ const gameBoyControlDiagram = {
   ],
 } as const;
 const consoleArtwork = {
+  'game-boy-advance': new URL('../assets/consoles/game-boy-family.webp', import.meta.url).href,
   'game-boy-family': new URL('../assets/consoles/game-boy-family.webp', import.meta.url).href,
   'n64-era': new URL('../assets/consoles/n64-era.webp', import.meta.url).href,
   'nes-era': new URL('../assets/consoles/nes-era.webp', import.meta.url).href,
@@ -442,9 +443,13 @@ const ProductApp = (): React.JSX.Element => {
     };
   }, [globalPreferencesReady]);
 
-  useEffect(() => {
-    void window.pixelCore.getInputConfiguration().then((configuration) => {
-      const resolvedProfile: InputProfile = configuration.profile ?? {
+  const applyInputConfiguration = (configuration: Awaited<ReturnType<typeof window.pixelCore.getInputConfiguration>>): void => {
+      const compatibleProfile =
+        configuration.profile?.mapping.consoleId === configuration.mapping.consoleId &&
+        configuration.profile.keyboardBindings.length === DEFAULT_KEYBOARD_BINDINGS.length
+          ? configuration.profile
+          : undefined;
+      const resolvedProfile: InputProfile = compatibleProfile ?? {
         advancedGamepadBindings: [],
         advancedKeyboardBindings: DEFAULT_ADVANCED_KEYBOARD_BINDINGS,
         gamepadBindings: [],
@@ -462,7 +467,10 @@ const ProductApp = (): React.JSX.Element => {
       profileRef.current = resolvedProfile;
       keyboard.current.setBindings(resolvedProfile.keyboardBindings);
       setProfile(resolvedProfile);
-    });
+  };
+
+  useEffect(() => {
+    void window.pixelCore.getInputConfiguration().then(applyInputConfiguration);
   }, []);
 
   useEffect(() => {
@@ -961,6 +969,10 @@ const ProductApp = (): React.JSX.Element => {
     setStatus('running');
     setMessage(game.name);
     await refreshLibrary();
+    const nextCapabilities = await window.pixelCore.getEmulatorCapabilities();
+    setEmulatorCapabilities(nextCapabilities);
+    emulatorCapabilitiesRef.current = nextCapabilities;
+    applyInputConfiguration(await window.pixelCore.getInputConfiguration());
     setStatus('running');
   };
   const confirmAutosaveChoice = async (): Promise<void> => {

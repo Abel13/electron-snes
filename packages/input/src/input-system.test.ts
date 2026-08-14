@@ -71,6 +71,8 @@ describe('universal input', () => {
       'move-right',
       'primary',
       'secondary',
+      'left-shoulder',
+      'right-shoulder',
       'start',
       'select',
     ]);

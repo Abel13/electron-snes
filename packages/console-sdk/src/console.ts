@@ -26,6 +26,20 @@ export interface ConsoleInputMapping {
   readonly version: 1;
 }
 
+export interface ConsoleVideoPresentation {
+  readonly nativeResolution: { readonly width: number; readonly height: number };
+  readonly scalingModes: readonly ('pixel-perfect' | 'fit' | 'fill')[];
+  readonly defaultScalingMode: 'pixel-perfect' | 'fit' | 'fill';
+  readonly allowCrop: boolean;
+  readonly filtering: 'nearest' | 'linear';
+  readonly scene: {
+    readonly layout: 'portable-vertical' | 'portable-wide' | 'home-4-3' | 'custom';
+    readonly frameStyle: string;
+    readonly backdropStyle: string;
+    readonly accent: string;
+  };
+}
+
 export interface ConsoleGameIdentifier {
   readonly namespace: string;
   readonly value: string;
@@ -39,6 +53,7 @@ export interface ConsoleDefinition {
   readonly inputMapping: ConsoleInputMapping;
   readonly playerPorts: readonly ConsolePlayerPort[];
   readonly supportedRomExtensions: readonly string[];
+  readonly videoPresentation?: ConsoleVideoPresentation;
 }
 
 export interface ConsolePluginDefinition {

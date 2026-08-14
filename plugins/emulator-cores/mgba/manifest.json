@@ -1,0 +1,9 @@
+{
+  "apiVersion": 1,
+  "capabilities": ["audio-output", "video-output", "game-boy-advance", "cartridge-saves", "save-states"],
+  "id": "org.pixelcore.mgba",
+  "name": "mGBA",
+  "permissions": [],
+  "type": "emulator-core",
+  "version": "0.1.0"
+}

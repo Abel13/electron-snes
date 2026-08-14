@@ -19,6 +19,8 @@ export const DEFAULT_GAMEPAD_BINDINGS: readonly GamepadBinding[] = [
   { index: 15, kind: 'button', normalizedAction: 'move-right' },
   { index: 0, kind: 'button', normalizedAction: 'primary' },
   { index: 1, kind: 'button', normalizedAction: 'secondary' },
+  { index: 6, kind: 'button', normalizedAction: 'left-shoulder' },
+  { index: 7, kind: 'button', normalizedAction: 'right-shoulder' },
   { index: 8, kind: 'button', normalizedAction: 'start' },
   { index: 4, kind: 'button', normalizedAction: 'select' },
 ] as const;

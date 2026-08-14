@@ -51,14 +51,14 @@ export interface HostVersionResponse {
 }
 
 export interface SelectedRom {
-  readonly extension: '.gb' | '.gbc';
+  readonly extension: '.gb' | '.gbc' | '.gba';
   readonly id: string;
   readonly name: string;
 }
 
 export interface LoadedRom {
   readonly bytes: Uint8Array;
-  readonly extension: '.gb' | '.gbc';
+  readonly extension: '.gb' | '.gbc' | '.gba';
   readonly name: string;
   readonly selectionId: string;
 }
@@ -165,7 +165,7 @@ export interface ConsolePluginsResponse {
 export interface LibraryGame {
   readonly addedAt: string;
   readonly artworkDataUrl?: string;
-  readonly extension: '.gb' | '.gbc';
+  readonly extension: '.gb' | '.gbc' | '.gba';
   readonly favorite: boolean;
   readonly id: string;
   readonly lastPlayedAt?: string;
@@ -376,7 +376,7 @@ export const isSelectRomResponse = (value: unknown): value is SelectRomResponse 
   const rom = value['rom'];
   return (
     Object.keys(rom).length === 3 &&
-    (rom['extension'] === '.gb' || rom['extension'] === '.gbc') &&
+    (rom['extension'] === '.gb' || rom['extension'] === '.gbc' || rom['extension'] === '.gba') &&
     typeof rom['id'] === 'string' &&
     typeof rom['name'] === 'string'
   );
@@ -397,7 +397,7 @@ export const isLoadRomResponse = (value: unknown): value is LoadRomResponse => {
   return (
     Object.keys(rom).length === 4 &&
     rom['bytes'] instanceof Uint8Array &&
-    (rom['extension'] === '.gb' || rom['extension'] === '.gbc') &&
+    (rom['extension'] === '.gb' || rom['extension'] === '.gbc' || rom['extension'] === '.gba') &&
     typeof rom['name'] === 'string' &&
     typeof rom['selectionId'] === 'string'
   );
@@ -468,7 +468,7 @@ const isLibraryGame = (value: unknown): value is LibraryGame =>
     ].includes(key),
   ) &&
   typeof value['addedAt'] === 'string' &&
-  (value['extension'] === '.gb' || value['extension'] === '.gbc') &&
+  (value['extension'] === '.gb' || value['extension'] === '.gbc' || value['extension'] === '.gba') &&
   typeof value['favorite'] === 'boolean' &&
   typeof value['id'] === 'string' &&
   typeof value['name'] === 'string' &&

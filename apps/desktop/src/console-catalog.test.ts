@@ -9,11 +9,12 @@ describe('buildConsoleCatalog', () => {
       (key) => `/${key}.webp`,
     );
     expect(catalog.map(({ availability, id }) => ({ availability, id }))).toEqual([
+      { availability: 'coming-soon', id: 'org.pixelcore.game-boy-advance' },
       { availability: 'available', id: 'org.pixelcore.game-boy-family' },
       { availability: 'coming-soon', id: 'org.pixelcore.product.nes' },
       { availability: 'coming-soon', id: 'org.pixelcore.product.snes' },
       { availability: 'coming-soon', id: 'org.pixelcore.product.n64' },
     ]);
-    expect(catalog[0]?.extensions).toEqual(['.gb', '.gbc']);
+    expect(catalog[1]?.extensions).toEqual(['.gb', '.gbc']);
   });
 });

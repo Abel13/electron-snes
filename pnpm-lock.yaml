@@ -216,9 +216,15 @@ importers:
       '@platform/game-sdk':
         specifier: workspace:*
         version: link:../game-sdk
+      '@platform/plugin-console-game-boy-advance':
+        specifier: workspace:*
+        version: link:../../plugins/consoles/game-boy-advance
       '@platform/plugin-console-game-boy-family':
         specifier: workspace:*
         version: link:../../plugins/consoles/game-boy-family
+      '@platform/plugin-emulator-mgba':
+        specifier: workspace:*
+        version: link:../../plugins/emulator-cores/mgba
       '@platform/plugin-emulator-sameboy':
         specifier: workspace:*
         version: link:../../plugins/emulator-cores/sameboy
@@ -307,6 +313,16 @@ importers:
         specifier: workspace:*
         version: link:../shared
 
+  plugins/consoles/game-boy-advance:
+    dependencies:
+      '@platform/console-sdk':
+        specifier: workspace:*
+        version: link:../../../packages/console-sdk
+    devDependencies:
+      '@platform/plugin-test':
+        specifier: workspace:*
+        version: link:../../../packages/plugin-test
+
   plugins/consoles/game-boy-family:
     dependencies:
       '@platform/console-sdk':
@@ -336,6 +352,19 @@ importers:
       '@platform/plugin-test':
         specifier: workspace:*
         version: link:../../../packages/plugin-test
+
+  plugins/emulator-cores/mgba:
+    dependencies:
+      '@platform/emulator-sdk':
+        specifier: workspace:*
+        version: link:../../../packages/emulator-sdk
+    devDependencies:
+      '@platform/plugin-test':
+        specifier: workspace:*
+        version: link:../../../packages/plugin-test
+      '@types/node':
+        specifier: ^24.0.0
+        version: 24.13.3
 
   plugins/emulator-cores/sameboy:
     dependencies:

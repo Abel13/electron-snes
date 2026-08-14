@@ -76,6 +76,7 @@ try {
   if ($archiveEntries | Select-String -Quiet 'SampleAppx') { throw 'Microsoft Store package contains an Electron Builder sample tile asset.' }
   if (-not ($archiveEntries | Select-String -Quiet 'resources[\\/]app\.asar$')) { throw 'Packaged application is missing.' }
   if (-not ($archiveEntries | Select-String -Quiet '\.wasm$')) { throw 'SameBoy WASM runtime is missing.' }
+  if (-not ($archiveEntries | Select-String -Quiet 'plugin-emulator-mgba.*mgba\.wasm')) { throw 'mGBA WASM runtime is missing.' }
 }
 finally {
   if (Test-Path $extractionDirectory) {

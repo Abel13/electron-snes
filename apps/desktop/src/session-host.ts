@@ -1,6 +1,11 @@
 import { EmulatorSessionController } from '@platform/emulator';
 import type { SaveStateDescriptor, SaveStateSlot } from '@platform/emulator';
-import type { EmulatorOperationResult, EmulatorPluginDefinition } from '@platform/emulator-sdk';
+import type {
+  EmulatorCartridgeSave,
+  EmulatorOperationResult,
+  EmulatorPluginDefinition,
+  EmulatorVideoFrame,
+} from '@platform/emulator-sdk';
 import type { EmulatorSaveState } from '@platform/emulator-sdk';
 
 import type { LoadedRom, SessionCommandResponse } from './ipc.js';
@@ -60,7 +65,7 @@ export type SaveStateListResponse =
     };
 
 export const createDesktopSessionHost = (
-  plugin: EmulatorPluginDefinition,
+  plugin: EmulatorPluginDefinition | ((rom: LoadedRom) => EmulatorPluginDefinition | undefined),
   outputs: DesktopSessionHostOutputs,
 ): DesktopSessionHost => {
   let activeSaveKey: string | undefined;
@@ -69,14 +74,41 @@ export const createDesktopSessionHost = (
   let playtimeTimer: ReturnType<typeof setInterval> | undefined;
   let playtimeCheckpointAt: number | undefined;
   const monotonicNow = outputs.monotonicNow ?? (() => performance.now());
-  const controller = new EmulatorSessionController(plugin, {
+  const outputsForController = {
     onAudio: outputs.sendAudio,
-    onCartridgeSave: async (save) => {
+    onCartridgeSave: async (save: EmulatorCartridgeSave) => {
       if (activeSaveKey !== undefined)
         await outputs.persistCartridgeSave(activeSaveKey, save.bytes);
     },
-    onVideo: (frame) => outputs.sendVideo(frame),
-  });
+    onVideo: (frame: EmulatorVideoFrame) => outputs.sendVideo(frame),
+  };
+  const resolvePlugin = (rom: LoadedRom): EmulatorPluginDefinition | undefined =>
+    typeof plugin === 'function' ? plugin(rom) : plugin;
+  let activePlugin: EmulatorPluginDefinition | undefined =
+    typeof plugin === 'function' ? undefined : plugin;
+  let controller = new EmulatorSessionController(
+    activePlugin ?? ({
+      createSession: async () => {
+        throw new Error('No emulator plugin has been selected.');
+      },
+      emulator: {
+        capabilities: { fastForward: false, rewind: false, saveStates: false },
+        compatibleConsoleIds: [],
+        id: 'org.pixelcore.unselected',
+        supportedRomExtensions: [],
+      },
+      manifest: {
+        apiVersion: 1,
+        capabilities: ['placeholder'],
+        id: 'org.pixelcore.unselected',
+        name: 'Unselected emulator',
+        permissions: [],
+        type: 'emulator-core',
+        version: '0.0.0',
+      },
+    } satisfies EmulatorPluginDefinition),
+    outputsForController,
+  );
 
   const execute = async (
     operation: () => Promise<EmulatorOperationResult>,
@@ -139,6 +171,17 @@ export const createDesktopSessionHost = (
     },
     launch: async (rom, saveKey, gameId, autosaveEnabled = false, restoreState) => {
       try {
+        const selectedPlugin = resolvePlugin(rom);
+        if (selectedPlugin === undefined)
+          return {
+            code: 'unavailable',
+            message: `No emulator core is available for ${rom.extension}.`,
+            status: 'error',
+          };
+        if (activePlugin?.emulator.id !== selectedPlugin.emulator.id) {
+          activePlugin = selectedPlugin;
+          controller = new EmulatorSessionController(activePlugin, outputsForController);
+        }
         const bytes = await outputs.loadCartridgeSave(saveKey);
         activeSaveKey = saveKey;
         activeGameId = gameId;

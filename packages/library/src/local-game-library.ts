@@ -18,7 +18,7 @@ export interface LocalGame {
   readonly addedAt: string;
   readonly artworkKey?: string;
   readonly configuration: GameConfiguration;
-  readonly extension: '.gb' | '.gbc';
+  readonly extension: '.gb' | '.gbc' | '.gba';
   readonly favorite: boolean;
   readonly id: string;
   readonly identifiers: readonly { readonly namespace: string; readonly value: string }[];
@@ -169,7 +169,7 @@ const gamesFromJson = (value: JsonValue): readonly LocalGame[] | undefined => {
     const game = entry as Record<string, JsonValue>;
     if (
       typeof game['addedAt'] !== 'string' ||
-      (game['extension'] !== '.gb' && game['extension'] !== '.gbc') ||
+      (game['extension'] !== '.gb' && game['extension'] !== '.gbc' && game['extension'] !== '.gba') ||
       typeof game['id'] !== 'string' ||
       typeof game['name'] !== 'string' ||
       typeof game['sourceKey'] !== 'string'

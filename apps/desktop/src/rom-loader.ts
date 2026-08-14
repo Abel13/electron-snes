@@ -14,8 +14,8 @@ export const loadSelectedRom = async (
   const filePath = selections.resolve(selectionId);
   if (filePath === undefined) return unavailable('Select a ROM again before loading it.');
   const extension = extname(filePath).toLowerCase();
-  if (extension !== '.gb' && extension !== '.gbc')
-    return invalid('The selected file is not a supported Game Boy ROM.');
+  if (extension !== '.gb' && extension !== '.gbc' && extension !== '.gba')
+    return invalid('The selected file is not a supported ROM.');
   try {
     const bytes = await readRomFile(filePath);
     if (bytes.byteLength === 0 || bytes.byteLength > MAX_ROM_BYTES)

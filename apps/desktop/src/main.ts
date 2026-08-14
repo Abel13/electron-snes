@@ -47,12 +47,22 @@ const currentDirectory = dirname(fileURLToPath(import.meta.url));
 const romSelections = createRomSelectionStore();
 const officialEmulator = resolveOfficialEmulatorPlugin('org.pixelcore.sameboy');
 const officialConsole = resolveOfficialConsolePlugin('org.pixelcore.game-boy-family');
+const officialGbaEmulator = resolveOfficialEmulatorPlugin('org.pixelcore.mgba');
+const officialGbaConsole = resolveOfficialConsolePlugin('org.pixelcore.game-boy-advance');
 let stopActiveSession: (() => Promise<void>) | undefined;
 let quitAfterSaveFlush = false;
 let mainWindow: ElectronBrowserWindow | undefined;
+let activeSessionExtension = '.gb';
 
 if (officialEmulator === undefined || officialConsole === undefined)
   throw new Error('The official Game Boy runtime plugins are unavailable.');
+
+const consoleForExtension = (extension: string) =>
+  extension === '.gba' ? officialGbaConsole : officialConsole;
+const emulatorForExtension = (extension: string) =>
+  extension === '.gba' ? officialGbaEmulator : officialEmulator;
+const identifiersForRom = (extension: string, bytes: Uint8Array) =>
+  consoleForExtension(extension)?.console.identifyRom?.(bytes) ?? [];
 
 const createMainWindow = (): ElectronBrowserWindow => {
   const window = new BrowserWindow(
@@ -149,11 +159,11 @@ app.whenReady().then(() => {
     const knownSources = new Set(games.value.map((game) => game.sourceKey));
     for (const sourceKey of await readdir(romDirectory)) {
       const extension = extname(sourceKey).toLowerCase();
-      if ((extension !== '.gb' && extension !== '.gbc') || knownSources.has(sourceKey)) continue;
+      if (!['.gb', '.gbc', '.gba'].includes(extension) || knownSources.has(sourceKey)) continue;
       const bytes = await readFile(join(romDirectory, sourceKey));
       await library.add({
-        extension,
-        identifiers: officialConsole.console.identifyRom?.(bytes) ?? [],
+        extension: extension as LocalGame['extension'],
+        identifiers: identifiersForRom(extension, bytes),
         name: basename(sourceKey, extension),
         sourceKey,
       });
@@ -183,7 +193,7 @@ app.whenReady().then(() => {
     if (!hasNoIpcPayload(payload)) throw new Error('The import channel does not accept a payload.');
     const ownerWindow = BrowserWindow.fromWebContents(event.sender);
     const options: OpenDialogOptions = {
-      filters: [{ extensions: ['gb', 'gbc'], name: 'Game Boy ROMs' }],
+      filters: [{ extensions: ['gb', 'gbc', 'gba'], name: 'Game Boy ROMs' }],
       properties: ['openFile'],
       title: 'Add a game to PixelCore',
     };
@@ -194,8 +204,8 @@ app.whenReady().then(() => {
     if (result.canceled || filePath === undefined) return { status: 'cancelled' };
     try {
       const extension = extname(filePath).toLowerCase();
-      if (extension !== '.gb' && extension !== '.gbc')
-        return { message: 'Choose a supported .gb or .gbc ROM.', status: 'error' };
+      if (!['.gb', '.gbc', '.gba'].includes(extension))
+        return { message: 'Choose a supported .gb, .gbc or .gba ROM.', status: 'error' };
       const file = await stat(filePath);
       if (file.size <= 0 || file.size > 8 * 1024 * 1024)
         return { message: 'The ROM must be between 1 byte and 8 MiB.', status: 'error' };
@@ -204,8 +214,8 @@ app.whenReady().then(() => {
       const bytes = await readFile(filePath);
       await copyFile(filePath, join(romDirectory, sourceKey));
       const added = await library.add({
-        extension,
-        identifiers: officialConsole.console.identifyRom?.(bytes) ?? [],
+        extension: extension as LocalGame['extension'],
+        identifiers: identifiersForRom(extension, bytes),
         name: basename(filePath, extension),
         sourceKey,
       });
@@ -270,7 +280,8 @@ app.whenReady().then(() => {
   });
   ipcMain.handle(IPC_CHANNELS.getEmulatorCapabilities, (_event, ...payload: unknown[]) => {
     if (!hasNoIpcPayload(payload)) throw new Error('Capabilities do not accept a payload.');
-    return officialEmulator.emulator.capabilities;
+    return emulatorForExtension(activeSessionExtension)?.emulator.capabilities ??
+      officialEmulator.emulator.capabilities;
   });
   ipcMain.handle(IPC_CHANNELS.getUpdateState, (_event, ...payload: unknown[]) => {
     if (!hasNoIpcPayload(payload)) throw new Error('Update state does not accept a payload.');
@@ -304,7 +315,7 @@ app.whenReady().then(() => {
 
     const ownerWindow = BrowserWindow.fromWebContents(event.sender);
     const options: OpenDialogOptions = {
-      filters: [{ extensions: ['gb', 'gbc'], name: 'Game Boy ROMs' }],
+      filters: [{ extensions: ['gb', 'gbc', 'gba'], name: 'Game Boy ROMs' }],
       properties: ['openFile'],
       title: 'Select a Game Boy ROM',
     };
@@ -338,10 +349,10 @@ app.whenReady().then(() => {
     if (!loaded.ok) throw new Error(loaded.error.message);
     return {
       mapping: {
-        consoleId: officialConsole.console.id,
-        entries: officialConsole.console.inputMapping.entries,
-        playerPortId: officialConsole.console.inputMapping.playerPortId,
-        version: officialConsole.console.inputMapping.version,
+        consoleId: (consoleForExtension(activeSessionExtension) ?? officialConsole).console.id,
+        entries: (consoleForExtension(activeSessionExtension) ?? officialConsole).console.inputMapping.entries,
+        playerPortId: (consoleForExtension(activeSessionExtension) ?? officialConsole).console.inputMapping.playerPortId,
+        version: (consoleForExtension(activeSessionExtension) ?? officialConsole).console.inputMapping.version,
       },
       ...(loaded.value === undefined ? {} : { profile: loaded.value }),
     };
@@ -374,7 +385,9 @@ app.whenReady().then(() => {
       : { message: saved.error.message, status: 'error' };
   });
 
-  const sessionHost = createDesktopSessionHost(officialEmulator, {
+  const sessionHost = createDesktopSessionHost(
+    (rom) => emulatorForExtension(rom.extension),
+    {
     listSaveStates: async (gameId) => {
       const result = await saveStates.list(gameId);
       if (!result.ok) throw new Error(result.error.message);
@@ -407,7 +420,8 @@ app.whenReady().then(() => {
       const result = await saveStates.write(gameId, slot, state);
       if (!result.ok) throw new Error(result.error.message);
     },
-  });
+    },
+  );
   stopActiveSession = async () => {
     await sessionHost.stop();
   };
@@ -435,12 +449,13 @@ app.whenReady().then(() => {
     let autosave: import('@platform/emulator-sdk').EmulatorSaveState | undefined;
     if (
       game.value.configuration.autosaveEnabled &&
-      officialEmulator.emulator.capabilities.saveStates
+      emulatorForExtension(game.value.extension)?.emulator.capabilities.saveStates
     ) {
       const stored = await saveStates.read(game.value.id, 'autosave');
       if (!stored.ok)
         return { code: 'invalid-state', message: stored.error.message, status: 'error' };
-      if (stored.value?.coreId === officialEmulator.emulator.id) autosave = stored.value;
+      if (stored.value?.coreId === emulatorForExtension(game.value.extension)?.emulator.id)
+        autosave = stored.value;
     }
     const mode = payload[1];
     if (autosave !== undefined && mode === undefined) {
@@ -457,6 +472,7 @@ app.whenReady().then(() => {
         message: 'A compatible autosave is not available.',
         status: 'error',
       };
+    activeSessionExtension = loaded.rom.extension;
     const launched = await sessionHost.launch(
       loaded.rom,
       identifyRom(loaded.rom.bytes),
@@ -472,15 +488,18 @@ app.whenReady().then(() => {
     if (!hasRomSelectionIdPayload(payload))
       throw new Error('The start-session IPC channel requires one opaque selection ID.');
     const loaded = await loadSelectedRom(payload[0], romSelections, readFile);
-    return loaded.status === 'loaded'
-      ? sessionHost.launch(loaded.rom, identifyRom(loaded.rom.bytes))
-      : { code: loaded.code, message: loaded.message, status: 'error' };
+    if (loaded.status === 'loaded') {
+      activeSessionExtension = loaded.rom.extension;
+      return sessionHost.launch(loaded.rom, identifyRom(loaded.rom.bytes));
+    }
+    return { code: loaded.code, message: loaded.message, status: 'error' };
   });
 
   ipcMain.handle(IPC_CHANNELS.setSessionInput, async (_event, ...payload: unknown[]) => {
     if (!hasSessionInputPayload(payload))
       throw new Error('The session-input channel requires one valid input snapshot.');
-    const port = officialConsole.console.playerPorts.find(
+    const consolePlugin = consoleForExtension(activeSessionExtension ?? '.gb');
+    const port = consolePlugin?.console.playerPorts.find(
       (candidate) => candidate.id === payload[0].playerPortId,
     );
     if (

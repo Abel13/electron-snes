@@ -3,7 +3,7 @@ import { basename, extname } from 'node:path';
 
 import type { SelectedRom } from './ipc.js';
 
-const supportedExtensions = new Set<SelectedRom['extension']>(['.gb', '.gbc']);
+const supportedExtensions = new Set<SelectedRom['extension']>(['.gb', '.gbc', '.gba']);
 
 export interface RomSelectionStore {
   register(filePath: string): SelectedRom | undefined;

@@ -53,6 +53,8 @@ export const DEFAULT_KEYBOARD_BINDINGS: readonly KeyboardBinding[] = [
   { code: 'ArrowRight', normalizedAction: 'move-right' },
   { code: 'KeyZ', normalizedAction: 'primary' },
   { code: 'KeyX', normalizedAction: 'secondary' },
+  { code: 'BracketLeft', normalizedAction: 'left-shoulder' },
+  { code: 'BracketRight', normalizedAction: 'right-shoulder' },
   { code: 'Enter', normalizedAction: 'start' },
   { code: 'ShiftRight', normalizedAction: 'select' },
 ] as const;
@@ -105,7 +107,7 @@ const validateGamepadBindingSets = (input: unknown): Result<readonly GamepadBind
       });
     }
     if (
-      bindings.length !== NORMALIZED_INPUT_ACTIONS.length ||
+      (bindings.length !== 8 && bindings.length !== NORMALIZED_INPUT_ACTIONS.length) ||
       new Set(bindings.map((binding) => binding.index)).size !== bindings.length ||
       new Set(bindings.map((binding) => binding.normalizedAction)).size !== bindings.length
     )
@@ -121,7 +123,7 @@ const validateGamepadBindingSets = (input: unknown): Result<readonly GamepadBind
 };
 
 const validateKeyboardBindings = (input: unknown): Result<readonly KeyboardBinding[]> => {
-  if (!Array.isArray(input) || input.length !== NORMALIZED_INPUT_ACTIONS.length)
+  if (!Array.isArray(input) || (input.length !== 8 && input.length !== NORMALIZED_INPUT_ACTIONS.length))
     return err({ code: 'invalid-input', message: 'A complete keyboard binding set is required.' });
   const bindings: KeyboardBinding[] = [];
   for (const value of input) {

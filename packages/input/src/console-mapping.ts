@@ -63,7 +63,7 @@ export const validateConsoleInputMapping = (
   const normalized = entries.map((entry) => entry.normalizedAction);
   const consoleActions = entries.map((entry) => entry.consoleAction);
   if (
-    entries.length !== NORMALIZED_INPUT_ACTIONS.length ||
+    (entries.length !== 8 && entries.length !== NORMALIZED_INPUT_ACTIONS.length) ||
     new Set(normalized).size !== entries.length ||
     new Set(consoleActions).size !== entries.length
   )
