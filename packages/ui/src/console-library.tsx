@@ -272,7 +272,7 @@ export const ConsoleLibrary = forwardRef<ConsoleLibraryHandle, ConsoleLibraryPro
               {slots.map(({ game, offset }) => (
                 <button
                   aria-label={game.name}
-                  className={`pc-cartridge-slot is-offset-${offset < 0 ? `n${Math.abs(offset)}` : offset}${offset === 0 && detailedGameId === game.id ? ' is-detailed' : ''}`}
+                  className={`pc-cartridge-slot pc-cartridge-slot--${props.cartridgeLabelLayout ?? 'standard'} is-offset-${offset < 0 ? `n${Math.abs(offset)}` : offset}${offset === 0 && detailedGameId === game.id ? ' is-detailed' : ''}`}
                   key={game.id}
                   onClick={() => {
                     if (offset === 0) confirm();
