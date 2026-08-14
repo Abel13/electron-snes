@@ -3,6 +3,8 @@ import type { PluginManifest } from '@platform/plugin-sdk';
 
 const IDENTIFIER_PATTERN = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
 const ROM_EXTENSION_PATTERN = /^\.[a-z0-9]+$/;
+const ASSET_PATH_PATTERN = /^assets\/[a-z0-9][a-z0-9/_-]*\.(?:png|webp|svg)$/;
+const GENERATION_KEY_PATTERN = /^[a-z][a-zA-Z0-9]*$/;
 
 export type ConsoleInputActionId = string;
 
@@ -40,12 +42,30 @@ export interface ConsoleVideoPresentation {
   };
 }
 
+export interface ConsoleAssetProfile {
+  readonly consoleHero: string;
+  readonly cartridge?: string;
+  readonly blueprint?: string;
+  readonly sessionBackdrop?: string;
+  readonly cartridgeLabelMask?: string;
+  readonly controlDiagram?: {
+    readonly alt: string;
+    readonly controlPoints: readonly {
+      readonly action: string;
+      readonly x: number;
+      readonly y: number;
+    }[];
+  };
+}
+
 export interface ConsoleGameIdentifier {
   readonly namespace: string;
   readonly value: string;
 }
 
 export interface ConsoleDefinition {
+  readonly assets?: ConsoleAssetProfile;
+  readonly generationKey?: string;
   readonly capabilities: readonly string[];
   readonly id: string;
   readonly identifyRom?: (bytes: Uint8Array) => readonly ConsoleGameIdentifier[];
@@ -161,7 +181,83 @@ export const validateConsolePlugin = (input: unknown): ConsolePluginValidationRe
   const inputMapping = definition['inputMapping'];
   const playerPorts = definition['playerPorts'];
   const supportedRomExtensions = definition['supportedRomExtensions'];
+  const assets = definition['assets'];
+  const generationKey = definition['generationKey'];
   const diagnostics: ConsolePluginDiagnostic[] = [];
+
+  if (
+    generationKey !== undefined &&
+    (typeof generationKey !== 'string' || !GENERATION_KEY_PATTERN.test(generationKey))
+  )
+    diagnostics.push(
+      diagnostic(['console', 'generationKey'], 'Generation keys must be kebab-case identifiers.'),
+    );
+
+  if (assets !== undefined) {
+    if (!isRecord(assets)) {
+      diagnostics.push(diagnostic(['console', 'assets'], 'Console assets must be an object.'));
+    } else {
+      const assetKeys = [
+        'consoleHero',
+        'cartridge',
+        'blueprint',
+        'sessionBackdrop',
+        'cartridgeLabelMask',
+      ] as const;
+      for (const key of assetKeys) {
+        const value = assets[key];
+        if (key === 'consoleHero' && typeof value !== 'string') {
+          diagnostics.push(
+            diagnostic(['console', 'assets', key], 'A console hero asset is required.'),
+          );
+        } else if (
+          value !== undefined &&
+          (typeof value !== 'string' || !ASSET_PATH_PATTERN.test(value))
+        ) {
+          diagnostics.push(
+            diagnostic(
+              ['console', 'assets', key],
+              'Asset references must be normalized paths under assets/ using png, webp or svg.',
+            ),
+          );
+        }
+      }
+      const diagram = assets['controlDiagram'];
+      if (diagram !== undefined) {
+        if (
+          !isRecord(diagram) ||
+          typeof diagram['alt'] !== 'string' ||
+          !Array.isArray(diagram['controlPoints'])
+        ) {
+          diagnostics.push(
+            diagnostic(
+              ['console', 'assets', 'controlDiagram'],
+              'A control diagram must declare alt text and control points.',
+            ),
+          );
+        } else {
+          diagram['controlPoints'].forEach((point, index) => {
+            if (
+              !isRecord(point) ||
+              !isIdentifier(point['action']) ||
+              typeof point['x'] !== 'number' ||
+              typeof point['y'] !== 'number' ||
+              point['x'] < 0 ||
+              point['x'] > 100 ||
+              point['y'] < 0 ||
+              point['y'] > 100
+            )
+              diagnostics.push(
+                diagnostic(
+                  ['console', 'assets', 'controlDiagram', 'controlPoints', index],
+                  'Control points require an action and normalized coordinates between 0 and 100.',
+                ),
+              );
+          });
+        }
+      }
+    }
+  }
 
   if (identifyRom !== undefined && typeof identifyRom !== 'function')
     diagnostics.push(

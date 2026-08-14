@@ -1,7 +1,13 @@
 import { sameBoyEmulator } from '@platform/plugin-emulator-sameboy';
 import { mgbaEmulator } from '@platform/plugin-emulator-mgba';
-import { gameBoyAdvanceConsole } from '@platform/plugin-console-game-boy-advance';
-import { gameBoyFamilyConsole } from '@platform/plugin-console-game-boy-family';
+import {
+  gameBoyAdvanceAssetRoot,
+  gameBoyAdvanceConsole,
+} from '@platform/plugin-console-game-boy-advance';
+import {
+  gameBoyFamilyAssetRoot,
+  gameBoyFamilyConsole,
+} from '@platform/plugin-console-game-boy-family';
 import type { ConsolePluginDefinition } from '@platform/console-sdk';
 import type { EmulatorPluginDefinition } from '@platform/emulator-sdk';
 import type { GameMetadataPluginDefinition } from '@platform/game-sdk';
@@ -17,6 +23,10 @@ const officialConsolePlugins = new Map<string, ConsolePluginDefinition>([
   [gameBoyAdvanceConsole.console.id, gameBoyAdvanceConsole],
   [gameBoyFamilyConsole.console.id, gameBoyFamilyConsole],
 ]);
+const officialConsoleAssetRoots = new Map<string, URL>([
+  [gameBoyAdvanceConsole.console.id, gameBoyAdvanceAssetRoot],
+  [gameBoyFamilyConsole.console.id, gameBoyFamilyAssetRoot],
+]);
 const gameMetadataValidation = validateGameMetadataPlugin(referenceGameCatalog);
 if (gameMetadataValidation.status !== 'valid')
   throw new Error('The official game metadata catalog is invalid.');
@@ -26,6 +36,9 @@ const officialGameMetadataPlugins: readonly GameMetadataPluginDefinition[] = [
 
 export const resolveOfficialConsolePlugin = (id: string): ConsolePluginDefinition | undefined =>
   officialConsolePlugins.get(id);
+
+export const resolveOfficialConsoleAssetRoot = (id: string): URL | undefined =>
+  officialConsoleAssetRoots.get(id);
 
 /** Lists validated official console plugin identifiers without exposing concrete definitions. */
 export const listOfficialConsolePluginIds = (): readonly string[] =>

@@ -1,7 +1,28 @@
 import { defineConsole } from '@platform/console-sdk';
 
+export const gameBoyFamilyAssetRoot = new URL('../assets/', import.meta.url);
+
 export const gameBoyFamilyConsole = defineConsole({
   console: {
+    assets: {
+      cartridge: 'assets/cartridges/game-boy-family-cartridge.webp',
+      consoleHero: 'assets/consoles/game-boy-family-console-hero.webp',
+      blueprint: 'assets/blueprints/game-boy-family-blueprint.png',
+      controlDiagram: {
+        alt: 'Game Boy Family control blueprint',
+        controlPoints: [
+          { action: 'up', x: 32, y: 53 },
+          { action: 'down', x: 32, y: 67 },
+          { action: 'left', x: 22, y: 60 },
+          { action: 'right', x: 42, y: 60 },
+          { action: 'a', x: 73, y: 57.5 },
+          { action: 'b', x: 62, y: 62.5 },
+          { action: 'start', x: 54, y: 73.3 },
+          { action: 'select', x: 41, y: 73.3 },
+        ],
+      },
+    },
+    generationKey: 'generationHandheld',
     capabilities: ['cartridge-playback'],
     id: 'org.pixelcore.game-boy-family',
     identifyRom: (bytes: Uint8Array) => {

@@ -85,3 +85,46 @@ test('rejects a plugin manifest that is not a console', () => {
     expect(result.diagnostics[0]?.code).toBe('console-manifest-type-invalid');
   }
 });
+
+test('accepts normalized plugin-owned visual assets', () => {
+  const result = validateConsolePlugin({
+    ...gameBoyConsole,
+    console: {
+      ...gameBoyConsole.console,
+      assets: {
+        consoleHero: 'assets/consoles/game-boy-family-console-hero.png',
+        blueprint: 'assets/blueprints/game-boy-family-blueprint.png',
+        sessionBackdrop: 'assets/backdrops/game-boy-family-session-backdrop.png',
+      },
+    },
+  });
+
+  expect(result.status).toBe('valid');
+});
+
+test.each(['../outside.png', '/absolute.png', 'https://example.com/hero.png', 'assets/hero.jpg'])(
+  'rejects unsafe console asset reference %s',
+  (asset) => {
+    const result = validateConsolePlugin({
+      ...gameBoyConsole,
+      console: {
+        ...gameBoyConsole.console,
+        assets: { consoleHero: asset },
+      },
+    });
+
+    expect(result.status).toBe('invalid');
+  },
+);
+
+test('rejects an asset profile without a console hero', () => {
+  const result = validateConsolePlugin({
+    ...gameBoyConsole,
+    console: {
+      ...gameBoyConsole.console,
+      assets: { blueprint: 'assets/blueprints/game-boy-family-blueprint.png' },
+    },
+  });
+
+  expect(result.status).toBe('invalid');
+});

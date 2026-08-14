@@ -49,6 +49,7 @@ import type {
   LibraryGame,
   LibraryLaunchMode,
   PixelCoreApi,
+  ConsolePluginAssetEntry,
   SessionVideoFrame,
   UpdateState,
 } from './ipc.js';
@@ -75,55 +76,6 @@ declare global {
 const logoUrl = new URL('../assets/brand/pixelcore-logo.png', import.meta.url).href;
 const iconUrl = new URL('../assets/brand/pixelcore-icon.png', import.meta.url).href;
 const defaultArtworkUrl = new URL('../assets/library/default-game-cover.png', import.meta.url).href;
-const cartridgeUrl = new URL('../assets/cartridges/portable-cartridge.webp', import.meta.url).href;
-const gameBoyBlueprintUrl = new URL(
-  '../assets/consoles/game-boy-family-outline.png',
-  import.meta.url,
-).href;
-const gameBoyControlDiagram = {
-  alt: 'Game Boy Family control blueprint',
-  assetUrl: gameBoyBlueprintUrl,
-  controlPoints: [
-    { action: 'up', x: 32, y: 53 },
-    { action: 'down', x: 32, y: 67 },
-    { action: 'left', x: 22, y: 60 },
-    { action: 'right', x: 42, y: 60 },
-    { action: 'a', x: 73, y: 57.5 },
-    { action: 'b', x: 62, y: 62.5 },
-    { action: 'start', x: 54, y: 73.3 },
-    { action: 'select', x: 41, y: 73.3 },
-  ],
-} as const;
-const gbaControlDiagram = {
-  alt: 'Game Boy Advance control blueprint',
-  assetUrl: new URL('../assets/blueprints/game-boy-advance-blueprint.png', import.meta.url).href,
-  controlPoints: [
-    { action: 'up', x: 32, y: 45 },
-    { action: 'down', x: 32, y: 64 },
-    { action: 'left', x: 24, y: 54 },
-    { action: 'right', x: 40, y: 54 },
-    { action: 'a', x: 69, y: 42 },
-    { action: 'b', x: 77, y: 52 },
-    { action: 'l', x: 25, y: 18 },
-    { action: 'r', x: 75, y: 18 },
-    { action: 'start', x: 58, y: 72 },
-    { action: 'select', x: 42, y: 72 },
-  ],
-} as const;
-const consoleArtwork = {
-  'game-boy-advance': new URL(
-    '../assets/consoles/game-boy-advance-console-hero.png',
-    import.meta.url,
-  ).href,
-  'game-boy-family': new URL('../assets/consoles/game-boy-family.webp', import.meta.url).href,
-  'n64-era': new URL('../assets/consoles/n64-era.webp', import.meta.url).href,
-  'nes-era': new URL('../assets/consoles/nes-era.webp', import.meta.url).href,
-  'snes-era': new URL('../assets/consoles/snes-era.webp', import.meta.url).href,
-} as const;
-const gbaBackdropUrl = new URL(
-  '../assets/backdrops/game-boy-advance-session-backdrop.png',
-  import.meta.url,
-).href;
 const soundUrl = (name: string): string =>
   new URL(`../assets/audio/${name}.wav`, import.meta.url).href;
 const uiAudio = new BrowserUiAudioService({
@@ -224,7 +176,7 @@ const ProductApp = (): React.JSX.Element => {
     saveStates: false,
   });
   const [inputPromptScheme, setInputPromptScheme] = useState<InputPromptScheme>('desktop');
-  const [availableConsoleIds, setAvailableConsoleIds] = useState<readonly string[]>([]);
+  const [consolePlugins, setConsolePlugins] = useState<readonly ConsolePluginAssetEntry[]>([]);
   const [games, setGames] = useState<readonly LibraryGame[]>([]);
   const [selectedGameId, setSelectedGameId] = useState<string>();
   const [preferenceLocale, setPreferenceLocale] = useState<GlobalPreferenceLocale>(
@@ -267,18 +219,16 @@ const ProductApp = (): React.JSX.Element => {
   const skipGlobalPreferencesSave = useRef(true);
 
   const consoles = useMemo(
-    () =>
-      buildConsoleCatalog(
-        availableConsoleIds,
-        (key) => t(key),
-        (key) => consoleArtwork[key],
-      ),
-    [availableConsoleIds, t],
+    () => buildConsoleCatalog(consolePlugins, (key) => t(key)),
+    [consolePlugins, t],
   );
   const activeConsole = consoles.find((console) => console.id === selectedConsoleId) ?? consoles[0];
   const activeConsoleIndex = Math.max(
     0,
     consoles.findIndex((console) => console.id === activeConsole?.id),
+  );
+  const sessionConsole = consoles.find((console) =>
+    console.extensions.includes(selectedGame?.extension ?? ''),
   );
 
   const selectedGame = games.find((game) => game.id === selectedGameId) ?? games[0];
@@ -449,7 +399,7 @@ const ProductApp = (): React.JSX.Element => {
     void refreshLibrary();
     void window.pixelCore
       .listConsolePlugins()
-      .then((response) => setAvailableConsoleIds(response.ids));
+      .then((response) => setConsolePlugins(response.plugins));
     const startupTimer = window.setTimeout(
       () => setStartupVisible(false),
       window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 450 : 2200,
@@ -1137,14 +1087,14 @@ const ProductApp = (): React.JSX.Element => {
             className="pc-session-artwork-background"
             src={selectedGame?.artworkDataUrl ?? defaultArtworkUrl}
           />
-          {selectedGame?.extension === '.gba' ? (
+          {sessionConsole?.assets?.sessionBackdropUrl === undefined ? null : (
             <img
               alt=""
               aria-hidden="true"
               className="pc-session-console-backdrop"
-              src={gbaBackdropUrl}
+              src={sessionConsole.assets?.sessionBackdropUrl}
             />
-          ) : null}
+          )}
           <header className="pc-session-header">
             <button
               className="pc-ghost-button"
@@ -1415,7 +1365,9 @@ const ProductApp = (): React.JSX.Element => {
           <>
             <ConsoleLibrary
               artworkFor={(game) => game.artworkDataUrl ?? defaultArtworkUrl}
-              cartridgeUrl={cartridgeUrl}
+              {...(activeConsole.assets?.cartridgeUrl === undefined
+                ? {}
+                : { cartridgeUrl: activeConsole.assets.cartridgeUrl })}
               console={activeConsole}
               copy={{
                 addGame: t('addGame'),
@@ -1505,9 +1457,14 @@ const ProductApp = (): React.JSX.Element => {
                   }}
                   devices={devices}
                   diagram={
-                    profile.mapping.consoleId === 'org.pixelcore.game-boy-advance'
-                      ? gbaControlDiagram
-                      : gameBoyControlDiagram
+                    activeConsole?.assets?.controlDiagram === undefined ||
+                    activeConsole.assets?.blueprintUrl === undefined
+                      ? { alt: t('gameControls'), assetUrl: '', controlPoints: [] }
+                      : {
+                          alt: activeConsole.assets.controlDiagram.alt,
+                          assetUrl: activeConsole.assets.blueprintUrl,
+                          controlPoints: activeConsole.assets.controlDiagram.controlPoints,
+                        }
                   }
                   entries={profile.mapping.entries}
                   keyboardBindings={profile.keyboardBindings}

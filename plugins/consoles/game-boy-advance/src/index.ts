@@ -1,5 +1,7 @@
 import { defineConsole } from '@platform/console-sdk';
 
+export const gameBoyAdvanceAssetRoot = new URL('../assets/', import.meta.url);
+
 const GBA_HEADER_SIZE = 0xb0;
 const TITLE_OFFSET = 0xa0;
 const TITLE_LENGTH = 12;
@@ -27,6 +29,28 @@ const identifyRom = (bytes: Uint8Array) => {
 
 export const gameBoyAdvanceConsole = defineConsole({
   console: {
+    assets: {
+      sessionBackdrop: 'assets/backdrops/game-boy-advance-session-backdrop.png',
+      cartridge: 'assets/cartridges/game-boy-advance-cartridge.png',
+      consoleHero: 'assets/consoles/game-boy-advance-console-hero.png',
+      blueprint: 'assets/blueprints/game-boy-advance-blueprint.png',
+      controlDiagram: {
+        alt: 'Game Boy Advance control blueprint',
+        controlPoints: [
+          { action: 'up', x: 32, y: 45 },
+          { action: 'down', x: 32, y: 64 },
+          { action: 'left', x: 24, y: 54 },
+          { action: 'right', x: 40, y: 54 },
+          { action: 'a', x: 69, y: 42 },
+          { action: 'b', x: 77, y: 52 },
+          { action: 'l', x: 25, y: 18 },
+          { action: 'r', x: 75, y: 18 },
+          { action: 'start', x: 58, y: 72 },
+          { action: 'select', x: 42, y: 72 },
+        ],
+      },
+    },
+    generationKey: 'generationHandheld',
     capabilities: ['cartridge-playback', 'wide-portable-video'],
     id: 'org.pixelcore.game-boy-advance',
     identifyRom,

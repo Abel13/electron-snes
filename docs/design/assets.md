@@ -3,8 +3,30 @@
 ## Purpose
 
 This guide keeps official console illustrations, cartridges, blueprints, and session scenes visually
-coherent as the platform expands. It applies to Game Boy Family, Game Boy Advance, NES, SNES,
-Nintendo 64, and future official console plugins.
+coherent as the platform expands. Console-specific assets belong to the console plugin, not to the
+desktop application. It applies to Game Boy Family, Game Boy Advance, NES, SNES, Nintendo 64, and
+future official or community console plugins.
+
+## Plugin ownership
+
+Every console plugin keeps its runtime assets under `plugins/consoles/<console-slug>/assets/` using
+the same class directories:
+
+```text
+assets/
+├── consoles/
+├── cartridges/
+├── blueprints/
+├── backdrops/
+├── masks/
+├── README.md
+└── NOTICE.md
+```
+
+The plugin declares relative references such as `assets/consoles/<slug>-console-hero.png` in its
+console definition. The host validates and resolves those references; the renderer never imports a
+console asset directly and never receives an absolute filesystem path. Brand, audio, input prompt,
+and generic library assets remain application-owned under `apps/desktop/assets/`.
 
 Assets support the product UI. They must not imitate a console manufacturer, game publisher, game
 box, logo, character, or exact hardware industrial design.
@@ -41,8 +63,8 @@ box, logo, character, or exact hardware industrial design.
 - Name files with lowercase kebab case: `<console-id>-<class>.png`, for example
   `game-boy-advance-console-hero.png`.
 - Record author, source, license, creation date, and any generation/editing method in the asset
-  inventory or adjacent `NOTICE.md`.
-- Group runtime files by class under `assets/consoles/`, `assets/cartridges/`,
+  inventory or the plugin's `assets/NOTICE.md`.
+- Group runtime files by class under the plugin's `assets/consoles/`, `assets/cartridges/`,
   `assets/blueprints/`, and `assets/backdrops/`; keep the console slug in every filename.
 - Third-party content is allowed only with verified redistribution rights. User-provided game covers
   are local data and are never shipped as PixelCore assets.

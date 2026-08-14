@@ -15,6 +15,7 @@ import {
   listOfficialConsolePluginIds,
   listOfficialGameMetadataPlugins,
   resolveOfficialConsolePlugin,
+  resolveOfficialConsoleAssetRoot,
   resolveOfficialEmulatorPlugin,
 } from '@platform/official-plugins';
 import {
@@ -40,6 +41,7 @@ import { createDesktopSessionHost } from './session-host.js';
 import { CartridgeSaveStore } from './cartridge-save-store.js';
 import { BinaryFileStorage } from './binary-file-storage.js';
 import { DesktopUpdateService } from './update-service.js';
+import { resolveConsoleAssets } from './console-asset-resolver.js';
 
 const { app, BrowserWindow, dialog, ipcMain } = electron;
 
@@ -183,10 +185,36 @@ app.whenReady().then(() => {
     }
   });
 
-  ipcMain.handle(IPC_CHANNELS.listConsolePlugins, (_event, ...payload: unknown[]) => {
+  ipcMain.handle(IPC_CHANNELS.listConsolePlugins, async (_event, ...payload: unknown[]) => {
     if (!hasNoIpcPayload(payload))
       throw new Error('The console plugin channel does not accept a payload.');
-    return { ids: listOfficialConsolePluginIds() };
+    const plugins = [];
+    for (const id of listOfficialConsolePluginIds()) {
+      const plugin = resolveOfficialConsolePlugin(id);
+      const root = resolveOfficialConsoleAssetRoot(id);
+      const profile = plugin?.console.assets;
+      if (plugin === undefined || root === undefined || profile === undefined) continue;
+      try {
+        const assets = await resolveConsoleAssets(root, profile);
+        plugins.push({
+          accentColor: plugin.console.videoPresentation?.scene.accent ?? '#6edcff',
+          assets,
+          extensions: plugin.console.supportedRomExtensions,
+          generationKey: plugin.console.generationKey ?? 'generationHandheld',
+          id,
+          name: plugin.manifest.name,
+        });
+      } catch (error) {
+        console.error(
+          JSON.stringify({
+            code: 'console-assets-invalid',
+            consoleId: id,
+            message: error instanceof Error ? error.message : 'Unknown asset error.',
+          }),
+        );
+      }
+    }
+    return { plugins };
   });
 
   ipcMain.handle(IPC_CHANNELS.importGame, async (event, ...payload: unknown[]) => {

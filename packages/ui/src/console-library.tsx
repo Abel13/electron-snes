@@ -37,7 +37,7 @@ export interface ConsoleLibraryHandle {
 
 export interface ConsoleLibraryProps {
   readonly artworkFor: (game: LibraryGameView) => string;
-  readonly cartridgeUrl: string;
+  readonly cartridgeUrl?: string;
   readonly children?: ReactNode;
   readonly console: ConsoleCatalogItem;
   readonly copy: ConsoleLibraryCopy;
@@ -105,10 +105,12 @@ export const getCarouselSlots = (
 
 const Cartridge = (props: {
   readonly artworkUrl: string;
-  readonly cartridgeUrl: string;
+  readonly cartridgeUrl?: string;
 }): React.JSX.Element => (
   <span className="pc-cartridge">
-    <img alt="" className="pc-cartridge-shell" src={props.cartridgeUrl} />
+    {props.cartridgeUrl === undefined ? null : (
+      <img alt="" className="pc-cartridge-shell" src={props.cartridgeUrl} />
+    )}
     <img alt="" className="pc-cartridge-label" src={props.artworkUrl} />
   </span>
 );
@@ -276,7 +278,9 @@ export const ConsoleLibrary = forwardRef<ConsoleLibraryHandle, ConsoleLibraryPro
                 >
                   <Cartridge
                     artworkUrl={props.artworkFor(game)}
-                    cartridgeUrl={props.cartridgeUrl}
+                    {...(props.cartridgeUrl === undefined
+                      ? {}
+                      : { cartridgeUrl: props.cartridgeUrl })}
                   />
                 </button>
               ))}

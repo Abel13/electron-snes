@@ -14,6 +14,10 @@ the ten normalized GBA actions, header identifiers, and native video size `240x1
 portable-wide orientation and nearest filtering. It must not mention physical controller brands,
 keyboard scan codes, or emulator internals.
 
+Its visual assets live under `assets/` in the console plugin. The `console.assets` profile declares
+the hero, cartridge, blueprint, session backdrop, and normalized control-diagram points. Do not add
+GBA artwork to `apps/desktop/assets` or hardcode GBA paths in the renderer.
+
 ## Emulator-core plugin
 
 The core receives ROM bytes and normalized actions through `@platform/emulator-sdk`. It runs in a

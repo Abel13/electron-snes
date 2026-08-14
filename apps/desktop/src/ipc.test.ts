@@ -116,14 +116,27 @@ describe('IPC boundary contracts', () => {
   });
 
   it('accepts only renderer-safe unique console plugin identifiers', async () => {
-    expect(isConsolePluginsResponse({ ids: ['org.pixelcore.game-boy-family'] })).toBe(true);
-    expect(isConsolePluginsResponse({ ids: ['invalid', 'invalid'] })).toBe(false);
+    const plugin = {
+      accentColor: '#27e3dc',
+      assets: { consoleHeroUrl: 'data:image/webp;base64,AA==' },
+      extensions: ['.gb', '.gbc'],
+      generationKey: 'generationHandheld',
+      id: 'org.pixelcore.game-boy-family',
+      name: 'Game Boy Family',
+    };
+    expect(isConsolePluginsResponse({ plugins: [plugin] })).toBe(true);
+    expect(isConsolePluginsResponse({ plugins: [plugin, plugin] })).toBe(false);
+    expect(
+      isConsolePluginsResponse({
+        plugins: [{ ...plugin, assets: { consoleHeroUrl: '/tmp/hero.png' } }],
+      }),
+    ).toBe(false);
     const api = createPixelCoreApi(async (channel) => {
       expect(channel).toBe(IPC_CHANNELS.listConsolePlugins);
-      return { ids: ['org.pixelcore.game-boy-family'] };
+      return { plugins: [plugin] };
     });
     await expect(api.listConsolePlugins()).resolves.toEqual({
-      ids: ['org.pixelcore.game-boy-family'],
+      plugins: [plugin],
     });
   });
 

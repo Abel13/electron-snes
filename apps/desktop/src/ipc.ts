@@ -159,7 +159,30 @@ export type UpdateState =
   | { readonly currentVersion: string; readonly status: 'downloaded'; readonly version: string };
 
 export interface ConsolePluginsResponse {
-  readonly ids: readonly string[];
+  readonly plugins: readonly ConsolePluginAssetEntry[];
+}
+
+export interface ConsolePluginAssetEntry {
+  readonly accentColor: string;
+  readonly assets: {
+    readonly consoleHeroUrl: string;
+    readonly cartridgeUrl?: string;
+    readonly blueprintUrl?: string;
+    readonly sessionBackdropUrl?: string;
+    readonly cartridgeLabelMaskUrl?: string;
+    readonly controlDiagram?: {
+      readonly alt: string;
+      readonly controlPoints: readonly {
+        readonly action: string;
+        readonly x: number;
+        readonly y: number;
+      }[];
+    };
+  };
+  readonly extensions: readonly string[];
+  readonly generationKey: string;
+  readonly id: string;
+  readonly name: string;
 }
 
 export interface LibraryGame {
@@ -492,9 +515,26 @@ export const isLibraryResponse = (value: unknown): value is LibraryResponse =>
 export const isConsolePluginsResponse = (value: unknown): value is ConsolePluginsResponse =>
   isRecord(value) &&
   Object.keys(value).length === 1 &&
-  Array.isArray(value['ids']) &&
-  value['ids'].every((id) => typeof id === 'string' && /^[a-z0-9]+(?:[.-][a-z0-9-]+)+$/.test(id)) &&
-  new Set(value['ids']).size === value['ids'].length;
+  Array.isArray(value['plugins']) &&
+  new Set(value['plugins'].filter(isRecord).map((plugin) => plugin['id'])).size ===
+    value['plugins'].length &&
+  value['plugins'].every((plugin) => {
+    if (
+      !isRecord(plugin) ||
+      typeof plugin['id'] !== 'string' ||
+      typeof plugin['name'] !== 'string' ||
+      typeof plugin['generationKey'] !== 'string'
+    )
+      return false;
+    const assets = plugin['assets'];
+    return (
+      isRecord(assets) &&
+      typeof assets['consoleHeroUrl'] === 'string' &&
+      assets['consoleHeroUrl'].startsWith('data:image/') &&
+      Array.isArray(plugin['extensions']) &&
+      plugin['extensions'].every((extension) => typeof extension === 'string')
+    );
+  });
 
 export const isImportGameResponse = (value: unknown): value is ImportGameResponse =>
   isRecord(value) &&
