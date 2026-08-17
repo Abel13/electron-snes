@@ -118,7 +118,8 @@ const en = {
     updateReady: 'Restart and install {{version}}',
     updateCurrent: 'PixelCore is up to date',
     updateError: 'Try update again',
-    updateUnsupported: 'Updates are managed by the distribution channel',
+    updateUnsupported:
+      'Updates are unavailable in this build; download the latest release from GitHub',
     preferencesWarningTitle: 'Preferences not saved',
     preferencesWarningMessage: 'Your changes remain active, but could not be stored.',
     volume: 'Volume',
@@ -227,7 +228,8 @@ const pt = {
     updateReady: 'Reiniciar e instalar {{version}}',
     updateCurrent: 'PixelCore está atualizado',
     updateError: 'Tentar atualizar novamente',
-    updateUnsupported: 'Atualizações gerenciadas pelo canal de distribuição',
+    updateUnsupported:
+      'Atualizações indisponíveis nesta build; baixe a versão mais recente pelo GitHub',
     preferencesWarningTitle: 'Preferências não salvas',
     preferencesWarningMessage: 'As alterações continuam ativas, mas não puderam ser salvas.',
     volume: 'Volume',
@@ -335,7 +337,7 @@ const zh = {
     updateReady: '重启并安装 {{version}}',
     updateCurrent: 'PixelCore 已是最新版本',
     updateError: '重试更新',
-    updateUnsupported: '更新由分发渠道管理',
+    updateUnsupported: '此构建不支持更新；请从 GitHub 下载最新版本',
     preferencesWarningTitle: '偏好设置未保存',
     preferencesWarningMessage: '更改仍然有效，但无法保存。',
     volume: '音量',

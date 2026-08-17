@@ -55,21 +55,30 @@ jobs:
           node-version: 22
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-      - name: Build Microsoft Store submission package
+      - name: Build Windows installer
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
         run: pnpm --filter @platform/desktop package:windows
-      - name: Verify Microsoft Store identity
+      - name: Verify Windows installer
         shell: pwsh
         run: |
-          $package = 'apps/desktop/release/PixelCore-${{ needs.validate-tag.outputs.version }}-Windows-Store-x64.appx'
-          ./apps/desktop/scripts/verify-appx-package.ps1 -PackagePath $package
-      - name: Upload Store submission artifact
+          $installer = 'apps/desktop/release/PixelCore-${{ needs.validate-tag.outputs.version }}-Windows-x64-Setup.exe'
+          if (-not (Test-Path $installer)) { throw "Windows installer is missing: $installer" }
+          if ((Get-Item $installer).Length -lt 10000000) { throw 'Windows installer is unexpectedly small.' }
+          if (-not (Test-Path "$installer.blockmap")) { throw 'Windows installer blockmap is missing.' }
+          if (-not (Test-Path 'apps/desktop/release/beta.yml')) { throw 'Windows updater metadata is missing.' }
+          if (-not (Test-Path 'apps/desktop/release/win-unpacked/PixelCore.exe')) { throw 'Unpacked Windows executable is missing.' }
+          if (-not (Test-Path 'apps/desktop/release/win-unpacked/resources/app.asar')) { throw 'Windows ASAR is missing.' }
+          if (-not (Get-ChildItem 'apps/desktop/release/win-unpacked/resources/app.asar.unpacked' -Recurse -Filter '*.wasm' | Select-Object -First 1)) { throw 'Unpacked WASM is missing.' }
+      - name: Upload Windows artifact
         uses: actions/upload-artifact@v7
         with:
           if-no-files-found: error
-          name: pixelcore-windows-store-submission
-          path: apps/desktop/release/PixelCore-${{ needs.validate-tag.outputs.version }}-Windows-Store-x64.appx
+          name: pixelcore-windows
+          path: |
+            apps/desktop/release/PixelCore-${{ needs.validate-tag.outputs.version }}-Windows-x64-Setup.exe
+            apps/desktop/release/PixelCore-${{ needs.validate-tag.outputs.version }}-Windows-x64-Setup.exe.blockmap
+            apps/desktop/release/beta.yml
 
   package-macos:
     name: Package macOS
@@ -186,6 +195,11 @@ jobs:
       - name: Download release artifacts
         uses: actions/download-artifact@v8
         with:
+          name: pixelcore-windows
+          path: release-assets
+      - name: Download macOS release artifacts
+        uses: actions/download-artifact@v8
+        with:
           name: pixelcore-macos
           path: release-assets
       - name: Download Linux release artifacts
@@ -206,22 +220,14 @@ jobs:
       - name: Publish GitHub prerelease
         env:
           GH_TOKEN: ${{ github.token }}
-          MICROSOFT_STORE_URL: ${{ vars.MICROSOFT_STORE_URL }}
         run: |
-          test -n "$MICROSOFT_STORE_URL"
-          node -e '
-            const url = new URL(process.env.MICROSOFT_STORE_URL);
-            if (url.protocol !== "https:" || url.hostname !== "apps.microsoft.com" || url.pathname !== "/detail/9P76TZ83Q994") {
-              throw new Error("MICROSOFT_STORE_URL must be the PixelCore Microsoft Store URL: https://apps.microsoft.com/detail/9P76TZ83Q994");
-            }
-          '
           gh api "repos/$GITHUB_REPOSITORY/releases/generate-notes" \
             -f tag_name="$GITHUB_REF_NAME" \
             -f target_commitish="$GITHUB_SHA" \
             --jq .body > generated-notes.md
           {
             printf '## Downloads\n\n'
-            printf -- '- Windows: [Microsoft Store](%s)\n' "$MICROSOFT_STORE_URL"
+            printf -- '- Windows: x64 installer attached below (unsigned; Windows may show a SmartScreen warning)\n'
             printf -- '- macOS: universal DMG attached below\n'
             printf -- '- Linux: x86_64 AppImage attached below\n\n'
             cat generated-notes.md

@@ -133,8 +133,7 @@ app.whenReady().then(() => {
   const preferencesStorage = new JsonFileStorage(join(app.getPath('userData'), 'preferences.json'));
   const inputProfiles = new InputProfileRepository(preferencesStorage);
   const globalPreferences = new GlobalPreferencesRepository(preferencesStorage);
-  const usesGitHubUpdates =
-    app.isPackaged && (process.platform !== 'win32' || process.windowsStore !== true);
+  const usesGitHubUpdates = app.isPackaged && process.platform !== 'win32';
   const updates = new DesktopUpdateService(app.getVersion(), usesGitHubUpdates, () => mainWindow);
 
   const toLibraryGame = async (game: LocalGame) => {

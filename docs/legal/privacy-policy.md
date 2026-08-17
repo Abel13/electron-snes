@@ -49,10 +49,9 @@ include ROM content, saves, local paths, or unnecessary hardware identifiers.
 
 ## Third-party services and distribution
 
-PixelCore may be distributed through GitHub Releases and the Microsoft Store. These platforms may
-process information under their own privacy policies when users download, install, update, or
-purchase the application. PixelCore does not receive the user's payment details from those
-platforms.
+PixelCore may be distributed through GitHub Releases. GitHub may process information under its own
+privacy policy when users download, install, or update the application. PixelCore does not receive
+payment details from distribution platforms.
 
 The application does not require a PixelCore account or connect to a remote game catalog. Future
 plugins and integrations must request explicit permissions and remain subject to the platform's
