@@ -109,6 +109,11 @@ Plugin registry
 
 ## Expansões futuras
 
+Game Boy Advance is defined as an independent console-plugin expansion. Its `.gba` ROM boundary
+and `240x160` presentation can be developed independently, but it remains unavailable until an
+audited emulator core and console-to-core resolution are delivered. The GBA core must provide its
+own provenance, build, worker, save-format, and capability review.
+
 SNES permanece planejado como um console oficial posterior. Sua chegada deve ocorrer
 por plugins de console e de core compatíveis com os contratos públicos, sem alterações
 específicas no core da plataforma.

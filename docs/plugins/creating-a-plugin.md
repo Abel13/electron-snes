@@ -85,9 +85,7 @@ export default defineController({
   controller: {
     id: 'org.example.generic-controller',
     match: [{ standardMapping: true }],
-    mappings: [
-      { input: { kind: 'button', index: 0 }, normalizedAction: 'primary' },
-    ],
+    mappings: [{ input: { kind: 'button', index: 0 }, normalizedAction: 'primary' }],
   },
 });
 ```
@@ -103,6 +101,40 @@ Hardware -> Adapter do controller -> Ação normalizada -> Mapeamento do console
 ```
 
 Prefira mapeamentos declarativos e validados. Garanta fallback seguro em desconexão e reconexão de dispositivos.
+
+## Assets de consoles
+
+Plugins do tipo `console` mantêm seus assets específicos dentro do próprio pacote:
+
+```text
+plugins/consoles/<console-slug>/assets/
+  consoles/
+  cartridges/
+  blueprints/
+  backdrops/
+  masks/
+  README.md
+  NOTICE.md
+```
+
+Declare referências relativas com prefixo `assets/` no perfil `console.assets`. O host valida a
+referência e entrega ao renderer uma URL segura; o plugin não deve expor paths absolutos, URLs
+remotas, Electron ou filesystem. Assets de jogos pertencem ao plugin `game-metadata`; marca, áudio
+e prompts de input são assets globais da aplicação.
+
+O exemplo mínimo é:
+
+```ts
+assets: {
+  consoleHero: 'assets/consoles/example-console-hero.png',
+  blueprint: 'assets/blueprints/example-blueprint.png',
+  sessionBackdrop: 'assets/backdrops/example-session-backdrop.png',
+},
+```
+
+Inclua `assets/README.md` com finalidade e dimensões, e `assets/NOTICE.md` com autoria, origem,
+licença, data e método de criação. O validator rejeita traversal, caminhos absolutos, URLs externas,
+extensões não suportadas e perfis sem `consoleHero`.
 
 ## Testes e documentação
 

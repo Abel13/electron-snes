@@ -7,6 +7,7 @@ import {
   hasBooleanPayload,
   hasLibraryLaunchPayload,
   hasNoIpcPayload,
+  hasOptionalConsoleIdPayload,
   isHostVersionResponse,
   isGlobalPreferencesLoadResponse,
   isGlobalPreferencesSaveResponse,
@@ -115,15 +116,62 @@ describe('IPC boundary contracts', () => {
     expect(hasNoIpcPayload(['untrusted'])).toBe(false);
   });
 
+  it('accepts an optional console ID when requesting input configuration', async () => {
+    expect(hasOptionalConsoleIdPayload([])).toBe(true);
+    expect(hasOptionalConsoleIdPayload(['org.pixelcore.game-boy-advance'])).toBe(true);
+    expect(hasOptionalConsoleIdPayload([''])).toBe(false);
+    expect(hasOptionalConsoleIdPayload([42])).toBe(false);
+    expect(hasOptionalConsoleIdPayload(['console', 'extra'])).toBe(false);
+
+    const response = {
+      mapping: {
+        consoleId: 'org.pixelcore.game-boy-advance',
+        entries: [
+          { consoleAction: 'up', normalizedAction: 'move-up' },
+          { consoleAction: 'down', normalizedAction: 'move-down' },
+          { consoleAction: 'left', normalizedAction: 'move-left' },
+          { consoleAction: 'right', normalizedAction: 'move-right' },
+          { consoleAction: 'a', normalizedAction: 'primary' },
+          { consoleAction: 'b', normalizedAction: 'secondary' },
+          { consoleAction: 'start', normalizedAction: 'start' },
+          { consoleAction: 'select', normalizedAction: 'select' },
+        ],
+        playerPortId: 'player-one',
+        version: 1,
+      },
+    } as const;
+    const api = createPixelCoreApi(async (channel, ...payload) => {
+      expect(channel).toBe(IPC_CHANNELS.getInputConfiguration);
+      expect(payload).toEqual(['org.pixelcore.game-boy-advance']);
+      return response;
+    });
+    await expect(api.getInputConfiguration('org.pixelcore.game-boy-advance')).resolves.toEqual(
+      response,
+    );
+  });
+
   it('accepts only renderer-safe unique console plugin identifiers', async () => {
-    expect(isConsolePluginsResponse({ ids: ['org.pixelcore.game-boy-family'] })).toBe(true);
-    expect(isConsolePluginsResponse({ ids: ['invalid', 'invalid'] })).toBe(false);
+    const plugin = {
+      accentColor: '#27e3dc',
+      assets: { consoleHeroUrl: 'data:image/webp;base64,AA==' },
+      extensions: ['.gb', '.gbc'],
+      generationKey: 'generationHandheld',
+      id: 'org.pixelcore.game-boy-family',
+      name: 'Game Boy Family',
+    };
+    expect(isConsolePluginsResponse({ plugins: [plugin] })).toBe(true);
+    expect(isConsolePluginsResponse({ plugins: [plugin, plugin] })).toBe(false);
+    expect(
+      isConsolePluginsResponse({
+        plugins: [{ ...plugin, assets: { consoleHeroUrl: '/tmp/hero.png' } }],
+      }),
+    ).toBe(false);
     const api = createPixelCoreApi(async (channel) => {
       expect(channel).toBe(IPC_CHANNELS.listConsolePlugins);
-      return { ids: ['org.pixelcore.game-boy-family'] };
+      return { plugins: [plugin] };
     });
     await expect(api.listConsolePlugins()).resolves.toEqual({
-      ids: ['org.pixelcore.game-boy-family'],
+      plugins: [plugin],
     });
   });
 
@@ -203,6 +251,18 @@ describe('IPC boundary contracts', () => {
     expect(isEmulatorCapabilities({ rewind: true })).toBe(false);
     expect(hasBooleanPayload([true])).toBe(true);
     expect(hasBooleanPayload(['true'])).toBe(false);
+  });
+
+  it('requests capabilities for the selected console when provided', async () => {
+    const capabilities = { fastForward: true, rewind: true, saveStates: true } as const;
+    const api = createPixelCoreApi(async (channel, ...payload) => {
+      expect(channel).toBe(IPC_CHANNELS.getEmulatorCapabilities);
+      expect(payload).toEqual(['org.pixelcore.game-boy-family']);
+      return capabilities;
+    });
+    await expect(api.getEmulatorCapabilities('org.pixelcore.game-boy-family')).resolves.toEqual(
+      capabilities,
+    );
   });
 
   it('accepts renderer-safe library records and rejects filesystem paths', () => {

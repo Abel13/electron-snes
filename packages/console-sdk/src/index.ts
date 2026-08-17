@@ -1,6 +1,7 @@
 export { defineConsole, validateConsolePlugin } from './console.js';
 export type {
   ConsoleDefinition,
+  ConsoleAssetProfile,
   ConsoleGameIdentifier,
   ConsoleInputAction,
   ConsoleInputActionId,

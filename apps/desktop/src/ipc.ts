@@ -4,6 +4,7 @@ import { isGlobalPreferences, type GlobalPreferences } from './global-preference
 import { SAVE_STATE_SLOTS, type SaveStateDescriptor, type SaveStateSlot } from '@platform/emulator';
 import type { EmulatorCapabilities } from '@platform/emulator-sdk';
 import { isResolvedGameMetadata, type ResolvedGameMetadata } from '@platform/game-sdk';
+import type { ControlDiagramConsoleSlot } from '@platform/shared';
 
 export const IPC_CHANNELS = {
   importGame: 'pixel-core:import-game',
@@ -51,14 +52,14 @@ export interface HostVersionResponse {
 }
 
 export interface SelectedRom {
-  readonly extension: '.gb' | '.gbc';
+  readonly extension: '.gb' | '.gbc' | '.gba';
   readonly id: string;
   readonly name: string;
 }
 
 export interface LoadedRom {
   readonly bytes: Uint8Array;
-  readonly extension: '.gb' | '.gbc';
+  readonly extension: '.gb' | '.gbc' | '.gba';
   readonly name: string;
   readonly selectionId: string;
 }
@@ -114,10 +115,10 @@ export interface PixelCoreApi {
   checkForUpdates(): Promise<UpdateState>;
   downloadUpdate(): Promise<UpdateState>;
   getGlobalPreferences(): Promise<GlobalPreferencesLoadResponse>;
-  getInputConfiguration(): Promise<InputConfigurationResponse>;
+  getInputConfiguration(consoleId?: string): Promise<InputConfigurationResponse>;
   getHostVersion(): Promise<HostVersionResponse>;
   getUpdateState(): Promise<UpdateState>;
-  getEmulatorCapabilities(): Promise<EmulatorCapabilities>;
+  getEmulatorCapabilities(consoleId?: string): Promise<EmulatorCapabilities>;
   importGame(): Promise<ImportGameResponse>;
   listLibrary(): Promise<LibraryResponse>;
   listConsolePlugins(): Promise<ConsolePluginsResponse>;
@@ -159,13 +160,46 @@ export type UpdateState =
   | { readonly currentVersion: string; readonly status: 'downloaded'; readonly version: string };
 
 export interface ConsolePluginsResponse {
-  readonly ids: readonly string[];
+  readonly plugins: readonly ConsolePluginAssetEntry[];
+}
+
+export interface ConsolePluginAssetEntry {
+  readonly accentColor: string;
+  readonly assets: {
+    readonly consoleHeroUrl: string;
+    readonly cartridgeUrl?: string;
+    readonly blueprintUrl?: string;
+    readonly sessionBackdropUrl?: string;
+    readonly cartridgeLabelMaskUrl?: string;
+    readonly cartridgeLabelMap?: {
+      readonly aspectRatio: number;
+      readonly topLeft: { readonly x: number; readonly y: number; readonly radius: number };
+      readonly topRight: { readonly x: number; readonly y: number; readonly radius: number };
+      readonly bottomRight: { readonly x: number; readonly y: number; readonly radius: number };
+      readonly bottomLeft: { readonly x: number; readonly y: number; readonly radius: number };
+    };
+    readonly controlDiagram?: {
+      readonly alt: string;
+      readonly aspectRatio?: number;
+      readonly scale?: number;
+      readonly controlPoints: readonly {
+        readonly action: string;
+        readonly slot: ControlDiagramConsoleSlot;
+        readonly x: number;
+        readonly y: number;
+      }[];
+    };
+  };
+  readonly extensions: readonly string[];
+  readonly generationKey: string;
+  readonly id: string;
+  readonly name: string;
 }
 
 export interface LibraryGame {
   readonly addedAt: string;
   readonly artworkDataUrl?: string;
-  readonly extension: '.gb' | '.gbc';
+  readonly extension: '.gb' | '.gbc' | '.gba';
   readonly favorite: boolean;
   readonly id: string;
   readonly lastPlayedAt?: string;
@@ -285,6 +319,12 @@ const isSessionVideoEvent = (value: unknown): value is SessionVideoEvent =>
 
 export const hasNoIpcPayload = (payload: readonly unknown[]): boolean => payload.length === 0;
 
+export const hasOptionalConsoleIdPayload = (
+  payload: readonly unknown[],
+): payload is readonly [] | readonly [string] =>
+  payload.length === 0 ||
+  (payload.length === 1 && typeof payload[0] === 'string' && payload[0].length > 0);
+
 export const hasRomSelectionIdPayload = (
   payload: readonly unknown[],
 ): payload is readonly [string] =>
@@ -376,7 +416,7 @@ export const isSelectRomResponse = (value: unknown): value is SelectRomResponse 
   const rom = value['rom'];
   return (
     Object.keys(rom).length === 3 &&
-    (rom['extension'] === '.gb' || rom['extension'] === '.gbc') &&
+    (rom['extension'] === '.gb' || rom['extension'] === '.gbc' || rom['extension'] === '.gba') &&
     typeof rom['id'] === 'string' &&
     typeof rom['name'] === 'string'
   );
@@ -397,7 +437,7 @@ export const isLoadRomResponse = (value: unknown): value is LoadRomResponse => {
   return (
     Object.keys(rom).length === 4 &&
     rom['bytes'] instanceof Uint8Array &&
-    (rom['extension'] === '.gb' || rom['extension'] === '.gbc') &&
+    (rom['extension'] === '.gb' || rom['extension'] === '.gbc' || rom['extension'] === '.gba') &&
     typeof rom['name'] === 'string' &&
     typeof rom['selectionId'] === 'string'
   );
@@ -468,7 +508,9 @@ const isLibraryGame = (value: unknown): value is LibraryGame =>
     ].includes(key),
   ) &&
   typeof value['addedAt'] === 'string' &&
-  (value['extension'] === '.gb' || value['extension'] === '.gbc') &&
+  (value['extension'] === '.gb' ||
+    value['extension'] === '.gbc' ||
+    value['extension'] === '.gba') &&
   typeof value['favorite'] === 'boolean' &&
   typeof value['id'] === 'string' &&
   typeof value['name'] === 'string' &&
@@ -490,9 +532,26 @@ export const isLibraryResponse = (value: unknown): value is LibraryResponse =>
 export const isConsolePluginsResponse = (value: unknown): value is ConsolePluginsResponse =>
   isRecord(value) &&
   Object.keys(value).length === 1 &&
-  Array.isArray(value['ids']) &&
-  value['ids'].every((id) => typeof id === 'string' && /^[a-z0-9]+(?:[.-][a-z0-9-]+)+$/.test(id)) &&
-  new Set(value['ids']).size === value['ids'].length;
+  Array.isArray(value['plugins']) &&
+  new Set(value['plugins'].filter(isRecord).map((plugin) => plugin['id'])).size ===
+    value['plugins'].length &&
+  value['plugins'].every((plugin) => {
+    if (
+      !isRecord(plugin) ||
+      typeof plugin['id'] !== 'string' ||
+      typeof plugin['name'] !== 'string' ||
+      typeof plugin['generationKey'] !== 'string'
+    )
+      return false;
+    const assets = plugin['assets'];
+    return (
+      isRecord(assets) &&
+      typeof assets['consoleHeroUrl'] === 'string' &&
+      assets['consoleHeroUrl'].startsWith('data:image/') &&
+      Array.isArray(plugin['extensions']) &&
+      plugin['extensions'].every((extension) => typeof extension === 'string')
+    );
+  });
 
 export const isImportGameResponse = (value: unknown): value is ImportGameResponse =>
   isRecord(value) &&
@@ -562,8 +621,11 @@ export const createPixelCoreApi = (
     if (!isSaveStateListResponse(response)) throw new Error('Received an invalid save-state list.');
     return response;
   },
-  async getInputConfiguration(): Promise<InputConfigurationResponse> {
-    const response = await invoke(IPC_CHANNELS.getInputConfiguration);
+  async getInputConfiguration(consoleId?: string): Promise<InputConfigurationResponse> {
+    const response =
+      consoleId === undefined
+        ? await invoke(IPC_CHANNELS.getInputConfiguration)
+        : await invoke(IPC_CHANNELS.getInputConfiguration, consoleId);
     if (!isInputConfigurationResponse(response))
       throw new Error('Received an invalid input configuration response.');
     return response;
@@ -582,8 +644,11 @@ export const createPixelCoreApi = (
     if (!isUpdateState(response)) throw new Error('Received an invalid update state.');
     return response;
   },
-  async getEmulatorCapabilities(): Promise<EmulatorCapabilities> {
-    const response = await invoke(IPC_CHANNELS.getEmulatorCapabilities);
+  async getEmulatorCapabilities(consoleId?: string): Promise<EmulatorCapabilities> {
+    const response =
+      consoleId === undefined
+        ? await invoke(IPC_CHANNELS.getEmulatorCapabilities)
+        : await invoke(IPC_CHANNELS.getEmulatorCapabilities, consoleId);
     if (!isEmulatorCapabilities(response))
       throw new Error('Received invalid emulator capabilities.');
     return response;

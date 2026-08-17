@@ -13,6 +13,7 @@ const consolePlugin = {
       version: 1,
     },
     playerPorts: [{ id: 'player-one', inputActions: ['primary'] }],
+    maxRomBytes: 8 * 1024 * 1024,
     supportedRomExtensions: ['.rom'],
   },
   manifest: {

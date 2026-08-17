@@ -16,6 +16,7 @@ import {
   DEFAULT_KEYBOARD_BINDINGS,
   InputDeviceDiscovery,
   KeyboardInputAdapter,
+  PlatformKeyboardNavigationAdapter,
   isCapturableKeyboardInput,
   UniversalInputRuntime,
   classifyGamepadPromptScheme,
@@ -49,6 +50,7 @@ import type {
   LibraryGame,
   LibraryLaunchMode,
   PixelCoreApi,
+  ConsolePluginAssetEntry,
   SessionVideoFrame,
   UpdateState,
 } from './ipc.js';
@@ -57,6 +59,9 @@ import type { EmulatorCapabilities } from '@platform/emulator-sdk';
 import { setLocale, type SupportedLocale } from './localization.js';
 import { buildConsoleCatalog } from './console-catalog.js';
 import './renderer.css';
+
+const isDevelopmentBuild =
+  (import.meta as ImportMeta & { readonly env?: { readonly DEV?: boolean } }).env?.DEV === true;
 import { kenneyInputPromptAssets } from './input-prompt-assets.js';
 import {
   clearLegacyGlobalPreferences,
@@ -74,32 +79,6 @@ declare global {
 
 const logoUrl = new URL('../assets/brand/pixelcore-logo.png', import.meta.url).href;
 const iconUrl = new URL('../assets/brand/pixelcore-icon.png', import.meta.url).href;
-const defaultArtworkUrl = new URL('../assets/library/default-game-cover.png', import.meta.url).href;
-const cartridgeUrl = new URL('../assets/library/portable-cartridge.webp', import.meta.url).href;
-const gameBoyBlueprintUrl = new URL(
-  '../assets/consoles/game-boy-family-outline.png',
-  import.meta.url,
-).href;
-const gameBoyControlDiagram = {
-  alt: 'Game Boy Family control blueprint',
-  assetUrl: gameBoyBlueprintUrl,
-  controlPoints: [
-    { action: 'up', x: 32, y: 53 },
-    { action: 'down', x: 32, y: 67 },
-    { action: 'left', x: 22, y: 60 },
-    { action: 'right', x: 42, y: 60 },
-    { action: 'a', x: 73, y: 57.5 },
-    { action: 'b', x: 62, y: 62.5 },
-    { action: 'start', x: 54, y: 73.3 },
-    { action: 'select', x: 41, y: 73.3 },
-  ],
-} as const;
-const consoleArtwork = {
-  'game-boy-family': new URL('../assets/consoles/game-boy-family.webp', import.meta.url).href,
-  'n64-era': new URL('../assets/consoles/n64-era.webp', import.meta.url).href,
-  'nes-era': new URL('../assets/consoles/nes-era.webp', import.meta.url).href,
-  'snes-era': new URL('../assets/consoles/snes-era.webp', import.meta.url).href,
-} as const;
 const soundUrl = (name: string): string =>
   new URL(`../assets/audio/${name}.wav`, import.meta.url).href;
 const uiAudio = new BrowserUiAudioService({
@@ -185,6 +164,7 @@ const ProductApp = (): React.JSX.Element => {
   const [status, setStatus] = useState<ProductStatus>('loading');
   const [startupVisible, setStartupVisible] = useState(true);
   const [screen, setScreen] = useState<AppScreen>('home');
+  const [selectedConsoleId, setSelectedConsoleId] = useState<string>();
   const [globalSettingsOpen, setGlobalSettingsOpen] = useState(false);
   const [exitConfirmationOpen, setExitConfirmationOpen] = useState(false);
   const [autosaveChoice, setAutosaveChoice] = useState<{
@@ -199,7 +179,7 @@ const ProductApp = (): React.JSX.Element => {
     saveStates: false,
   });
   const [inputPromptScheme, setInputPromptScheme] = useState<InputPromptScheme>('desktop');
-  const [availableConsoleIds, setAvailableConsoleIds] = useState<readonly string[]>([]);
+  const [consolePlugins, setConsolePlugins] = useState<readonly ConsolePluginAssetEntry[]>([]);
   const [games, setGames] = useState<readonly LibraryGame[]>([]);
   const [selectedGameId, setSelectedGameId] = useState<string>();
   const [preferenceLocale, setPreferenceLocale] = useState<GlobalPreferenceLocale>(
@@ -218,13 +198,17 @@ const ProductApp = (): React.JSX.Element => {
   });
   const audio = useRef(new EmulatorAudioPlayer());
   const keyboard = useRef(new KeyboardInputAdapter());
-  const platformKeyboard = useRef(new KeyboardInputAdapter());
+  const platformKeyboard = useRef(new PlatformKeyboardNavigationAdapter());
   const gamepad = useRef(new GamepadInputAdapter());
   const gamepadPromptActivity = useRef(new GamepadPromptActivityTracker());
   const inputRuntime = useRef(new UniversalInputRuntime());
   const [devices, setDevices] = useState<readonly InputDeviceDescriptor[]>([]);
   const [profile, setProfile] = useState<InputProfile>();
   const profileRef = useRef<InputProfile | undefined>(undefined);
+  const [inputMapping, setInputMapping] = useState<ConsoleInputMapping>();
+  const inputMappingRef = useRef<ConsoleInputMapping | undefined>(undefined);
+  const inputConfigurationRequest = useRef(0);
+  const emulatorCapabilitiesRequest = useRef(0);
   const statusRef = useRef<ProductStatus>(status);
   const screenRef = useRef<AppScreen>(screen);
   const globalSettingsOpenRef = useRef(false);
@@ -242,16 +226,18 @@ const ProductApp = (): React.JSX.Element => {
   const skipGlobalPreferencesSave = useRef(true);
 
   const consoles = useMemo(
-    () =>
-      buildConsoleCatalog(
-        availableConsoleIds,
-        (key) => t(key),
-        (key) => consoleArtwork[key],
-      ),
-    [availableConsoleIds, t],
+    () => buildConsoleCatalog(consolePlugins, (key) => t(key)),
+    [consolePlugins, t],
   );
-
+  const activeConsole = consoles.find((console) => console.id === selectedConsoleId) ?? consoles[0];
+  const activeConsoleIndex = Math.max(
+    0,
+    consoles.findIndex((console) => console.id === activeConsole?.id),
+  );
   const selectedGame = games.find((game) => game.id === selectedGameId) ?? games[0];
+  const sessionConsole = consoles.find((console) =>
+    console.extensions.includes(selectedGame?.extension ?? ''),
+  );
   const selectedInputDevice = devices.find(
     (device) => device.fingerprint === profile?.deviceFingerprint,
   );
@@ -302,9 +288,6 @@ const ProductApp = (): React.JSX.Element => {
   useEffect(() => {
     autosaveChoiceRef.current = autosaveChoice;
   }, [autosaveChoice]);
-  useEffect(() => {
-    void window.pixelCore.getEmulatorCapabilities().then(setEmulatorCapabilities);
-  }, []);
   useEffect(() => {
     emulatorCapabilitiesRef.current = emulatorCapabilities;
   }, [emulatorCapabilities]);
@@ -419,7 +402,7 @@ const ProductApp = (): React.JSX.Element => {
     void refreshLibrary();
     void window.pixelCore
       .listConsolePlugins()
-      .then((response) => setAvailableConsoleIds(response.ids));
+      .then((response) => setConsolePlugins(response.plugins));
     const startupTimer = window.setTimeout(
       () => setStartupVisible(false),
       window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 450 : 2200,
@@ -442,35 +425,62 @@ const ProductApp = (): React.JSX.Element => {
     };
   }, [globalPreferencesReady]);
 
+  const applyInputConfiguration = (
+    configuration: Awaited<ReturnType<typeof window.pixelCore.getInputConfiguration>>,
+  ): void => {
+    const resolvedProfile: InputProfile = configuration.profile ?? {
+      advancedGamepadBindings: [],
+      advancedKeyboardBindings: DEFAULT_ADVANCED_KEYBOARD_BINDINGS,
+      gamepadBindings: [],
+      deviceFingerprint: 'keyboard:standard',
+      id: 'default',
+      keyboardBindings: DEFAULT_KEYBOARD_BINDINGS,
+      name: 'Default input profile',
+      version: 5,
+    };
+    inputRuntime.current.assignments.prefer(
+      configuration.mapping.playerPortId,
+      resolvedProfile.deviceFingerprint,
+    );
+    inputMappingRef.current = configuration.mapping;
+    profileRef.current = resolvedProfile;
+    keyboard.current.setBindings(resolvedProfile.keyboardBindings);
+    setInputMapping(configuration.mapping);
+    setProfile(resolvedProfile);
+  };
+
+  const loadInputConfiguration = async (consoleId?: string): Promise<void> => {
+    const request = ++inputConfigurationRequest.current;
+    const configuration = await window.pixelCore.getInputConfiguration(consoleId);
+    if (request !== inputConfigurationRequest.current) return;
+    applyInputConfiguration(configuration);
+  };
+
+  const loadEmulatorCapabilities = async (consoleId?: string): Promise<void> => {
+    const request = ++emulatorCapabilitiesRequest.current;
+    const capabilities = await window.pixelCore.getEmulatorCapabilities(consoleId);
+    if (request !== emulatorCapabilitiesRequest.current) return;
+    emulatorCapabilitiesRef.current = capabilities;
+    setEmulatorCapabilities(capabilities);
+  };
+
   useEffect(() => {
-    void window.pixelCore.getInputConfiguration().then((configuration) => {
-      const resolvedProfile: InputProfile = configuration.profile ?? {
-        advancedGamepadBindings: [],
-        advancedKeyboardBindings: DEFAULT_ADVANCED_KEYBOARD_BINDINGS,
-        gamepadBindings: [],
-        deviceFingerprint: 'keyboard:standard',
-        id: 'default',
-        keyboardBindings: DEFAULT_KEYBOARD_BINDINGS,
-        mapping: configuration.mapping,
-        name: 'Default input profile',
-        version: 4,
-      };
-      inputRuntime.current.assignments.prefer(
-        resolvedProfile.mapping.playerPortId,
-        resolvedProfile.deviceFingerprint,
-      );
-      profileRef.current = resolvedProfile;
-      keyboard.current.setBindings(resolvedProfile.keyboardBindings);
-      setProfile(resolvedProfile);
-    });
+    void loadInputConfiguration();
+    void loadEmulatorCapabilities();
   }, []);
+
+  useEffect(() => {
+    if (screen !== 'library' || activeConsole?.id === undefined) return;
+    void loadInputConfiguration(activeConsole.id);
+    void loadEmulatorCapabilities(activeConsole.id);
+  }, [activeConsole?.id, screen]);
 
   useEffect(() => {
     const discovery = new InputDeviceDiscovery({ getGamepads: () => [...navigator.getGamepads()] });
     let animationFrame = 0;
     let previousDevices = '';
     let previousActions = '';
-    let previousNavigation = new Set<NormalizedInputAction>();
+    let previousNavigation = new Set<string>();
     let previousCapture = new Set<number>();
     let previousCaptureDevice = '';
     let previousSessionMenu = false;
@@ -489,130 +499,145 @@ const ProductApp = (): React.JSX.Element => {
       if (promptGamepad !== undefined)
         setInputPromptScheme(classifyGamepadPromptScheme(promptGamepad.id));
       const currentProfile = profileRef.current;
-      if (currentProfile !== undefined) {
+      const currentMapping = inputMappingRef.current;
+      const assignedDescriptor =
+        currentProfile === undefined
+          ? undefined
+          : discovered.find(
+              (device) =>
+                device.kind === 'gamepad' &&
+                device.fingerprint === currentProfile.deviceFingerprint,
+            );
+      const selectedSnapshot =
+        assignedDescriptor?.index === undefined
+          ? null
+          : navigator.getGamepads()[assignedDescriptor.index];
+      const assignedGamepad: Gamepad | undefined = selectedSnapshot ?? undefined;
+      if (statusRef.current !== 'running' && statusRef.current !== 'paused') {
+        const currentNavigation = new Set<string>(platformKeyboard.current.readActions());
+        for (const snapshot of navigator.getGamepads()) {
+          if (snapshot === null || !snapshot.connected) continue;
+          for (const action of gamepad.current.readActions(snapshot, PLATFORM_GAMEPAD_BINDINGS))
+            currentNavigation.add(action);
+        }
+        if (previousCaptureDevice !== (currentProfile?.deviceFingerprint ?? '')) {
+          previousCaptureDevice = currentProfile?.deviceFingerprint ?? '';
+          previousCapture = new Set();
+        }
+        const currentCapture = new Set(
+          assignedGamepad === undefined ? [] : readPressedGamepadButtons(assignedGamepad),
+        );
+        const inputEdges = [...currentCapture].filter((action) => !previousCapture.has(action));
+        const inputConsumed =
+          screenRef.current === 'library' &&
+          inputEdges.some(
+            (index) => inputMappingSettings.current?.captureGamepadInput(index) === true,
+          );
+        previousCapture = currentCapture;
+        if (!inputConsumed) {
+          if (autosaveChoiceRef.current !== undefined) {
+            if (
+              (currentNavigation.has('move-left') && !previousNavigation.has('move-left')) ||
+              (currentNavigation.has('move-right') && !previousNavigation.has('move-right'))
+            )
+              setAutosaveChoice((current) =>
+                current === undefined
+                  ? undefined
+                  : {
+                      ...current,
+                      selected:
+                        current.selected === 'restore-autosave' ? 'fresh' : 'restore-autosave',
+                    },
+              );
+            if (
+              (currentNavigation.has('confirm') && !previousNavigation.has('confirm')) ||
+              (currentNavigation.has('primary') && !previousNavigation.has('primary'))
+            )
+              void confirmAutosaveChoice();
+            if (
+              (currentNavigation.has('back') && !previousNavigation.has('back')) ||
+              (currentNavigation.has('secondary') && !previousNavigation.has('secondary'))
+            )
+              setAutosaveChoice(undefined);
+            previousNavigation = currentNavigation;
+            animationFrame = requestAnimationFrame(poll);
+            return;
+          }
+          for (const [action, direction] of [
+            ['move-up', 'up'],
+            ['move-down', 'down'],
+            ['move-left', 'left'],
+            ['move-right', 'right'],
+          ] as const) {
+            if (currentNavigation.has(action) && !previousNavigation.has(action)) {
+              if (screenRef.current === 'home' && globalSettingsOpenRef.current)
+                globalSettings.current?.move(direction);
+              else if (
+                screenRef.current === 'home' &&
+                (direction === 'left' || direction === 'right')
+              )
+                carousel.current?.move(direction);
+              else if (screenRef.current === 'library') consoleLibrary.current?.move(direction);
+              else if (screenRef.current !== 'home' && moveDirectionalFocus(direction))
+                uiAudio.play('focus');
+            }
+          }
+          if (
+            (currentNavigation.has('confirm') && !previousNavigation.has('confirm')) ||
+            (currentNavigation.has('primary') && !previousNavigation.has('primary'))
+          ) {
+            if (screenRef.current === 'home' && globalSettingsOpenRef.current)
+              globalSettings.current?.confirm();
+            else if (screenRef.current === 'home') carousel.current?.confirm();
+            else if (screenRef.current === 'library') consoleLibrary.current?.confirm();
+            else (document.activeElement as HTMLElement | null)?.click();
+          }
+          if (
+            screenRef.current === 'home' &&
+            currentNavigation.has('start') &&
+            !previousNavigation.has('start')
+          )
+            setGlobalSettings(!globalSettingsOpenRef.current);
+          if (
+            screenRef.current === 'home' &&
+            currentNavigation.has('back') &&
+            !previousNavigation.has('back')
+          )
+            setGlobalSettings(!globalSettingsOpenRef.current);
+          if (
+            screenRef.current === 'home' &&
+            globalSettingsOpenRef.current &&
+            currentNavigation.has('secondary') &&
+            !previousNavigation.has('secondary')
+          )
+            setGlobalSettings(false);
+          if (
+            screenRef.current === 'library' &&
+            ((currentNavigation.has('back') && !previousNavigation.has('back')) ||
+              (currentNavigation.has('secondary') && !previousNavigation.has('secondary')))
+          )
+            consoleLibrary.current?.back();
+        }
+        previousNavigation = currentNavigation;
+      }
+      if (currentProfile !== undefined && currentMapping !== undefined) {
         inputRuntime.current.assignments.prefer(
-          currentProfile.mapping.playerPortId,
+          currentMapping.playerPortId,
           currentProfile.deviceFingerprint,
         );
-        inputRuntime.current.updateDevices(discovered);
         const deviceId = inputRuntime.current.assignments.resolveDeviceId(
-          currentProfile.mapping.playerPortId,
+          currentMapping.playerPortId,
         );
         let actions: readonly NormalizedInputAction[] = [];
-        const assignedDescriptor = discovered.find(
-          (device) =>
-            device.kind === 'gamepad' && device.fingerprint === currentProfile.deviceFingerprint,
-        );
-        const selectedSnapshot =
-          assignedDescriptor?.index === undefined
-            ? null
-            : navigator.getGamepads()[assignedDescriptor.index];
-        let assignedGamepad: Gamepad | undefined = selectedSnapshot ?? undefined;
         if (deviceId === 'keyboard:standard') actions = keyboard.current.readActions();
         else if (deviceId?.startsWith('gamepad:') === true) {
           const snapshot = selectedSnapshot;
           if (snapshot !== null && snapshot !== undefined) {
-            assignedGamepad = snapshot;
             actions = gamepad.current.readActions(
               snapshot,
               bindingsForGamepad(currentProfile, currentProfile.deviceFingerprint),
             );
           }
-        }
-        if (statusRef.current !== 'running' && statusRef.current !== 'paused') {
-          const navigationActions = new Set<NormalizedInputAction>(
-            platformKeyboard.current.readActions(),
-          );
-          for (const snapshot of navigator.getGamepads()) {
-            if (snapshot === null || !snapshot.connected) continue;
-            for (const action of gamepad.current.readActions(snapshot, PLATFORM_GAMEPAD_BINDINGS))
-              navigationActions.add(action);
-          }
-          const currentNavigation = navigationActions;
-          if (previousCaptureDevice !== currentProfile.deviceFingerprint) {
-            previousCaptureDevice = currentProfile.deviceFingerprint;
-            previousCapture = new Set();
-          }
-          const currentCapture = new Set(
-            assignedGamepad === undefined ? [] : readPressedGamepadButtons(assignedGamepad),
-          );
-          const inputEdges = [...currentCapture].filter((action) => !previousCapture.has(action));
-          const inputConsumed =
-            screenRef.current === 'library' &&
-            inputEdges.some(
-              (index) => inputMappingSettings.current?.captureGamepadInput(index) === true,
-            );
-          previousCapture = currentCapture;
-          if (!inputConsumed) {
-            if (autosaveChoiceRef.current !== undefined) {
-              if (
-                (currentNavigation.has('move-left') && !previousNavigation.has('move-left')) ||
-                (currentNavigation.has('move-right') && !previousNavigation.has('move-right'))
-              )
-                setAutosaveChoice((current) =>
-                  current === undefined
-                    ? undefined
-                    : {
-                        ...current,
-                        selected:
-                          current.selected === 'restore-autosave' ? 'fresh' : 'restore-autosave',
-                      },
-                );
-              if (currentNavigation.has('primary') && !previousNavigation.has('primary'))
-                void confirmAutosaveChoice();
-              if (currentNavigation.has('secondary') && !previousNavigation.has('secondary'))
-                setAutosaveChoice(undefined);
-              previousNavigation = currentNavigation;
-              animationFrame = requestAnimationFrame(poll);
-              return;
-            }
-            for (const [action, direction] of [
-              ['move-up', 'up'],
-              ['move-down', 'down'],
-              ['move-left', 'left'],
-              ['move-right', 'right'],
-            ] as const) {
-              if (currentNavigation.has(action) && !previousNavigation.has(action)) {
-                if (screenRef.current === 'home' && globalSettingsOpenRef.current)
-                  globalSettings.current?.move(direction);
-                else if (
-                  screenRef.current === 'home' &&
-                  (direction === 'left' || direction === 'right')
-                )
-                  carousel.current?.move(direction);
-                else if (screenRef.current === 'library') consoleLibrary.current?.move(direction);
-                else if (screenRef.current !== 'home' && moveDirectionalFocus(direction))
-                  uiAudio.play('focus');
-              }
-            }
-            if (currentNavigation.has('primary') && !previousNavigation.has('primary')) {
-              if (screenRef.current === 'home' && globalSettingsOpenRef.current)
-                globalSettings.current?.confirm();
-              else if (screenRef.current === 'home') carousel.current?.confirm();
-              else if (screenRef.current === 'library') consoleLibrary.current?.confirm();
-              else (document.activeElement as HTMLElement | null)?.click();
-            }
-            if (
-              screenRef.current === 'home' &&
-              currentNavigation.has('start') &&
-              !previousNavigation.has('start')
-            )
-              setGlobalSettings(!globalSettingsOpenRef.current);
-            if (
-              screenRef.current === 'home' &&
-              globalSettingsOpenRef.current &&
-              currentNavigation.has('secondary') &&
-              !previousNavigation.has('secondary')
-            )
-              setGlobalSettings(false);
-            if (
-              screenRef.current === 'library' &&
-              currentNavigation.has('secondary') &&
-              !previousNavigation.has('secondary')
-            )
-              consoleLibrary.current?.back();
-          }
-          previousNavigation = currentNavigation;
         }
         const sessionMenuPressed = selectedSnapshot?.buttons[9]?.pressed === true;
         if (
@@ -673,10 +698,10 @@ const ProductApp = (): React.JSX.Element => {
           deviceId === undefined
             ? []
             : inputRuntime.current.mapPlayerActions(
-                currentProfile.mapping.playerPortId,
+                currentMapping.playerPortId,
                 deviceId,
                 actions,
-                currentProfile.mapping,
+                currentMapping,
               );
         const signature = mapped.join('|');
         if (
@@ -686,7 +711,7 @@ const ProductApp = (): React.JSX.Element => {
           previousActions = signature;
           void window.pixelCore.setSessionInput({
             actions: mapped,
-            playerPortId: currentProfile.mapping.playerPortId,
+            playerPortId: currentMapping.playerPortId,
           });
         }
       }
@@ -718,9 +743,9 @@ const ProductApp = (): React.JSX.Element => {
         event.preventDefault();
         return;
       }
-      const keyboardHandled = keyboard.current.handle({ code: event.code, editable, pressed });
       platformKeyboard.current.handle({ code: event.code, editable, pressed });
       if (statusRef.current === 'running' || statusRef.current === 'paused') {
+        const keyboardHandled = keyboard.current.handle({ code: event.code, editable, pressed });
         if (
           emulatorCapabilitiesRef.current.rewind &&
           event.code ===
@@ -758,51 +783,6 @@ const ProductApp = (): React.JSX.Element => {
         if (keyboardHandled) event.preventDefault();
         return;
       }
-      if (!pressed || editable) return;
-      if (autosaveChoiceRef.current !== undefined) {
-        if (event.code === 'ArrowLeft' || event.code === 'ArrowRight') {
-          event.preventDefault();
-          setAutosaveChoice((current) =>
-            current === undefined
-              ? undefined
-              : {
-                  ...current,
-                  selected: current.selected === 'restore-autosave' ? 'fresh' : 'restore-autosave',
-                },
-          );
-        } else if (event.code === 'Enter') {
-          event.preventDefault();
-          void confirmAutosaveChoice();
-        } else if (event.code === 'Escape' || event.code === 'Backspace') {
-          event.preventDefault();
-          setAutosaveChoice(undefined);
-        }
-        return;
-      }
-      if (screenRef.current === 'home') {
-        if (event.code === 'Escape') {
-          event.preventDefault();
-          setGlobalSettings(!globalSettingsOpenRef.current);
-        }
-        return;
-      }
-      if (screenRef.current === 'library') {
-        if (event.code === 'Escape' || event.code === 'Backspace') {
-          event.preventDefault();
-          consoleLibrary.current?.back();
-        }
-        return;
-      }
-      const direction = {
-        ArrowDown: 'down',
-        ArrowLeft: 'left',
-        ArrowRight: 'right',
-        ArrowUp: 'up',
-      }[event.code] as 'down' | 'left' | 'right' | 'up' | undefined;
-      if (direction !== undefined && moveDirectionalFocus(direction)) {
-        event.preventDefault();
-        uiAudio.play('focus');
-      }
     };
     const keyDown = (event: KeyboardEvent): void => handleKeyboard(event, true);
     const keyUp = (event: KeyboardEvent): void => handleKeyboard(event, false);
@@ -825,30 +805,14 @@ const ProductApp = (): React.JSX.Element => {
   const persistProfile = (nextProfile: InputProfile): void => {
     setProfile(nextProfile);
     profileRef.current = nextProfile;
-    inputRuntime.current.assignments.prefer(
-      nextProfile.mapping.playerPortId,
-      nextProfile.deviceFingerprint,
-    );
+    const currentMapping = inputMappingRef.current;
+    if (currentMapping !== undefined)
+      inputRuntime.current.assignments.prefer(
+        currentMapping.playerPortId,
+        nextProfile.deviceFingerprint,
+      );
     keyboard.current.setBindings(nextProfile.keyboardBindings);
     void window.pixelCore.saveInputProfile(nextProfile);
-  };
-  const changeMapping = (normalizedAction: string, consoleAction: string): void => {
-    if (profile === undefined) return;
-    const current = profile.mapping.entries.find(
-      (entry) => entry.normalizedAction === normalizedAction,
-    );
-    if (current === undefined || current.consoleAction === consoleAction) return;
-    const mapping: ConsoleInputMapping = {
-      ...profile.mapping,
-      entries: profile.mapping.entries.map((entry) => {
-        if (entry.normalizedAction === normalizedAction) return { ...entry, consoleAction };
-        if (entry.consoleAction === consoleAction)
-          return { ...entry, consoleAction: current.consoleAction };
-        return entry;
-      }),
-    };
-    persistProfile({ ...profile, mapping });
-    uiAudio.play('toggle-on');
   };
   const changeKeyboardBinding = (normalizedAction: string, code: string): void => {
     if (profile === undefined) return;
@@ -961,6 +925,8 @@ const ProductApp = (): React.JSX.Element => {
     setStatus('running');
     setMessage(game.name);
     await refreshLibrary();
+    await loadEmulatorCapabilities();
+    await loadInputConfiguration();
     setStatus('running');
   };
   const confirmAutosaveChoice = async (): Promise<void> => {
@@ -1088,12 +1054,22 @@ const ProductApp = (): React.JSX.Element => {
     return (
       <InputPromptProvider assetMap={kenneyInputPromptAssets} scheme={sessionInputPromptScheme}>
         <main className="pc-session-view">
-          <img
-            alt=""
-            aria-hidden="true"
-            className="pc-session-artwork-background"
-            src={selectedGame?.artworkDataUrl ?? defaultArtworkUrl}
-          />
+          {selectedGame?.artworkDataUrl === undefined ? null : (
+            <img
+              alt=""
+              aria-hidden="true"
+              className="pc-session-artwork-background"
+              src={selectedGame.artworkDataUrl}
+            />
+          )}
+          {sessionConsole?.assets?.sessionBackdropUrl === undefined ? null : (
+            <img
+              alt=""
+              aria-hidden="true"
+              className="pc-session-console-backdrop"
+              src={sessionConsole.assets?.sessionBackdropUrl}
+            />
+          )}
           <header className="pc-session-header">
             <button
               className="pc-ghost-button"
@@ -1243,6 +1219,7 @@ const ProductApp = (): React.JSX.Element => {
               unavailable: (name) => t('unavailableSystem', { name }),
             }}
             items={consoles}
+            initialIndex={activeConsoleIndex}
             logoUrl={logoUrl}
             onConfirm={(item) => {
               if (item.availability === 'coming-soon') {
@@ -1250,6 +1227,7 @@ const ProductApp = (): React.JSX.Element => {
                 return;
               }
               uiAudio.play('select');
+              setSelectedConsoleId(item.id);
               setGlobalSettingsOpen(false);
               setScreen('library');
             }}
@@ -1358,12 +1336,17 @@ const ProductApp = (): React.JSX.Element => {
   return (
     <InputPromptProvider assetMap={kenneyInputPromptAssets} scheme={inputPromptScheme}>
       <>
-        {consoles[0] === undefined ? null : (
+        {activeConsole === undefined ? null : (
           <>
             <ConsoleLibrary
-              artworkFor={(game) => game.artworkDataUrl ?? defaultArtworkUrl}
-              cartridgeUrl={cartridgeUrl}
-              console={consoles[0]}
+              artworkFor={(game) => game.artworkDataUrl}
+              {...(activeConsole.assets?.cartridgeUrl === undefined
+                ? {}
+                : { cartridgeUrl: activeConsole.assets.cartridgeUrl })}
+              {...(activeConsole.assets?.cartridgeLabelMap === undefined
+                ? {}
+                : { cartridgeLabelMap: activeConsole.assets.cartridgeLabelMap })}
+              console={activeConsole}
               copy={{
                 addGame: t('addGame'),
                 artwork: t('artwork'),
@@ -1377,7 +1360,7 @@ const ProductApp = (): React.JSX.Element => {
                 removeFavorite: t('removeFavorite'),
                 settings: t('settings'),
               }}
-              games={games.filter((game) => consoles[0]?.extensions.includes(game.extension))}
+              games={games.filter((game) => activeConsole.extensions.includes(game.extension))}
               logoUrl={logoUrl}
               onAddGame={() => void importGame()}
               onArtwork={(game) => void selectArtwork(game as LibraryGame)}
@@ -1395,7 +1378,7 @@ const ProductApp = (): React.JSX.Element => {
               ref={consoleLibrary}
               settingsRef={inputMappingSettings}
             >
-              {profile === undefined ? null : (
+              {profile === undefined || inputMapping === undefined ? null : (
                 <InputMappingSettings
                   advancedBindings={[
                     ...(emulatorCapabilities.rewind
@@ -1451,8 +1434,23 @@ const ProductApp = (): React.JSX.Element => {
                     pressInput: t('mappingPressInput'),
                   }}
                   devices={devices}
-                  diagram={gameBoyControlDiagram}
-                  entries={profile.mapping.entries}
+                  diagram={
+                    activeConsole?.assets?.controlDiagram === undefined ||
+                    activeConsole.assets?.blueprintUrl === undefined
+                      ? { alt: t('gameControls'), assetUrl: '', controlPoints: [] }
+                      : {
+                          alt: activeConsole.assets.controlDiagram.alt,
+                          ...(activeConsole.assets.controlDiagram.aspectRatio === undefined
+                            ? {}
+                            : { aspectRatio: activeConsole.assets.controlDiagram.aspectRatio }),
+                          ...(activeConsole.assets.controlDiagram.scale === undefined
+                            ? {}
+                            : { scale: activeConsole.assets.controlDiagram.scale }),
+                          assetUrl: activeConsole.assets.blueprintUrl,
+                          controlPoints: activeConsole.assets.controlDiagram.controlPoints,
+                        }
+                  }
+                  entries={inputMapping.entries}
                   keyboardBindings={profile.keyboardBindings}
                   onBackFeedback={() => uiAudio.play('back')}
                   onConfirmFeedback={() => uiAudio.play('toggle-on')}
@@ -1460,7 +1458,6 @@ const ProductApp = (): React.JSX.Element => {
                     persistProfile({ ...profile, deviceFingerprint })
                   }
                   onEditFeedback={() => uiAudio.play('select')}
-                  onMappingChange={changeMapping}
                   onKeyboardBindingChange={changeKeyboardBinding}
                   onGamepadBindingChange={changeGamepadBinding}
                   onAdvancedGamepadBindingChange={changeAdvancedGamepadBinding}
@@ -1479,6 +1476,7 @@ const ProductApp = (): React.JSX.Element => {
                   selectedDeviceKind={
                     profile.deviceFingerprint === 'keyboard:standard' ? 'keyboard' : 'gamepad'
                   }
+                  showDebugSlotGrid={isDevelopmentBuild}
                 />
               )}
             </ConsoleLibrary>

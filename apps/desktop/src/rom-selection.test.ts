@@ -12,6 +12,13 @@ describe('ROM selection store', () => {
     expect(store.resolve(selection?.id ?? '')).toBe('/library/Pokemon Yellow.gbc');
   });
 
+  it('accepts Game Boy Advance ROMs without exposing their path', () => {
+    const store = createRomSelectionStore();
+    const selection = store.register('/library/Metroid.gba');
+    expect(selection).toMatchObject({ extension: '.gba', name: 'Metroid.gba' });
+    expect(store.resolve(selection?.id ?? '')).toBe('/library/Metroid.gba');
+  });
+
   it('rejects unsupported ROM extensions without retaining a path', () => {
     const store = createRomSelectionStore();
 

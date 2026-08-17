@@ -713,7 +713,9 @@ summary:focus-visible {
   isolation: isolate;
   display: grid;
   grid-template: 92px minmax(0, 1fr) 42px / 190px minmax(0, 1fr);
+  height: 100vh;
   min-height: 100vh;
+  max-height: 100vh;
   overflow: hidden;
   background:
     radial-gradient(
@@ -725,6 +727,7 @@ summary:focus-visible {
     linear-gradient(145deg, #080b19, #03050d 72%);
 }
 .pc-console-library::before {
+  display: none;
   content: '';
   position: absolute;
   inset: 45% -20% -70%;
@@ -934,20 +937,14 @@ summary:focus-visible {
   height: 100%;
   object-fit: contain;
 }
-.pc-cartridge-label {
+.pc-cartridge-label-canvas {
   position: absolute;
-  left: 27%;
-  top: 14.5%;
+  inset: 0;
   z-index: 3;
-  width: 60%;
-  height: 59%;
-  border: 0;
-  border-radius: 3%;
-  background: #060912;
-  object-fit: cover;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
   filter: saturate(0.9) contrast(1.04);
-  transform-origin: left center;
-  transform: perspective(900px) rotateY(17deg) skewY(3deg);
   opacity: 0.7;
 }
 .pc-game-focus {
@@ -2601,39 +2598,90 @@ summary:focus-visible {
 }
 .pc-input-map-actions button {
   position: absolute;
+}
+.pc-input-map-actions button.is-callout-slot {
+  --pc-callout-radius: calc(min(19vw, 280px) + 38px);
+  --pc-callout-anchor-x: -50%;
+  top: 50%;
+  left: 50%;
+  display: block;
+  width: 46px;
+  height: 46px;
+  overflow: visible;
+  transform: translate(var(--pc-callout-anchor-x), -50%) rotate(var(--pc-callout-angle))
+    translateY(calc(-1 * var(--pc-callout-radius))) rotate(calc(-1 * var(--pc-callout-angle)));
+}
+.pc-input-map-actions button.is-callout-slot > .pc-input-map-badge {
+  position: absolute;
+  inset: 0;
+}
+.pc-input-map-actions button.is-callout-slot > span:last-child {
+  position: absolute;
+  top: 50%;
+  white-space: nowrap;
   transform: translateY(-50%);
 }
-.pc-input-map-actions button:nth-child(1),
-.pc-input-map-actions button:nth-child(5) {
-  top: 18%;
+/* Invisible layout anchors for the fixed control-diagram slot orbit. */
+.pc-input-map-slot-grid {
+  position: absolute;
+  z-index: 4;
+  inset: 0;
+  pointer-events: none;
+  visibility: hidden;
 }
-.pc-input-map-actions button:nth-child(2),
-.pc-input-map-actions button:nth-child(6) {
-  top: 38%;
+.pc-input-map-slot-grid.is-debug-visible {
+  visibility: visible;
 }
-.pc-input-map-actions button:nth-child(3),
-.pc-input-map-actions button:nth-child(7) {
-  top: 58%;
+.pc-input-map-slot-grid i {
+  --pc-callout-radius: calc(min(19vw, 280px) + 38px);
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  width: 46px;
+  height: 46px;
+  place-items: center;
+  border: 1px solid rgba(244, 84, 255, 0.9);
+  border-radius: 3px;
+  color: #f454ff;
+  background: rgba(244, 84, 255, 0.12);
+  box-shadow: 0 0 18px rgba(244, 84, 255, 0.42);
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  transform: translate(-50%, -50%) rotate(var(--pc-callout-angle))
+    translateY(calc(-1 * var(--pc-callout-radius))) rotate(calc(-1 * var(--pc-callout-angle)));
 }
-.pc-input-map-actions button:nth-child(4),
-.pc-input-map-actions button:nth-child(8) {
-  top: 78%;
+.pc-input-map-slot-grid i.is-system {
+  border-color: rgba(255, 192, 90, 0.94);
+  color: #ffc05a;
+  background: rgba(255, 192, 90, 0.12);
+  box-shadow: 0 0 16px rgba(255, 192, 90, 0.42);
 }
-.pc-input-map-actions button:nth-child(-n + 4) {
-  left: clamp(10px, 8%, 110px);
-}
-.pc-input-map-actions button:nth-child(n + 5) {
-  right: clamp(10px, 8%, 110px);
-  flex-direction: row-reverse;
+.pc-input-map-actions button.is-callout-left {
   text-align: right;
+}
+.pc-input-map-actions button.is-callout-left > span:last-child {
+  right: calc(100% + 10px);
+  justify-items: end;
+}
+.pc-input-map-actions button.is-callout-right {
+  text-align: left;
+}
+.pc-input-map-actions button.is-callout-right > span:last-child {
+  left: calc(100% + 10px);
+  justify-items: start;
 }
 .pc-input-map-console {
   inset: 0;
   overflow: visible;
 }
 .pc-input-map-lines {
-  left: -70%;
-  width: 240%;
+  inset: 0;
+  width: 100%;
+  height: 100%;
 }
 @media (max-width: 1000px), (max-height: 760px) {
   .pc-input-map-layout {
@@ -2716,7 +2764,9 @@ summary:focus-visible {
 .pc-session-view {
   position: relative;
   overflow: hidden;
+  height: 100vh;
   min-height: 100vh;
+  max-height: 100vh;
   padding: 22px clamp(22px, 3.5vw, 58px) 34px;
   background:
     radial-gradient(circle at 50% 42%, rgba(19, 99, 150, 0.14), transparent 42%),
@@ -2830,6 +2880,18 @@ summary:focus-visible {
   pointer-events: none;
   user-select: none;
 }
+.pc-session-console-backdrop {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.22;
+  mix-blend-mode: screen;
+  pointer-events: none;
+  user-select: none;
+}
 .pc-session-header {
   position: relative;
   z-index: 3;
@@ -2930,7 +2992,8 @@ summary:focus-visible {
   z-index: 2;
   display: grid;
   place-items: center;
-  min-height: calc(100vh - 100px);
+  min-height: 0;
+  height: calc(100vh - 100px);
   max-width: min(1500px, 94vw);
   margin: auto;
 }

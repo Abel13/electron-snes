@@ -1,5 +1,8 @@
 # PixelCore plugin development
 
+The [Game Boy Advance development guide](game-boy-advance.md) documents the official console,
+emulator-core, and metadata plugins, including reproducible WASM builds and save boundaries.
+
 This directory is the entry point for third-party PixelCore plugin authors.
 
 ## Start here

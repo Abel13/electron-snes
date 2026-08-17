@@ -15,6 +15,7 @@ export const referenceHandheldConsole = defineConsole({
       version: 1,
     },
     playerPorts: [{ id: 'player-one', inputActions: ['left', 'right', 'action'] }],
+    maxRomBytes: 8 * 1024 * 1024,
     supportedRomExtensions: ['.demo'],
   },
   manifest: {

@@ -1,6 +1,6 @@
 export { NORMALIZED_INPUT_ACTIONS, isNormalizedInputAction } from './actions.js';
 export type { NormalizedInputAction } from './actions.js';
-export { validateConsoleInputMapping, mapNormalizedActions } from './console-mapping.js';
+export { mapNormalizedActions, validateConsoleInputMapping } from './console-mapping.js';
 export type { ConsoleInputMapping, ConsoleInputMappingEntry } from './console-mapping.js';
 export { InputDeviceDiscovery, KEYBOARD_DEVICE } from './device-discovery.js';
 export type {
@@ -49,6 +49,15 @@ export type {
 } from './input-profiles.js';
 export { KeyboardInputAdapter, isCapturableKeyboardInput } from './keyboard-adapter.js';
 export type { KeyboardCaptureCandidate, KeyboardInputEvent } from './keyboard-adapter.js';
+export {
+  PLATFORM_KEYBOARD_NAVIGATION_BINDINGS,
+  PLATFORM_NAVIGATION_ACTIONS,
+  PlatformKeyboardNavigationAdapter,
+} from './platform-navigation.js';
+export type {
+  PlatformKeyboardNavigationBinding,
+  PlatformNavigationAction,
+} from './platform-navigation.js';
 export { PlayerAssignmentManager } from './player-assignment.js';
 export type { PlayerAssignment } from './player-assignment.js';
 export { UniversalInputRuntime } from './runtime.js';

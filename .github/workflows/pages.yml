@@ -1,0 +1,45 @@
+name: Deploy PixelCore site
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/pages.yml'
+      - 'apps/site/**'
+      - 'apps/desktop/assets/brand/**'
+      - 'docs/legal/privacy-policy.md'
+      - 'docs/release/README.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  cancel-in-progress: true
+  group: github-pages
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - name: Assemble static site
+        run: |
+          mkdir -p _site/assets
+          cp -R apps/site/. _site/
+          cp apps/desktop/assets/brand/pixelcore-icon.png _site/assets/
+          cp apps/desktop/assets/brand/pixelcore-logo.png _site/assets/
+          touch _site/.nojekyll
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4

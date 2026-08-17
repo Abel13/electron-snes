@@ -12,6 +12,7 @@ import type { ConsoleCatalogItem } from '@platform/ui-contracts';
 import { Icon } from './icons.js';
 import { InputPrompt } from './input-prompts.js';
 import type { LibraryGameView } from './product-shell.js';
+import { PerspectiveLabelCanvas, type PerspectiveLabelMap } from './perspective-label-canvas.js';
 
 export type ConsoleLibraryCategory = 'library' | 'favorites' | 'recent' | 'settings';
 
@@ -36,8 +37,9 @@ export interface ConsoleLibraryHandle {
 }
 
 export interface ConsoleLibraryProps {
-  readonly artworkFor: (game: LibraryGameView) => string;
-  readonly cartridgeUrl: string;
+  readonly artworkFor: (game: LibraryGameView) => string | undefined;
+  readonly cartridgeUrl?: string;
+  readonly cartridgeLabelMap?: PerspectiveLabelMap;
   readonly children?: ReactNode;
   readonly console: ConsoleCatalogItem;
   readonly copy: ConsoleLibraryCopy;
@@ -104,12 +106,17 @@ export const getCarouselSlots = (
 };
 
 const Cartridge = (props: {
-  readonly artworkUrl: string;
-  readonly cartridgeUrl: string;
+  readonly artworkUrl: string | undefined;
+  readonly cartridgeUrl?: string;
+  readonly cartridgeLabelMap?: ConsoleLibraryProps['cartridgeLabelMap'];
 }): React.JSX.Element => (
   <span className="pc-cartridge">
-    <img alt="" className="pc-cartridge-shell" src={props.cartridgeUrl} />
-    <img alt="" className="pc-cartridge-label" src={props.artworkUrl} />
+    {props.cartridgeUrl === undefined ? null : (
+      <img alt="" className="pc-cartridge-shell" src={props.cartridgeUrl} />
+    )}
+    {props.artworkUrl === undefined || props.cartridgeLabelMap === undefined ? null : (
+      <PerspectiveLabelCanvas imageUrl={props.artworkUrl} map={props.cartridgeLabelMap} />
+    )}
   </span>
 );
 
@@ -211,6 +218,10 @@ export const ConsoleLibrary = forwardRef<ConsoleLibraryHandle, ConsoleLibraryPro
             event.preventDefault();
             event.stopPropagation();
             move(direction);
+          } else if (event.key === 'Enter') {
+            event.preventDefault();
+            event.stopPropagation();
+            confirm();
           } else if (event.key === 'Escape' || event.key === 'Backspace') {
             event.preventDefault();
             back();
@@ -272,11 +283,21 @@ export const ConsoleLibrary = forwardRef<ConsoleLibraryHandle, ConsoleLibraryPro
                     if (offset === 0) confirm();
                     else selectIndex(moveGameOffset(selectedIndex, offset, categoryGames.length));
                   }}
+                  style={
+                    props.cartridgeLabelMap === undefined
+                      ? undefined
+                      : { aspectRatio: props.cartridgeLabelMap.aspectRatio }
+                  }
                   type="button"
                 >
                   <Cartridge
                     artworkUrl={props.artworkFor(game)}
-                    cartridgeUrl={props.cartridgeUrl}
+                    {...(props.cartridgeUrl === undefined
+                      ? {}
+                      : { cartridgeUrl: props.cartridgeUrl })}
+                    {...(props.cartridgeLabelMap === undefined
+                      ? {}
+                      : { cartridgeLabelMap: props.cartridgeLabelMap })}
                   />
                 </button>
               ))}

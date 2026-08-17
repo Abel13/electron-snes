@@ -3,8 +3,30 @@
 ## Purpose
 
 This guide keeps official console illustrations, cartridges, blueprints, and session scenes visually
-coherent as the platform expands. It applies to Game Boy Family, Game Boy Advance, NES, SNES,
-Nintendo 64, and future official console plugins.
+coherent as the platform expands. Console-specific assets belong to the console plugin, not to the
+desktop application. It applies to Game Boy Family, Game Boy Advance, NES, SNES, Nintendo 64, and
+future official or community console plugins.
+
+## Plugin ownership
+
+Every console plugin keeps its runtime assets under `plugins/consoles/<console-slug>/assets/` using
+the same class directories:
+
+```text
+assets/
+├── consoles/
+├── cartridges/
+├── blueprints/
+├── backdrops/
+├── masks/
+├── README.md
+└── NOTICE.md
+```
+
+The plugin declares relative references such as `assets/consoles/<slug>-console-hero.png` in its
+console definition. The host validates and resolves those references; the renderer never imports a
+console asset directly and never receives an absolute filesystem path. Brand, audio, input prompt,
+and generic library assets remain application-owned under `apps/desktop/assets/`.
 
 Assets support the product UI. They must not imitate a console manufacturer, game publisher, game
 box, logo, character, or exact hardware industrial design.
@@ -23,13 +45,13 @@ box, logo, character, or exact hardware industrial design.
 
 ## Asset classes
 
-| Class | Purpose | Requirements |
-| --- | --- | --- |
-| `console-hero` | Centerpiece in the console selector | Transparent PNG, original hardware representation, no embedded text |
-| `cartridge` | Game selection surface | Transparent PNG plus a separately declared label mask and safe area |
-| `blueprint` | Control-configuration diagram | SVG or transparent PNG with stable normalized anchor points |
-| `session-backdrop` | Low-emphasis atmosphere around video | Decorative only; must preserve contrast and reserved HUD space |
-| `cover-mask` | Places user-provided cover art inside a cartridge | No branding; contains only the label aperture and perspective metadata |
+| Class              | Purpose                                           | Requirements                                                           |
+| ------------------ | ------------------------------------------------- | ---------------------------------------------------------------------- |
+| `console-hero`     | Centerpiece in the console selector               | Transparent PNG, original hardware representation, no embedded text    |
+| `cartridge`        | Game selection surface                            | Transparent PNG plus a separately declared label mask and safe area    |
+| `blueprint`        | Control-configuration diagram                     | SVG or transparent PNG with stable normalized anchor points            |
+| `session-backdrop` | Low-emphasis atmosphere around video              | Decorative only; must preserve contrast and reserved HUD space         |
+| `cover-mask`       | Places user-provided cover art inside a cartridge | No branding; contains only the label aperture and perspective metadata |
 
 ## Source and export rules
 
@@ -41,7 +63,9 @@ box, logo, character, or exact hardware industrial design.
 - Name files with lowercase kebab case: `<console-id>-<class>.png`, for example
   `game-boy-advance-console-hero.png`.
 - Record author, source, license, creation date, and any generation/editing method in the asset
-  inventory or adjacent `NOTICE.md`.
+  inventory or the plugin's `assets/NOTICE.md`.
+- Group runtime files by class under the plugin's `assets/consoles/`, `assets/cartridges/`,
+  `assets/blueprints/`, and `assets/backdrops/`; keep the console slug in every filename.
 - Third-party content is allowed only with verified redistribution rights. User-provided game covers
   are local data and are never shipped as PixelCore assets.
 
@@ -87,12 +111,12 @@ Every official console provides a declarative profile that references these asse
 its video presentation, accent values, and layout intent. It may vary in silhouette, cartridge shape,
 frame composition, and proportion while retaining the PixelCore visual direction.
 
-| Console family | Hero and cartridge intent | Native video |
-| --- | --- | --- |
-| Game Boy Family | Compact vertical portable and near-square label | `160x144` |
-| Game Boy Advance | Wide ergonomic portable and wide label | `240x160` |
-| NES | Horizontal home-console composition and cartridge profile | Console-declared |
-| SNES | Layered 16-bit home-console composition and cartridge profile | Console-declared |
-| Nintendo 64 | Spatial 3D composition with broader scene depth | Console-declared |
+| Console family   | Hero and cartridge intent                                     | Native video     |
+| ---------------- | ------------------------------------------------------------- | ---------------- |
+| Game Boy Family  | Compact vertical portable and near-square label               | `160x144`        |
+| Game Boy Advance | Wide ergonomic portable and wide label                        | `240x160`        |
+| NES              | Horizontal home-console composition and cartridge profile     | Console-declared |
+| SNES             | Layered 16-bit home-console composition and cartridge profile | Console-declared |
+| Nintendo 64      | Spatial 3D composition with broader scene depth               | Console-declared |
 
 Exact display behavior belongs to [Console video presentation](../architecture/console-video-presentation.md).

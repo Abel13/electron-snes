@@ -5,6 +5,10 @@ coverage/
 .turbo/
 *.tsbuildinfo
 
+# Local emulator-core build sources and intermediates
+plugins/emulator-cores/mgba/.tmp/
+plugins/emulator-cores/mgba/src-worker-protocol.tmp
+
 # Local environment files
 .env
 .env.*

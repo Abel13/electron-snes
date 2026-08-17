@@ -1,0 +1,9 @@
+{
+  "apiVersion": 1,
+  "capabilities": ["cartridge-playback", "wide-portable-video"],
+  "id": "org.pixelcore.game-boy-advance",
+  "name": "Game Boy Advance",
+  "permissions": [],
+  "type": "console",
+  "version": "1.0.0"
+}
