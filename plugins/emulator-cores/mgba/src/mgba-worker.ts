@@ -27,8 +27,10 @@ let status: EmulatorSessionStatus = 'idle';
 let hasRom = false;
 let timer: ReturnType<typeof setTimeout> | undefined;
 let nextFrameAt = 0;
+let nextSaveAt = 0;
 let keyMask = 0;
-port.on('message', (request: MgbaWorkerRequest) => void handle(request));
+const CARTRIDGE_SAVE_INTERVAL_MS = 30_000;
+port.on('message', (request: unknown) => void handle(request));
 const ok = (): EmulatorOperationResult => ({ status: 'ok' });
 const invalid = (message: string): EmulatorOperationResult => ({
   code: 'invalid-state',
@@ -39,12 +41,36 @@ const post = (message: MgbaWorkerMessage, transfer?: readonly ArrayBuffer[]): vo
   port.postMessage(message, transfer);
 const copyHeap = (pointer: number, bytes: number): Uint8Array =>
   wasm.HEAPU8.slice(pointer, pointer + bytes);
+const isWorkerRequest = (value: unknown): value is MgbaWorkerRequest => {
+  if (typeof value !== 'object' || value === null) return false;
+  const request = value as { readonly id?: unknown; readonly type?: unknown };
+  return (
+    typeof request.id === 'string' &&
+    typeof request.type === 'string' &&
+    [
+      'capture-save-state',
+      'load-rom',
+      'pause',
+      'restore-save-state',
+      'resume',
+      'set-fast-forward-active',
+      'set-input',
+      'set-rewind-active',
+      'start',
+      'stop',
+    ].includes(request.type)
+  );
+};
 
 const loadRom = (
   extension: string,
   bytes: Uint8Array,
   cartridgeSave?: Uint8Array,
 ): EmulatorOperationResult => {
+  stopClock();
+  hasRom = false;
+  keyMask = 0;
+  status = 'idle';
   if (extension !== '.gba' || bytes.byteLength === 0)
     return { code: 'invalid-rom', message: 'mGBA supports non-empty .gba ROMs.', status: 'error' };
   const rom = wasm._malloc(bytes.byteLength);
@@ -83,6 +109,7 @@ const start = (): EmulatorOperationResult => {
     return invalid('mGBA can start only from idle or stopped.');
   status = 'running';
   nextFrameAt = performance.now();
+  nextSaveAt = nextFrameAt + CARTRIDGE_SAVE_INTERVAL_MS;
   scheduleFrame();
   return ok();
 };
@@ -137,10 +164,15 @@ const restoreSaveState = (state: {
     return invalid('An active mGBA session is required.');
   if (state.coreId !== 'org.pixelcore.mgba' || state.formatVersion !== 1)
     return invalid('The save state is incompatible with mGBA.');
+  const expectedBytes = wasm._mgbawasm_state_size();
+  if (state.bytes.byteLength !== expectedBytes)
+    return invalid('The save state has an invalid size for mGBA.');
   const pointer = wasm._malloc(state.bytes.byteLength);
   try {
     wasm.HEAPU8.set(state.bytes, pointer);
-    return wasm._mgbawasm_state_load(pointer) ? ok() : invalid('mGBA rejected the save state.');
+    return wasm._mgbawasm_state_load(pointer, state.bytes.byteLength)
+      ? ok()
+      : invalid('mGBA rejected the save state.');
   } finally {
     wasm._free(pointer);
   }
@@ -148,7 +180,9 @@ const restoreSaveState = (state: {
 const scheduleFrame = (): void => {
   if (status !== 'running') return;
   const now = performance.now();
-  const frameMs = 1000 / 59.7275;
+  const microHz = wasm._mgbawasm_framerate_micro();
+  const frameMs = microHz > 0 ? 1_000_000_000 / microHz : 1000 / 59.7275;
+  if (nextFrameAt < now - frameMs * 4) nextFrameAt = now;
   nextFrameAt += frameMs;
   timer = setTimeout(runFrame, Math.max(0, nextFrameAt - now));
 };
@@ -174,49 +208,86 @@ const runFrame = (): void => {
       wasm._free(pointer);
     }
   }
+  if (performance.now() >= nextSaveAt) {
+    const size = wasm._mgbawasm_sram_save();
+    if (size > 0) {
+      const bytes = copyHeap(wasm._mgbawasm_sram_ptr(), size);
+      post({ save: { bytes }, type: 'cartridge-save' }, [bytes.buffer as ArrayBuffer]);
+    }
+    nextSaveAt = performance.now() + CARTRIDGE_SAVE_INTERVAL_MS;
+  }
   scheduleFrame();
 };
-const handle = async (request: MgbaWorkerRequest): Promise<void> => {
+const handle = async (request: unknown): Promise<void> => {
+  const candidate =
+    typeof request === 'object' && request !== null
+      ? (request as { readonly id?: unknown })
+      : undefined;
+  const id = typeof candidate?.id === 'string' ? candidate.id : 'invalid-request';
   let result: EmulatorOperationResult | EmulatorSaveStateResult | EmulatorStopResult;
-  switch (request.type) {
-    case 'load-rom':
-      result = loadRom(request.rom.extension, request.rom.bytes, request.cartridgeSave?.bytes);
-      break;
-    case 'start':
-      result = start();
-      break;
-    case 'pause':
-      result =
-        status === 'running'
-          ? (stopClock(), (status = 'paused'), ok())
-          : invalid('A running mGBA session is required to pause.');
-      break;
-    case 'resume':
-      result =
-        status === 'paused'
-          ? ((status = 'running'), scheduleFrame(), ok())
-          : invalid('A paused mGBA session is required to resume.');
-      break;
-    case 'stop':
-      result = stop();
-      break;
-    case 'set-input':
-      result = setInput(request.input.playerPortId, request.input.actions);
-      break;
-    case 'capture-save-state':
-      result = captureSaveState();
-      break;
-    case 'restore-save-state':
-      result = restoreSaveState(request.saveState);
-      break;
-    case 'set-fast-forward-active':
-    case 'set-rewind-active':
-      result = {
-        code: 'unavailable',
-        message: 'This mGBA integration does not expose this capability.',
-        status: 'error',
-      };
-      break;
+  try {
+    if (!isWorkerRequest(request)) throw new Error('Invalid mGBA worker request.');
+    switch (request.type) {
+      case 'load-rom':
+        result = loadRom(request.rom.extension, request.rom.bytes, request.cartridgeSave?.bytes);
+        break;
+      case 'start':
+        result = start();
+        break;
+      case 'pause':
+        if (status === 'running') {
+          stopClock();
+          status = 'paused';
+          result = ok();
+        } else {
+          result = invalid('A running mGBA session is required to pause.');
+        }
+        break;
+      case 'resume':
+        if (status === 'paused') {
+          status = 'running';
+          nextFrameAt = performance.now();
+          nextSaveAt = nextFrameAt + CARTRIDGE_SAVE_INTERVAL_MS;
+          scheduleFrame();
+          result = ok();
+        } else {
+          result = invalid('A paused mGBA session is required to resume.');
+        }
+        break;
+      case 'stop':
+        result = stop();
+        break;
+      case 'set-input':
+        result = setInput(request.input.playerPortId, request.input.actions);
+        break;
+      case 'capture-save-state':
+        result = captureSaveState();
+        break;
+      case 'restore-save-state':
+        result = restoreSaveState(request.saveState);
+        break;
+      case 'set-fast-forward-active':
+      case 'set-rewind-active':
+        result = {
+          code: 'unavailable',
+          message: 'This mGBA integration does not expose this capability.',
+          status: 'error',
+        };
+        break;
+      default:
+        result = {
+          code: 'unavailable',
+          message: 'Unsupported mGBA request.',
+          status: 'error',
+        };
+        break;
+    }
+  } catch {
+    result = {
+      code: 'unexpected',
+      message: 'The mGBA worker failed to handle the request.',
+      status: 'error',
+    };
   }
   const transferable =
     result.status === 'ok' && 'cartridgeSave' in result && result.cartridgeSave
@@ -224,5 +295,5 @@ const handle = async (request: MgbaWorkerRequest): Promise<void> => {
       : result.status === 'ok' && 'saveState' in result
         ? [result.saveState.bytes.buffer as ArrayBuffer]
         : undefined;
-  post({ id: request.id, result, status, type: 'result' }, transferable);
+  post({ id, result, status, type: 'result' }, transferable);
 };

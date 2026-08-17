@@ -1,5 +1,5 @@
-import { readFile } from 'node:fs/promises';
-import { extname } from 'node:path';
+import { readFile, realpath } from 'node:fs/promises';
+import { extname, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { ConsoleAssetProfile } from '@platform/console-sdk';
 
@@ -20,16 +20,33 @@ const MIME_TYPES: Readonly<Record<string, string>> = {
 };
 
 const readAsset = async (root: URL, relativePath: string): Promise<string> => {
+  if (!relativePath.startsWith('assets/') || relativePath.includes('\\'))
+    throw new Error(`Unsafe console asset reference: ${relativePath}`);
+  let decodedPath: string;
+  try {
+    decodedPath = decodeURIComponent(relativePath);
+  } catch {
+    throw new Error(`Unsafe console asset reference: ${relativePath}`);
+  }
+  if (!decodedPath.startsWith('assets/'))
+    throw new Error(`Unsafe console asset reference: ${relativePath}`);
+  const rootPath = resolve(fileURLToPath(root));
+  const unresolvedAssetPath = resolve(rootPath, decodedPath.slice('assets/'.length));
+  const unresolvedPathFromRoot = relative(rootPath, unresolvedAssetPath);
   if (
-    !relativePath.startsWith('assets/') ||
-    relativePath.includes('..') ||
-    relativePath.includes('\\')
+    unresolvedPathFromRoot === '' ||
+    unresolvedPathFromRoot.startsWith('..') ||
+    unresolvedPathFromRoot.includes('../')
   )
     throw new Error(`Unsafe console asset reference: ${relativePath}`);
-  const assetUrl = new URL(relativePath.slice('assets/'.length), root);
-  const mime = MIME_TYPES[extname(assetUrl.pathname).toLowerCase()];
+  const canonicalRootPath = await realpath(rootPath);
+  const assetPath = await realpath(unresolvedAssetPath);
+  const pathFromRoot = relative(canonicalRootPath, assetPath);
+  if (pathFromRoot === '' || pathFromRoot.startsWith('..') || pathFromRoot.includes('../'))
+    throw new Error(`Unsafe console asset reference: ${relativePath}`);
+  const mime = MIME_TYPES[extname(assetPath).toLowerCase()];
   if (mime === undefined) throw new Error(`Unsupported console asset type: ${relativePath}`);
-  const bytes = await readFile(fileURLToPath(assetUrl));
+  const bytes = await readFile(assetPath);
   return `data:${mime};base64,${bytes.toString('base64')}`;
 };
 
@@ -50,6 +67,8 @@ export const resolveConsoleAssets = async (
   ...(profile.cartridgeLabelMask === undefined
     ? {}
     : { cartridgeLabelMaskUrl: await readAsset(root, profile.cartridgeLabelMask) }),
-  ...(profile.cartridgeLabelMap === undefined ? {} : { cartridgeLabelMap: profile.cartridgeLabelMap }),
+  ...(profile.cartridgeLabelMap === undefined
+    ? {}
+    : { cartridgeLabelMap: profile.cartridgeLabelMap }),
   ...(profile.controlDiagram === undefined ? {} : { controlDiagram: profile.controlDiagram }),
 });

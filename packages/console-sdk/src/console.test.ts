@@ -56,6 +56,14 @@ test('accepts a generic Game Boy family console declaration', () => {
   expect(result.status).toBe('valid');
 });
 
+test('accepts API-v1 console declarations without a ROM limit', () => {
+  const { maxRomBytes, ...consoleWithoutLimit } = gameBoyConsole.console;
+  expect(maxRomBytes).toBeGreaterThan(0);
+  expect(validateConsolePlugin({ ...gameBoyConsole, console: consoleWithoutLimit }).status).toBe(
+    'valid',
+  );
+});
+
 test('rejects an unsafe ROM size limit', () => {
   const result = validateConsolePlugin({
     ...gameBoyConsole,

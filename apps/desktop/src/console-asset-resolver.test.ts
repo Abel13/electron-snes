@@ -28,5 +28,10 @@ describe('resolveConsoleAssets', () => {
         consoleHero: 'assets/../secret.png',
       }),
     ).rejects.toThrow('Unsafe console asset reference');
+    await expect(
+      resolveConsoleAssets(new URL('file:///tmp/assets/'), {
+        consoleHero: 'assets/%2e%2e/secret.png',
+      }),
+    ).rejects.toThrow('Unsafe console asset reference');
   });
 });

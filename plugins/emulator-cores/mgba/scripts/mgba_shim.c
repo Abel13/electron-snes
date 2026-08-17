@@ -185,6 +185,9 @@ EXPORT int mgbawasm_load(const void* rom, int romBytes, const void* bios, int bi
 	mCoreInitConfig(core, NULL);
 	if (!core->init(core)) {
 		romVf->close(romVf);
+		mCoreConfigDeinit(&core->config);
+		free(core);
+		core = NULL;
 		_freeCore();
 		return 0;
 	}
@@ -373,8 +376,8 @@ EXPORT int mgbawasm_state_save(void* out) {
 	return core->saveState(core, out) ? 1 : 0;
 }
 
-EXPORT int mgbawasm_state_load(const void* in) {
-	if (!core || !in) {
+EXPORT int mgbawasm_state_load(const void* in, int bytes) {
+	if (!core || !in || bytes != (int) core->stateSize(core)) {
 		return 0;
 	}
 	return core->loadState(core, in) ? 1 : 0;

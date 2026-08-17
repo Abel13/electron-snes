@@ -180,6 +180,17 @@ export const createDesktopSessionHost = (
             status: 'error',
           };
         if (activePlugin?.emulator.id !== selectedPlugin.emulator.id) {
+          if (activeSaveKey !== undefined) {
+            clearAutosaveTimer();
+            clearPlaytimeTimer();
+            await captureAutosave().catch(() => undefined);
+            await checkpointPlaytime().catch(() => undefined);
+            const stopped = await execute(() => controller.stop());
+            if (stopped.status === 'error') return stopped;
+            activeSaveKey = undefined;
+            activeGameId = undefined;
+            playtimeCheckpointAt = undefined;
+          }
           activePlugin = selectedPlugin;
           controller = new EmulatorSessionController(activePlugin, outputsForController);
         }

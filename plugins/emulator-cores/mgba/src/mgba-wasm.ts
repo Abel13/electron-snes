@@ -28,7 +28,7 @@ export interface MgbaModule {
   _mgbawasm_set_keys(keys: number): void;
   _mgbawasm_state_size(): number;
   _mgbawasm_state_save(pointer: number): number;
-  _mgbawasm_state_load(pointer: number): number;
+  _mgbawasm_state_load(pointer: number, bytes: number): number;
   _mgbawasm_sram_save(): number;
   _mgbawasm_sram_ptr(): number;
   _mgbawasm_sram_load(pointer: number, bytes: number): number;

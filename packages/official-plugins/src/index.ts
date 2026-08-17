@@ -37,6 +37,14 @@ const officialGameMetadataPlugins: readonly GameMetadataPluginDefinition[] = [
 export const resolveOfficialConsolePlugin = (id: string): ConsolePluginDefinition | undefined =>
   officialConsolePlugins.get(id);
 
+/** Resolves the official console that declares support for a ROM extension. */
+export const resolveOfficialConsoleForExtension = (
+  extension: string,
+): ConsolePluginDefinition | undefined =>
+  [...officialConsolePlugins.values()].find((plugin) =>
+    plugin.console.supportedRomExtensions.includes(extension),
+  );
+
 export const resolveOfficialConsoleAssetRoot = (id: string): URL | undefined =>
   officialConsoleAssetRoots.get(id);
 
@@ -47,6 +55,17 @@ export const listOfficialConsolePluginIds = (): readonly string[] =>
 /** Resolves an audited official plugin without exposing plugin modules to an application host. */
 export const resolveOfficialEmulatorPlugin = (id: string): EmulatorPluginDefinition | undefined =>
   officialEmulatorPlugins.get(id);
+
+/** Resolves an official emulator through its declared console and ROM compatibility. */
+export const resolveOfficialEmulatorForConsole = (
+  consoleId: string,
+  extension: string,
+): EmulatorPluginDefinition | undefined =>
+  [...officialEmulatorPlugins.values()].find(
+    (plugin) =>
+      plugin.emulator.compatibleConsoleIds.includes(consoleId) &&
+      plugin.emulator.supportedRomExtensions.includes(extension),
+  );
 
 const gbaGameMetadataValidation = validateGameMetadataPlugin(gameBoyAdvanceExampleCatalog);
 if (gbaGameMetadataValidation.status !== 'valid')

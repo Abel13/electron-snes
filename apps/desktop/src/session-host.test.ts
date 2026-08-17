@@ -53,7 +53,7 @@ const createPlugin = (
     emulator: {
       capabilities: { fastForward: false, rewind: false, saveStates },
       compatibleConsoleIds: ['org.pixelcore.game-boy-family'],
-      id: 'org.pixelcore.fixture',
+      id: extension === '.gba' ? 'org.pixelcore.fixture.gba' : 'org.pixelcore.fixture.gb',
       supportedRomExtensions: extension === '.gba' ? ['.gba'] : ['.gb', '.gbc'],
     },
     manifest: {
@@ -159,6 +159,39 @@ describe('DesktopSessionHost', () => {
 
     expect(persisted).toEqual([new Uint8Array([6, 5])]);
     session.stop = originalStop;
+  });
+
+  it('stops the active core before changing the save key for a different core', async () => {
+    const gameBoy = createPlugin(false, '.gb');
+    const gameBoyAdvance = createPlugin(false, '.gba');
+    const gameBoySession = await gameBoy.createSession();
+    const stopped = vi.fn(gameBoySession.stop);
+    gameBoySession.stop = stopped;
+    const persisted: { readonly key: string; readonly bytes: Uint8Array }[] = [];
+    const host = createDesktopSessionHost(
+      (rom) => (rom.extension === '.gba' ? gameBoyAdvance : gameBoy),
+      {
+        loadCartridgeSave: async () => undefined,
+        persistCartridgeSave: async (key, bytes) => {
+          persisted.push({ bytes, key });
+        },
+        sendAudio: () => undefined,
+        sendVideo: () => undefined,
+      },
+    );
+
+    await host.launch(
+      { bytes: new Uint8Array([1]), extension: '.gb', name: 'first.gb', selectionId: 'first' },
+      'first-save-key',
+    );
+    await host.launch(
+      { bytes: new Uint8Array([2]), extension: '.gba', name: 'second.gba', selectionId: 'second' },
+      'second-save-key',
+    );
+
+    expect(stopped).toHaveBeenCalledOnce();
+    expect(persisted).toEqual([]);
+    await host.stop();
   });
 
   it('captures autosaves periodically and before a clean stop', async () => {

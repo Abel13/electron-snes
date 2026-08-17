@@ -30,13 +30,14 @@ interface WorkerPort {
   terminate(): Promise<number>;
 }
 
-class MgbaWorkerSession implements EmulatorSession {
+export class MgbaWorkerSession implements EmulatorSession {
   readonly #audioListeners = new Set<(frame: EmulatorAudioFrame) => void>();
   readonly #pending = new Map<string, (result: EmulatorOperationResult) => void>();
   readonly #cartridgeSaveListeners = new Set<(save: EmulatorCartridgeSave) => void>();
   readonly #videoListeners = new Set<(frame: EmulatorVideoFrame) => void>();
   #requestId = 0;
   #status: EmulatorSessionStatus = 'idle';
+  #terminated = false;
 
   constructor(private readonly worker: WorkerPort) {
     worker.on('message', this.onMessage);
@@ -79,11 +80,10 @@ class MgbaWorkerSession implements EmulatorSession {
   }
 
   restoreSaveState(saveState: EmulatorSaveState): Promise<EmulatorOperationResult> {
-    const buffer = saveState.bytes.buffer;
-    return this.request(
-      { saveState, type: 'restore-save-state' },
-      buffer instanceof ArrayBuffer ? [buffer] : undefined,
-    );
+    const bytes = new Uint8Array(saveState.bytes);
+    return this.request({ saveState: { ...saveState, bytes }, type: 'restore-save-state' }, [
+      bytes.buffer,
+    ]);
   }
 
   setRewindActive(active: boolean): Promise<EmulatorOperationResult> {
@@ -103,9 +103,12 @@ class MgbaWorkerSession implements EmulatorSession {
   }
 
   async stop(): Promise<EmulatorOperationResult> {
-    const result = await this.request({ type: 'stop' });
-    if (result.status === 'ok') await this.worker.terminate();
-    return result;
+    try {
+      return await this.request({ type: 'stop' });
+    } finally {
+      this.#terminated = true;
+      await this.worker.terminate();
+    }
   }
 
   subscribeAudio(listener: (frame: EmulatorAudioFrame) => void): UnsubscribeEmulatorOutput {
@@ -126,12 +129,18 @@ class MgbaWorkerSession implements EmulatorSession {
   }
 
   private readonly onExit = (code: number): void => {
-    if (code !== 0 && this.#status !== 'stopped')
-      this.fail('The Mgba worker stopped unexpectedly.');
+    this.#terminated = true;
+    if (this.#status !== 'stopped')
+      this.fail(
+        code === 0
+          ? 'The Mgba worker exited before completing the request.'
+          : 'The Mgba worker stopped unexpectedly.',
+      );
   };
 
   private readonly onFailure = (error: Error): void => {
     console.error('The Mgba worker failed.', error);
+    this.#terminated = true;
     this.fail('The Mgba worker failed.');
   };
 
@@ -182,10 +191,25 @@ class MgbaWorkerSession implements EmulatorSession {
     command: MgbaWorkerCommand,
     transferList?: readonly ArrayBuffer[],
   ): Promise<EmulatorOperationResult> {
+    if (this.#terminated)
+      return Promise.resolve({
+        code: 'unexpected',
+        message: 'The Mgba worker is no longer available.',
+        status: 'error',
+      });
     const id = `mgba-${this.#requestId++}`;
     return new Promise((resolve) => {
       this.#pending.set(id, resolve);
-      this.worker.postMessage({ ...command, id } as MgbaWorkerRequest, transferList);
+      try {
+        this.worker.postMessage({ ...command, id } as MgbaWorkerRequest, transferList);
+      } catch {
+        this.#pending.delete(id);
+        resolve({
+          code: 'unexpected',
+          message: 'The Mgba worker could not accept the request.',
+          status: 'error',
+        });
+      }
     });
   }
 }

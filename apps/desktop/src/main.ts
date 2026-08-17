@@ -14,9 +14,10 @@ import type { LocalGame } from '@platform/library';
 import {
   listOfficialConsolePluginIds,
   listOfficialGameMetadataPlugins,
+  resolveOfficialConsoleForExtension,
   resolveOfficialConsolePlugin,
   resolveOfficialConsoleAssetRoot,
-  resolveOfficialEmulatorPlugin,
+  resolveOfficialEmulatorForConsole,
 } from '@platform/official-plugins';
 import {
   IPC_CHANNELS,
@@ -48,25 +49,23 @@ const { app, BrowserWindow, dialog, ipcMain } = electron;
 
 const currentDirectory = dirname(fileURLToPath(import.meta.url));
 const romSelections = createRomSelectionStore();
-const officialEmulator = resolveOfficialEmulatorPlugin('org.pixelcore.sameboy');
-const officialConsole = resolveOfficialConsolePlugin('org.pixelcore.game-boy-family');
-const officialGbaEmulator = resolveOfficialEmulatorPlugin('org.pixelcore.mgba');
-const officialGbaConsole = resolveOfficialConsolePlugin('org.pixelcore.game-boy-advance');
 let stopActiveSession: (() => Promise<void>) | undefined;
 let quitAfterSaveFlush = false;
 let mainWindow: ElectronBrowserWindow | undefined;
 let activeSessionExtension = '.gb';
 
-if (officialEmulator === undefined || officialConsole === undefined)
-  throw new Error('The official Game Boy runtime plugins are unavailable.');
-
-const consoleForExtension = (extension: string) =>
-  extension === '.gba' ? officialGbaConsole : officialConsole;
-const emulatorForExtension = (extension: string) =>
-  extension === '.gba' ? officialGbaEmulator : officialEmulator;
+const consoleForExtension = (extension: string) => resolveOfficialConsoleForExtension(extension);
+const emulatorForExtension = (extension: string) => {
+  const console = consoleForExtension(extension);
+  return console === undefined
+    ? undefined
+    : resolveOfficialEmulatorForConsole(console.console.id, extension);
+};
 const emulatorForConsoleId = (consoleId: string) =>
-  resolveOfficialConsolePlugin(consoleId)?.console.supportedRomExtensions
-    .map((extension) => emulatorForExtension(extension))
+  resolveOfficialConsolePlugin(consoleId)
+    ?.console.supportedRomExtensions.map((extension) =>
+      resolveOfficialEmulatorForConsole(consoleId, extension),
+    )
     .find((emulator) => emulator !== undefined);
 const identifiersForRom = (extension: string, bytes: Uint8Array) =>
   consoleForExtension(extension)?.console.identifyRom?.(bytes) ?? [];
@@ -331,7 +330,7 @@ app.whenReady().then(() => {
       throw new Error('Capabilities accept one optional console ID.');
     const emulator =
       payload[0] === undefined
-        ? emulatorForExtension(activeSessionExtension) ?? officialEmulator
+        ? emulatorForExtension(activeSessionExtension ?? '.gb')
         : emulatorForConsoleId(payload[0]);
     if (emulator === undefined) throw new Error('The requested console emulator is unavailable.');
     return emulator.emulator.capabilities;
@@ -402,7 +401,7 @@ app.whenReady().then(() => {
     if (!loaded.ok) throw new Error(loaded.error.message);
     const consolePlugin =
       payload[0] === undefined
-        ? consoleForExtension(activeSessionExtension) ?? officialConsole
+        ? consoleForExtension(activeSessionExtension ?? '.gb')
         : resolveOfficialConsolePlugin(payload[0]);
     if (consolePlugin === undefined) throw new Error('The requested console is unavailable.');
     return {
