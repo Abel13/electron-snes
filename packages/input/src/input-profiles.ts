@@ -257,12 +257,12 @@ export const validateInputProfile = (input: unknown): Result<InputProfile> => {
       : validateGamepadBindingSets(candidate['gamepadBindings']);
   if (!gamepadBindings.ok) return gamepadBindings;
   const advancedKeyboardBindings =
-    (candidate['version'] === 4 || candidate['version'] === 5)
+    candidate['version'] === 4 || candidate['version'] === 5
       ? validateAdvancedKeyboardBindings(candidate['advancedKeyboardBindings'])
       : ok(DEFAULT_ADVANCED_KEYBOARD_BINDINGS);
   if (!advancedKeyboardBindings.ok) return advancedKeyboardBindings;
   const advancedGamepadBindings =
-    (candidate['version'] === 4 || candidate['version'] === 5)
+    candidate['version'] === 4 || candidate['version'] === 5
       ? validateAdvancedGamepadBindingSets(candidate['advancedGamepadBindings'])
       : ok([]);
   if (!advancedGamepadBindings.ok) return advancedGamepadBindings;
