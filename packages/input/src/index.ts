@@ -52,6 +52,15 @@ export type {
 } from './input-profiles.js';
 export { KeyboardInputAdapter, isCapturableKeyboardInput } from './keyboard-adapter.js';
 export type { KeyboardCaptureCandidate, KeyboardInputEvent } from './keyboard-adapter.js';
+export {
+  PLATFORM_KEYBOARD_NAVIGATION_BINDINGS,
+  PLATFORM_NAVIGATION_ACTIONS,
+  PlatformKeyboardNavigationAdapter,
+} from './platform-navigation.js';
+export type {
+  PlatformKeyboardNavigationBinding,
+  PlatformNavigationAction,
+} from './platform-navigation.js';
 export { PlayerAssignmentManager } from './player-assignment.js';
 export type { PlayerAssignment } from './player-assignment.js';
 export { UniversalInputRuntime } from './runtime.js';

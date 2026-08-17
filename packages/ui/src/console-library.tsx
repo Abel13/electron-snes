@@ -218,6 +218,10 @@ export const ConsoleLibrary = forwardRef<ConsoleLibraryHandle, ConsoleLibraryPro
             event.preventDefault();
             event.stopPropagation();
             move(direction);
+          } else if (event.key === 'Enter') {
+            event.preventDefault();
+            event.stopPropagation();
+            confirm();
           } else if (event.key === 'Escape' || event.key === 'Backspace') {
             event.preventDefault();
             back();

@@ -28,6 +28,10 @@ import {
   rebindAdvancedKeyboard,
 } from './input-profiles.js';
 import { KeyboardInputAdapter, isCapturableKeyboardInput } from './keyboard-adapter.js';
+import {
+  PLATFORM_KEYBOARD_NAVIGATION_BINDINGS,
+  PlatformKeyboardNavigationAdapter,
+} from './platform-navigation.js';
 import { PlayerAssignmentManager } from './player-assignment.js';
 import { UniversalInputRuntime } from './runtime.js';
 
@@ -96,6 +100,27 @@ describe('universal input', () => {
     expect(keyboard.handle({ code: 'KeyZ', editable: false, pressed: true })).toBe(false);
     expect(keyboard.handle({ code: 'KeyA', editable: false, pressed: true })).toBe(true);
     expect(keyboard.readActions()).toEqual(['primary']);
+  });
+
+  it('keeps platform keyboard navigation separate from game bindings', () => {
+    expect(PLATFORM_KEYBOARD_NAVIGATION_BINDINGS).toEqual([
+      { action: 'move-up', code: 'ArrowUp' },
+      { action: 'move-down', code: 'ArrowDown' },
+      { action: 'move-left', code: 'ArrowLeft' },
+      { action: 'move-right', code: 'ArrowRight' },
+      { action: 'confirm', code: 'Enter' },
+      { action: 'back', code: 'Escape' },
+      { action: 'back', code: 'Backspace' },
+    ]);
+    const navigation = new PlatformKeyboardNavigationAdapter();
+    expect(navigation.handle({ code: 'KeyZ', editable: false, pressed: true })).toBe(false);
+    expect(navigation.handle({ code: 'KeyX', editable: false, pressed: true })).toBe(false);
+    navigation.handle({ code: 'Enter', editable: false, pressed: true });
+    navigation.handle({ code: 'Backspace', editable: false, pressed: true });
+    expect(navigation.readActions()).toEqual(['back', 'confirm']);
+    navigation.handle({ code: 'Enter', editable: false, pressed: false });
+    navigation.handle({ code: 'Backspace', editable: false, pressed: false });
+    expect(navigation.readActions()).toEqual([]);
   });
 
   it('accepts assignable keys and protects platform shortcuts', () => {

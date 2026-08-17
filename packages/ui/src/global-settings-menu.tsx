@@ -141,7 +141,7 @@ export const GlobalSettingsMenu = forwardRef<GlobalSettingsMenuHandle, GlobalSet
               event.preventDefault();
               event.stopPropagation();
               move(direction);
-            } else if (event.key === 'Enter' || event.key === ' ') {
+            } else if (event.key === 'Enter') {
               event.preventDefault();
               event.stopPropagation();
               confirm();

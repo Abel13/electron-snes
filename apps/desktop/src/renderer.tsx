@@ -16,6 +16,7 @@ import {
   DEFAULT_KEYBOARD_BINDINGS,
   InputDeviceDiscovery,
   KeyboardInputAdapter,
+  PlatformKeyboardNavigationAdapter,
   isCapturableKeyboardInput,
   UniversalInputRuntime,
   classifyGamepadPromptScheme,
@@ -197,7 +198,7 @@ const ProductApp = (): React.JSX.Element => {
   });
   const audio = useRef(new EmulatorAudioPlayer());
   const keyboard = useRef(new KeyboardInputAdapter());
-  const platformKeyboard = useRef(new KeyboardInputAdapter());
+  const platformKeyboard = useRef(new PlatformKeyboardNavigationAdapter());
   const gamepad = useRef(new GamepadInputAdapter());
   const gamepadPromptActivity = useRef(new GamepadPromptActivityTracker());
   const inputRuntime = useRef(new UniversalInputRuntime());
@@ -479,7 +480,7 @@ const ProductApp = (): React.JSX.Element => {
     let animationFrame = 0;
     let previousDevices = '';
     let previousActions = '';
-    let previousNavigation = new Set<NormalizedInputAction>();
+    let previousNavigation = new Set<string>();
     let previousCapture = new Set<number>();
     let previousCaptureDevice = '';
     let previousSessionMenu = false;
@@ -499,130 +500,140 @@ const ProductApp = (): React.JSX.Element => {
         setInputPromptScheme(classifyGamepadPromptScheme(promptGamepad.id));
       const currentProfile = profileRef.current;
       const currentMapping = inputMappingRef.current;
+      const assignedDescriptor =
+        currentProfile === undefined
+          ? undefined
+          : discovered.find(
+              (device) =>
+                device.kind === 'gamepad' &&
+                device.fingerprint === currentProfile.deviceFingerprint,
+            );
+      const selectedSnapshot =
+        assignedDescriptor?.index === undefined
+          ? null
+          : navigator.getGamepads()[assignedDescriptor.index];
+      const assignedGamepad: Gamepad | undefined = selectedSnapshot ?? undefined;
+      if (statusRef.current !== 'running' && statusRef.current !== 'paused') {
+        const currentNavigation = new Set<string>(platformKeyboard.current.readActions());
+        for (const snapshot of navigator.getGamepads()) {
+          if (snapshot === null || !snapshot.connected) continue;
+          for (const action of gamepad.current.readActions(snapshot, PLATFORM_GAMEPAD_BINDINGS))
+            currentNavigation.add(action);
+        }
+        if (previousCaptureDevice !== (currentProfile?.deviceFingerprint ?? '')) {
+          previousCaptureDevice = currentProfile?.deviceFingerprint ?? '';
+          previousCapture = new Set();
+        }
+        const currentCapture = new Set(
+          assignedGamepad === undefined ? [] : readPressedGamepadButtons(assignedGamepad),
+        );
+        const inputEdges = [...currentCapture].filter((action) => !previousCapture.has(action));
+        const inputConsumed =
+          screenRef.current === 'library' &&
+          inputEdges.some(
+            (index) => inputMappingSettings.current?.captureGamepadInput(index) === true,
+          );
+        previousCapture = currentCapture;
+        if (!inputConsumed) {
+          if (autosaveChoiceRef.current !== undefined) {
+            if (
+              (currentNavigation.has('move-left') && !previousNavigation.has('move-left')) ||
+              (currentNavigation.has('move-right') && !previousNavigation.has('move-right'))
+            )
+              setAutosaveChoice((current) =>
+                current === undefined
+                  ? undefined
+                  : {
+                      ...current,
+                      selected:
+                        current.selected === 'restore-autosave' ? 'fresh' : 'restore-autosave',
+                    },
+              );
+            if (
+              (currentNavigation.has('confirm') && !previousNavigation.has('confirm')) ||
+              (currentNavigation.has('primary') && !previousNavigation.has('primary'))
+            )
+              void confirmAutosaveChoice();
+            if (
+              (currentNavigation.has('back') && !previousNavigation.has('back')) ||
+              (currentNavigation.has('secondary') && !previousNavigation.has('secondary'))
+            )
+              setAutosaveChoice(undefined);
+            previousNavigation = currentNavigation;
+            animationFrame = requestAnimationFrame(poll);
+            return;
+          }
+          for (const [action, direction] of [
+            ['move-up', 'up'],
+            ['move-down', 'down'],
+            ['move-left', 'left'],
+            ['move-right', 'right'],
+          ] as const) {
+            if (currentNavigation.has(action) && !previousNavigation.has(action)) {
+              if (screenRef.current === 'home' && globalSettingsOpenRef.current)
+                globalSettings.current?.move(direction);
+              else if (screenRef.current === 'home' && (direction === 'left' || direction === 'right'))
+                carousel.current?.move(direction);
+              else if (screenRef.current === 'library') consoleLibrary.current?.move(direction);
+              else if (screenRef.current !== 'home' && moveDirectionalFocus(direction))
+                uiAudio.play('focus');
+            }
+          }
+          if (
+            (currentNavigation.has('confirm') && !previousNavigation.has('confirm')) ||
+            (currentNavigation.has('primary') && !previousNavigation.has('primary'))
+          ) {
+            if (screenRef.current === 'home' && globalSettingsOpenRef.current)
+              globalSettings.current?.confirm();
+            else if (screenRef.current === 'home') carousel.current?.confirm();
+            else if (screenRef.current === 'library') consoleLibrary.current?.confirm();
+            else (document.activeElement as HTMLElement | null)?.click();
+          }
+          if (
+            screenRef.current === 'home' &&
+            currentNavigation.has('start') &&
+            !previousNavigation.has('start')
+          )
+            setGlobalSettings(!globalSettingsOpenRef.current);
+          if (
+            screenRef.current === 'home' &&
+            (currentNavigation.has('back') && !previousNavigation.has('back'))
+          )
+            setGlobalSettings(!globalSettingsOpenRef.current);
+          if (
+            screenRef.current === 'home' &&
+            globalSettingsOpenRef.current &&
+            currentNavigation.has('secondary') &&
+            !previousNavigation.has('secondary')
+          )
+            setGlobalSettings(false);
+          if (
+            screenRef.current === 'library' &&
+            ((currentNavigation.has('back') && !previousNavigation.has('back')) ||
+              (currentNavigation.has('secondary') && !previousNavigation.has('secondary')))
+          )
+            consoleLibrary.current?.back();
+        }
+        previousNavigation = currentNavigation;
+      }
       if (currentProfile !== undefined && currentMapping !== undefined) {
         inputRuntime.current.assignments.prefer(
           currentMapping.playerPortId,
           currentProfile.deviceFingerprint,
         );
-        inputRuntime.current.updateDevices(discovered);
         const deviceId = inputRuntime.current.assignments.resolveDeviceId(
           currentMapping.playerPortId,
         );
         let actions: readonly NormalizedInputAction[] = [];
-        const assignedDescriptor = discovered.find(
-          (device) =>
-            device.kind === 'gamepad' && device.fingerprint === currentProfile.deviceFingerprint,
-        );
-        const selectedSnapshot =
-          assignedDescriptor?.index === undefined
-            ? null
-            : navigator.getGamepads()[assignedDescriptor.index];
-        let assignedGamepad: Gamepad | undefined = selectedSnapshot ?? undefined;
         if (deviceId === 'keyboard:standard') actions = keyboard.current.readActions();
         else if (deviceId?.startsWith('gamepad:') === true) {
           const snapshot = selectedSnapshot;
           if (snapshot !== null && snapshot !== undefined) {
-            assignedGamepad = snapshot;
             actions = gamepad.current.readActions(
               snapshot,
               bindingsForGamepad(currentProfile, currentProfile.deviceFingerprint),
             );
           }
-        }
-        if (statusRef.current !== 'running' && statusRef.current !== 'paused') {
-          const navigationActions = new Set<NormalizedInputAction>(
-            platformKeyboard.current.readActions(),
-          );
-          for (const snapshot of navigator.getGamepads()) {
-            if (snapshot === null || !snapshot.connected) continue;
-            for (const action of gamepad.current.readActions(snapshot, PLATFORM_GAMEPAD_BINDINGS))
-              navigationActions.add(action);
-          }
-          const currentNavigation = navigationActions;
-          if (previousCaptureDevice !== currentProfile.deviceFingerprint) {
-            previousCaptureDevice = currentProfile.deviceFingerprint;
-            previousCapture = new Set();
-          }
-          const currentCapture = new Set(
-            assignedGamepad === undefined ? [] : readPressedGamepadButtons(assignedGamepad),
-          );
-          const inputEdges = [...currentCapture].filter((action) => !previousCapture.has(action));
-          const inputConsumed =
-            screenRef.current === 'library' &&
-            inputEdges.some(
-              (index) => inputMappingSettings.current?.captureGamepadInput(index) === true,
-            );
-          previousCapture = currentCapture;
-          if (!inputConsumed) {
-            if (autosaveChoiceRef.current !== undefined) {
-              if (
-                (currentNavigation.has('move-left') && !previousNavigation.has('move-left')) ||
-                (currentNavigation.has('move-right') && !previousNavigation.has('move-right'))
-              )
-                setAutosaveChoice((current) =>
-                  current === undefined
-                    ? undefined
-                    : {
-                        ...current,
-                        selected:
-                          current.selected === 'restore-autosave' ? 'fresh' : 'restore-autosave',
-                      },
-                );
-              if (currentNavigation.has('primary') && !previousNavigation.has('primary'))
-                void confirmAutosaveChoice();
-              if (currentNavigation.has('secondary') && !previousNavigation.has('secondary'))
-                setAutosaveChoice(undefined);
-              previousNavigation = currentNavigation;
-              animationFrame = requestAnimationFrame(poll);
-              return;
-            }
-            for (const [action, direction] of [
-              ['move-up', 'up'],
-              ['move-down', 'down'],
-              ['move-left', 'left'],
-              ['move-right', 'right'],
-            ] as const) {
-              if (currentNavigation.has(action) && !previousNavigation.has(action)) {
-                if (screenRef.current === 'home' && globalSettingsOpenRef.current)
-                  globalSettings.current?.move(direction);
-                else if (
-                  screenRef.current === 'home' &&
-                  (direction === 'left' || direction === 'right')
-                )
-                  carousel.current?.move(direction);
-                else if (screenRef.current === 'library') consoleLibrary.current?.move(direction);
-                else if (screenRef.current !== 'home' && moveDirectionalFocus(direction))
-                  uiAudio.play('focus');
-              }
-            }
-            if (currentNavigation.has('primary') && !previousNavigation.has('primary')) {
-              if (screenRef.current === 'home' && globalSettingsOpenRef.current)
-                globalSettings.current?.confirm();
-              else if (screenRef.current === 'home') carousel.current?.confirm();
-              else if (screenRef.current === 'library') consoleLibrary.current?.confirm();
-              else (document.activeElement as HTMLElement | null)?.click();
-            }
-            if (
-              screenRef.current === 'home' &&
-              currentNavigation.has('start') &&
-              !previousNavigation.has('start')
-            )
-              setGlobalSettings(!globalSettingsOpenRef.current);
-            if (
-              screenRef.current === 'home' &&
-              globalSettingsOpenRef.current &&
-              currentNavigation.has('secondary') &&
-              !previousNavigation.has('secondary')
-            )
-              setGlobalSettings(false);
-            if (
-              screenRef.current === 'library' &&
-              currentNavigation.has('secondary') &&
-              !previousNavigation.has('secondary')
-            )
-              consoleLibrary.current?.back();
-          }
-          previousNavigation = currentNavigation;
         }
         const sessionMenuPressed = selectedSnapshot?.buttons[9]?.pressed === true;
         if (
@@ -728,9 +739,9 @@ const ProductApp = (): React.JSX.Element => {
         event.preventDefault();
         return;
       }
-      const keyboardHandled = keyboard.current.handle({ code: event.code, editable, pressed });
       platformKeyboard.current.handle({ code: event.code, editable, pressed });
       if (statusRef.current === 'running' || statusRef.current === 'paused') {
+        const keyboardHandled = keyboard.current.handle({ code: event.code, editable, pressed });
         if (
           emulatorCapabilitiesRef.current.rewind &&
           event.code ===
@@ -767,51 +778,6 @@ const ProductApp = (): React.JSX.Element => {
         }
         if (keyboardHandled) event.preventDefault();
         return;
-      }
-      if (!pressed || editable) return;
-      if (autosaveChoiceRef.current !== undefined) {
-        if (event.code === 'ArrowLeft' || event.code === 'ArrowRight') {
-          event.preventDefault();
-          setAutosaveChoice((current) =>
-            current === undefined
-              ? undefined
-              : {
-                  ...current,
-                  selected: current.selected === 'restore-autosave' ? 'fresh' : 'restore-autosave',
-                },
-          );
-        } else if (event.code === 'Enter') {
-          event.preventDefault();
-          void confirmAutosaveChoice();
-        } else if (event.code === 'Escape' || event.code === 'Backspace') {
-          event.preventDefault();
-          setAutosaveChoice(undefined);
-        }
-        return;
-      }
-      if (screenRef.current === 'home') {
-        if (event.code === 'Escape') {
-          event.preventDefault();
-          setGlobalSettings(!globalSettingsOpenRef.current);
-        }
-        return;
-      }
-      if (screenRef.current === 'library') {
-        if (event.code === 'Escape' || event.code === 'Backspace') {
-          event.preventDefault();
-          consoleLibrary.current?.back();
-        }
-        return;
-      }
-      const direction = {
-        ArrowDown: 'down',
-        ArrowLeft: 'left',
-        ArrowRight: 'right',
-        ArrowUp: 'up',
-      }[event.code] as 'down' | 'left' | 'right' | 'up' | undefined;
-      if (direction !== undefined && moveDirectionalFocus(direction)) {
-        event.preventDefault();
-        uiAudio.play('focus');
       }
     };
     const keyDown = (event: KeyboardEvent): void => handleKeyboard(event, true);
