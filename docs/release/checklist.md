@@ -21,8 +21,6 @@ Use this checklist for every public release. A release is approved only when eve
 
 ## 3. Validate credentials
 
-- [ ] The Windows AppX identity exactly matches the reserved Partner Center product.
-- [ ] The `MICROSOFT_STORE_URL` environment variable is `https://apps.microsoft.com/detail/9P76TZ83Q994`.
 - [ ] macOS Developer ID and App Store Connect API secrets are available only to the protected `release` environment.
 - [ ] The environment requires an authorized reviewer and does not expose secrets to pull requests.
 - [ ] No secret value appears in logs, artifacts, source files, release notes, or checksums.
@@ -31,13 +29,13 @@ Use this checklist for every public release. A release is approved only when eve
 
 Expected user downloads:
 
-- [ ] Windows link opens the certified PixelCore Microsoft Store listing.
+- [ ] `PixelCore-<version>-Windows-x64-Setup.exe`
 - [ ] `PixelCore-<version>-macOS-universal.dmg`
 - [ ] `PixelCore-<version>-Linux-x86_64.AppImage`
 
 Expected update and verification assets:
 
-- [ ] Protected workflow artifact contains `PixelCore-<version>-Windows-Store-x64.appx`.
+- [ ] Windows installer blockmap and `beta.yml` accompany the Windows installer.
 - [ ] macOS universal ZIP, ZIP blockmap, DMG blockmap, and `beta-mac.yml`.
 - [ ] Linux `beta-linux.yml` with the embedded AppImage blockmap.
 - [ ] `SHA256SUMS` covers every published release asset except itself.
@@ -46,7 +44,7 @@ Expected update and verification assets:
 
 Platform trust checks:
 
-- [ ] Partner Center certification succeeds and Microsoft signs the Windows package.
+- [ ] Windows installer is documented as unsigned and may show a SmartScreen warning.
 - [ ] macOS app signature passes `codesign --verify --deep --strict`.
 - [ ] macOS notarization ticket passes `xcrun stapler validate` and Gatekeeper assessment.
 - [ ] macOS executable contains both `arm64` and `x86_64` slices.
@@ -68,16 +66,16 @@ Run from the installed artifact, not the development server:
 ## 6. Verify update path
 
 - [ ] Install the previous release from its platform-owned channel.
-- [ ] Check for updates from global settings on macOS/Linux and through Microsoft Store on Windows.
+- [ ] Check for updates from global settings on macOS/Linux; Windows directs users to GitHub Releases.
 - [ ] Confirm that download does not begin before user approval.
 - [ ] Download the candidate and confirm restart separately.
-- [ ] Confirm the updated version starts, preserves user data, and remains signed/notarized.
+- [ ] Confirm the updated version starts, preserves user data, and remains signed/notarized where applicable.
 - [ ] Confirm declining or postponing an update does not interrupt gameplay.
 
 ## 7. Publish and monitor
 
 - [ ] The workflow-created GitHub release is marked prerelease for beta versions.
-- [ ] GitHub exposes macOS and Linux downloads plus a public Windows Microsoft Store link.
+- [ ] GitHub exposes Windows, macOS, and Linux downloads.
 - [ ] Release notes include supported OS/architecture, installation notes, known limitations, and ROM ownership policy.
 - [ ] Downloaded files match `SHA256SUMS` from a clean machine.
 - [ ] A release owner and rollback owner are recorded in the release issue.

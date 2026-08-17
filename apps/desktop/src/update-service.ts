@@ -75,7 +75,7 @@ export class DesktopUpdateService {
   private setState(state: UpdateState): void {
     this.state = state;
     const window = this.getWindow();
-    if (window !== undefined && !window.isDestroyed())
+    if (window !== undefined && !window.isDestroyed() && !window.webContents.isDestroyed())
       window.webContents.send(UPDATE_EVENT_CHANNEL, state);
   }
 }

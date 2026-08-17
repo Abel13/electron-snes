@@ -26,6 +26,25 @@ const run = (command, args, options = {}) => {
   return child;
 };
 
+const buildWorkspace = (filters) =>
+  new Promise((resolve, reject) => {
+    const child = spawn('pnpm', [...filters, 'build'], {
+      cwd: new URL('../../..', import.meta.url).pathname,
+      env: process.env,
+      stdio: 'inherit',
+    });
+    child.once('error', reject);
+    child.once('exit', (code) => {
+      if (code === 0) resolve();
+      else reject(new Error(`Workspace build failed with exit code ${code ?? 'unknown'}.`));
+    });
+  });
+
+const buildOfficialConsolePlugins = async () => {
+  await buildWorkspace(['--filter', '@platform/official-plugins...']);
+  await buildWorkspace(['--filter', '@platform/ui']);
+};
+
 const startElectron = () => {
   const { ELECTRON_RUN_AS_NODE: _ignored, ...environment } = process.env;
   electron = run('pnpm', ['exec', 'electron', '.'], {
@@ -60,6 +79,8 @@ const shutdown = (code = 0) => {
 
 process.once('SIGINT', () => shutdown());
 process.once('SIGTERM', () => shutdown());
+
+await buildOfficialConsolePlugins();
 
 run('pnpm', ['exec', 'vite']);
 run('pnpm', ['exec', 'vite', 'build', '--watch', '--config', 'vite.preload.config.ts']);

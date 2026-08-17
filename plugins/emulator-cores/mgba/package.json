@@ -1,0 +1,31 @@
+{
+  "name": "@platform/plugin-emulator-mgba",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "manifest.json",
+    "wasm"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "build:wasm": "sh scripts/build-wasm.sh",
+    "lint": "eslint src --max-warnings=0",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@platform/emulator-sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "@platform/plugin-test": "workspace:*",
+    "@types/node": "^24.0.0"
+  }
+}

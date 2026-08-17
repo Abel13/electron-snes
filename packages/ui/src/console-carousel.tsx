@@ -22,6 +22,7 @@ export interface ConsoleCarouselHandle {
 
 export interface ConsoleCarouselProps {
   readonly copy: ConsoleCarouselCopy;
+  readonly initialIndex?: number;
   readonly items: readonly ConsoleCatalogItem[];
   readonly logoUrl: string;
   readonly onConfirm: (item: ConsoleCatalogItem) => void;
@@ -39,7 +40,9 @@ export const rotateCarouselIndex = (
 
 export const ConsoleCarousel = forwardRef<ConsoleCarouselHandle, ConsoleCarouselProps>(
   function ConsoleCarousel(props, ref): React.JSX.Element {
-    const [index, setIndex] = useState(0);
+    const [index, setIndex] = useState(() =>
+      Math.max(0, Math.min(props.initialIndex ?? 0, Math.max(0, props.items.length - 1))),
+    );
     const [direction, setDirection] = useState<'left' | 'right'>('right');
     const [outgoing, setOutgoing] = useState<ConsoleCatalogItem>();
     const [pressedDirection, setPressedDirection] = useState<'left' | 'right'>();

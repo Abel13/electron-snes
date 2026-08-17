@@ -10,15 +10,30 @@
   },
   "scripts": {
     "build": "turbo run build",
-    "format:check": "prettier --check --ignore-unknown package.json pnpm-workspace.yaml turbo.json .npmrc .gitignore .gitattributes .nvmrc tsconfig.base.json eslint.config.js prettier.config.js vitest.config.ts .github/workflows apps packages plugins",
+    "coverage": "pnpm build && vitest run --coverage",
+    "coverage:baseline": "node scripts/update-coverage-baseline.mjs",
+    "dev": "pnpm --filter @platform/desktop run dev",
+    "format:check": "prettier --check --ignore-unknown package.json pnpm-workspace.yaml turbo.json .npmrc .gitignore .gitattributes .nvmrc tsconfig.base.json eslint.config.js prettier.config.js vitest.config.ts coverage-baseline.json .github/workflows apps packages plugins scripts",
     "lint": "turbo run lint",
+    "prepare": "husky",
+    "start": "pnpm --filter @platform/desktop run start",
     "test": "turbo run test",
     "test:plugins": "turbo run test --filter='./plugins/**'",
     "typecheck": "turbo run typecheck"
   },
+  "lint-staged": {
+    "*.{js,cjs,mjs,jsx,ts,tsx}": [
+      "prettier --write",
+      "eslint --fix"
+    ],
+    "*.{css,html,json,md,scss,yaml,yml}": "prettier --write"
+  },
   "devDependencies": {
     "@eslint/js": "^9.0.0",
+    "@vitest/coverage-v8": "^3.2.7",
     "eslint": "^9.0.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0",
     "prettier": "^3.0.0",
     "turbo": "^2.0.0",
     "typescript": "^5.0.0",

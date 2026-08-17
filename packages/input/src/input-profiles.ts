@@ -4,8 +4,6 @@ import type { JsonValue } from '@platform/shared';
 
 import { NORMALIZED_INPUT_ACTIONS, isNormalizedInputAction } from './actions.js';
 import type { NormalizedInputAction } from './actions.js';
-import type { ConsoleInputMapping } from './console-mapping.js';
-import { validateConsoleInputMapping } from './console-mapping.js';
 import { DEFAULT_GAMEPAD_BINDINGS, RESERVED_GAMEPAD_BUTTON_INDEX } from './gamepad-adapter.js';
 import type { GamepadBinding } from './gamepad-adapter.js';
 
@@ -53,6 +51,8 @@ export const DEFAULT_KEYBOARD_BINDINGS: readonly KeyboardBinding[] = [
   { code: 'ArrowRight', normalizedAction: 'move-right' },
   { code: 'KeyZ', normalizedAction: 'primary' },
   { code: 'KeyX', normalizedAction: 'secondary' },
+  { code: 'BracketLeft', normalizedAction: 'left-shoulder' },
+  { code: 'BracketRight', normalizedAction: 'right-shoulder' },
   { code: 'Enter', normalizedAction: 'start' },
   { code: 'ShiftRight', normalizedAction: 'select' },
 ] as const;
@@ -64,9 +64,8 @@ export interface InputProfile {
   readonly gamepadBindings: readonly GamepadBindingSet[];
   readonly id: string;
   readonly keyboardBindings: readonly KeyboardBinding[];
-  readonly mapping: ConsoleInputMapping;
   readonly name: string;
-  readonly version: 4;
+  readonly version: 5;
 }
 
 export interface GamepadBindingSet {
@@ -105,7 +104,7 @@ const validateGamepadBindingSets = (input: unknown): Result<readonly GamepadBind
       });
     }
     if (
-      bindings.length !== NORMALIZED_INPUT_ACTIONS.length ||
+      (bindings.length !== 8 && bindings.length !== NORMALIZED_INPUT_ACTIONS.length) ||
       new Set(bindings.map((binding) => binding.index)).size !== bindings.length ||
       new Set(bindings.map((binding) => binding.normalizedAction)).size !== bindings.length
     )
@@ -121,7 +120,10 @@ const validateGamepadBindingSets = (input: unknown): Result<readonly GamepadBind
 };
 
 const validateKeyboardBindings = (input: unknown): Result<readonly KeyboardBinding[]> => {
-  if (!Array.isArray(input) || input.length !== NORMALIZED_INPUT_ACTIONS.length)
+  if (
+    !Array.isArray(input) ||
+    (input.length !== 8 && input.length !== NORMALIZED_INPUT_ACTIONS.length)
+  )
     return err({ code: 'invalid-input', message: 'A complete keyboard binding set is required.' });
   const bindings: KeyboardBinding[] = [];
   for (const value of input) {
@@ -234,7 +236,8 @@ export const validateInputProfile = (input: unknown): Result<InputProfile> => {
     (candidate['version'] !== 1 &&
       candidate['version'] !== 2 &&
       candidate['version'] !== 3 &&
-      candidate['version'] !== 4) ||
+      candidate['version'] !== 4 &&
+      candidate['version'] !== 5) ||
     typeof candidate['id'] !== 'string' ||
     !PROFILE_ID_PATTERN.test(candidate['id']) ||
     typeof candidate['name'] !== 'string' ||
@@ -243,23 +246,23 @@ export const validateInputProfile = (input: unknown): Result<InputProfile> => {
     candidate['deviceFingerprint'].length === 0
   )
     return err({ code: 'invalid-input', message: 'The input profile metadata is invalid.' });
-  const mapping = validateConsoleInputMapping(candidate['mapping']);
-  if (!mapping.ok) return mapping;
   const keyboardBindings =
     candidate['version'] === 1
       ? ok(DEFAULT_KEYBOARD_BINDINGS)
       : validateKeyboardBindings(candidate['keyboardBindings']);
   if (!keyboardBindings.ok) return keyboardBindings;
   const gamepadBindings =
-    candidate['version'] === 3 ? validateGamepadBindingSets(candidate['gamepadBindings']) : ok([]);
+    candidate['version'] === 1 || candidate['version'] === 2
+      ? ok([])
+      : validateGamepadBindingSets(candidate['gamepadBindings']);
   if (!gamepadBindings.ok) return gamepadBindings;
   const advancedKeyboardBindings =
-    candidate['version'] === 4
+    candidate['version'] === 4 || candidate['version'] === 5
       ? validateAdvancedKeyboardBindings(candidate['advancedKeyboardBindings'])
       : ok(DEFAULT_ADVANCED_KEYBOARD_BINDINGS);
   if (!advancedKeyboardBindings.ok) return advancedKeyboardBindings;
   const advancedGamepadBindings =
-    candidate['version'] === 4
+    candidate['version'] === 4 || candidate['version'] === 5
       ? validateAdvancedGamepadBindingSets(candidate['advancedGamepadBindings'])
       : ok([]);
   if (!advancedGamepadBindings.ok) return advancedGamepadBindings;
@@ -270,9 +273,8 @@ export const validateInputProfile = (input: unknown): Result<InputProfile> => {
     gamepadBindings: gamepadBindings.value,
     id: candidate['id'],
     keyboardBindings: keyboardBindings.value.map((binding) => ({ ...binding })),
-    mapping: mapping.value,
     name: candidate['name'].trim(),
-    version: 4,
+    version: 5,
   });
 };
 
@@ -289,12 +291,6 @@ const toJson = (profile: InputProfile): JsonValue => ({
   })),
   id: profile.id,
   keyboardBindings: profile.keyboardBindings.map((binding) => ({ ...binding })),
-  mapping: {
-    consoleId: profile.mapping.consoleId,
-    entries: profile.mapping.entries.map((entry) => ({ ...entry })),
-    playerPortId: profile.mapping.playerPortId,
-    version: profile.mapping.version,
-  },
   name: profile.name,
   version: profile.version,
 });

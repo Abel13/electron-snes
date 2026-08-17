@@ -5,6 +5,8 @@ export const NORMALIZED_INPUT_ACTIONS = [
   'move-right',
   'primary',
   'secondary',
+  'left-shoulder',
+  'right-shoulder',
   'start',
   'select',
 ] as const;

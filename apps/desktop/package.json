@@ -17,7 +17,7 @@
     "package:linux": "pnpm --dir ../.. build && electron-builder --config electron-builder.yml --publish never --linux AppImage --x64",
     "package:macos": "pnpm --dir ../.. build && electron-builder --config electron-builder.yml --publish never --mac --universal",
     "package:macos:release": "pnpm package:macos -- -c.mac.notarize=true",
-    "package:windows": "pnpm --dir ../.. build && electron-builder --config electron-builder.yml --publish never --win appx --x64",
+    "package:windows": "pnpm --dir ../.. build && electron-builder --config electron-builder.yml --publish never --win nsis --x64",
     "start": "pnpm build && env -u ELECTRON_RUN_AS_NODE electron .",
     "test": "vitest run --passWithNoTests",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.renderer.json --noEmit"

@@ -1,9 +1,10 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { createRef } from 'react';
 import { describe, expect, it, vi } from 'vitest';
+import type { ConsoleCatalogItem } from '@platform/ui-contracts';
 import { ConsoleCarousel, rotateCarouselIndex } from './console-carousel.js';
 
-const items = [
+const items: ConsoleCatalogItem[] = [
   {
     accentColor: '#22e1dc',
     artworkUrl: '/handheld.webp',
@@ -57,5 +58,38 @@ describe('ConsoleCarousel', () => {
     expect(markup).not.toContain('NES</h1>');
     expect(markup).toContain('aria-live="polite"');
     expect(markup).toContain('aria-label="Previous system"');
+  });
+
+  it('starts at the requested console when returning to the carousel', () => {
+    const markup = renderToStaticMarkup(
+      <ConsoleCarousel
+        copy={copy}
+        initialIndex={1}
+        items={[
+          {
+            accentColor: '#22e1dc',
+            artworkUrl: '/first.webp',
+            availability: 'available',
+            extensions: ['.gba'],
+            generation: '32-bit generation',
+            id: 'first',
+            name: 'First',
+          },
+          {
+            accentColor: '#ffad49',
+            artworkUrl: '/second.webp',
+            availability: 'available',
+            extensions: ['.gba'],
+            generation: '32-bit generation',
+            id: 'second',
+            name: 'Second',
+          },
+        ]}
+        logoUrl="/logo.png"
+        onConfirm={vi.fn()}
+        onFocusSound={vi.fn()}
+      />,
+    );
+    expect(markup).toContain('<h1>Second</h1>');
   });
 });

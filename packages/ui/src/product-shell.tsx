@@ -5,7 +5,7 @@ export type ProductView = 'library' | 'favorites' | 'recent' | 'settings';
 
 export interface LibraryGameView {
   readonly artworkDataUrl?: string;
-  readonly extension: '.gb' | '.gbc';
+  readonly extension: '.gb' | '.gbc' | '.gba';
   readonly favorite: boolean;
   readonly id: string;
   readonly lastPlayedAt?: string;

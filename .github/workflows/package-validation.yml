@@ -6,8 +6,6 @@ on:
       - '.github/workflows/package-validation.yml'
       - '.github/workflows/release.yml'
       - 'apps/desktop/electron-builder.yml'
-      - 'apps/desktop/build/appx/**'
-      - 'apps/desktop/scripts/verify-appx-package.ps1'
       - 'apps/desktop/package.json'
       - 'pnpm-lock.yaml'
   workflow_dispatch:
@@ -34,21 +32,30 @@ jobs:
           cache: pnpm
           node-version: 22
       - run: pnpm install --frozen-lockfile
-      - name: Build Microsoft Store package
+      - name: Build Windows installer
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
         run: pnpm --filter @platform/desktop package:windows
-      - name: Verify Microsoft Store package
+      - name: Verify Windows installer
         shell: pwsh
         run: |
           $version = (Get-Content apps/desktop/package.json | ConvertFrom-Json).version
-          $package = "apps/desktop/release/PixelCore-$version-Windows-Store-x64.appx"
-          ./apps/desktop/scripts/verify-appx-package.ps1 -PackagePath $package
+          $installer = "apps/desktop/release/PixelCore-$version-Windows-x64-Setup.exe"
+          if (-not (Test-Path $installer)) { throw "Windows installer is missing: $installer" }
+          if ((Get-Item $installer).Length -lt 10000000) { throw 'Windows installer is unexpectedly small.' }
+          if (-not (Test-Path "$installer.blockmap")) { throw 'Windows installer blockmap is missing.' }
+          if (-not (Test-Path 'apps/desktop/release/beta.yml')) { throw 'Windows updater metadata is missing.' }
+          if (-not (Test-Path 'apps/desktop/release/win-unpacked/PixelCore.exe')) { throw 'Unpacked Windows executable is missing.' }
+          if (-not (Test-Path 'apps/desktop/release/win-unpacked/resources/app.asar')) { throw 'Windows ASAR is missing.' }
+          if (-not (Get-ChildItem 'apps/desktop/release/win-unpacked/resources/app.asar.unpacked' -Recurse -Filter '*.wasm' | Select-Object -First 1)) { throw 'Unpacked WASM is missing.' }
       - uses: actions/upload-artifact@v7
         with:
           if-no-files-found: error
-          name: package-smoke-windows-store
-          path: apps/desktop/release/PixelCore-*-Windows-Store-x64.appx
+          name: package-smoke-windows
+          path: |
+            apps/desktop/release/PixelCore-*-Windows-x64-Setup.exe
+            apps/desktop/release/PixelCore-*-Windows-x64-Setup.exe.blockmap
+            apps/desktop/release/beta.yml
           retention-days: 7
 
   macos:

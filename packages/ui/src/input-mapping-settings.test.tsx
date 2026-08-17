@@ -20,12 +20,11 @@ describe('InputMappingSettings', () => {
         diagram={{
           alt: 'Portable console blueprint',
           assetUrl: '/console.svg',
-          controlPoints: [{ action: 'a', x: 70, y: 50 }],
+          controlPoints: [{ action: 'a', slot: 'right-06', x: 70, y: 50 }],
         }}
         entries={[{ consoleAction: 'a', normalizedAction: 'primary' }]}
         keyboardBindings={[{ code: 'KeyZ', normalizedAction: 'primary' }]}
         onDeviceChange={vi.fn()}
-        onMappingChange={vi.fn()}
         onKeyboardBindingChange={vi.fn()}
         onGamepadBindingChange={vi.fn()}
         promptScheme="desktop"
@@ -41,6 +40,8 @@ describe('InputMappingSettings', () => {
     expect(markup).toContain('Rewind');
     expect(markup).toContain('Choose a device, then confirm to configure its buttons.');
     expect(markup).toContain('aria-current="true"');
+    expect(markup).toContain('is-callout-slot');
+    expect(markup).toContain('--pc-callout-angle:94.9090909090909deg');
     expect(markup).not.toContain('<select');
   });
 });
