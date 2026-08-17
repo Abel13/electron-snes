@@ -229,3 +229,73 @@ test('rejects an asset profile without a console hero', () => {
 
   expect(result.status).toBe('invalid');
 });
+
+const controlDiagram = {
+  alt: 'Game Boy controls',
+  controlPoints: [{ action: 'a', slot: 'right-06', x: 70, y: 50 }],
+} as const;
+
+test('accepts a control diagram with a valid console slot', () => {
+  const result = validateConsolePlugin({
+    ...gameBoyConsole,
+    console: {
+      ...gameBoyConsole.console,
+      assets: {
+        consoleHero: 'assets/consoles/game-boy-family-console-hero.png',
+        controlDiagram,
+      },
+    },
+  });
+
+  expect(result.status).toBe('valid');
+});
+
+test.each([
+  [[{ action: 'a', x: 70, y: 50 }], ['controlPoints', 0]],
+  [[{ action: 'a', slot: 'system-right-01', x: 70, y: 50 }], ['controlPoints', 0]],
+  [[{ action: 'a', slot: 'outside', x: 70, y: 50 }], ['controlPoints', 0]],
+] as const)('rejects invalid control diagram slots', (controlPoints, path) => {
+  const result = validateConsolePlugin({
+    ...gameBoyConsole,
+    console: {
+      ...gameBoyConsole.console,
+      assets: {
+        consoleHero: 'assets/consoles/game-boy-family-console-hero.png',
+        controlDiagram: { alt: 'Game Boy controls', controlPoints },
+      },
+    },
+  });
+
+  expect(result.status).toBe('invalid');
+  if (result.status === 'invalid')
+    expect(result.diagnostics).toContainEqual(
+      expect.objectContaining({ path: ['console', 'assets', 'controlDiagram', ...path] }),
+    );
+});
+
+test('rejects duplicate control diagram slots', () => {
+  const result = validateConsolePlugin({
+    ...gameBoyConsole,
+    console: {
+      ...gameBoyConsole.console,
+      assets: {
+        consoleHero: 'assets/consoles/game-boy-family-console-hero.png',
+        controlDiagram: {
+          alt: 'Game Boy controls',
+          controlPoints: [
+            { action: 'a', slot: 'right-06', x: 70, y: 50 },
+            { action: 'b', slot: 'right-06', x: 62, y: 60 },
+          ],
+        },
+      },
+    },
+  });
+
+  expect(result.status).toBe('invalid');
+  if (result.status === 'invalid')
+    expect(result.diagnostics).toContainEqual(
+      expect.objectContaining({
+        path: ['console', 'assets', 'controlDiagram', 'controlPoints', 1, 'slot'],
+      }),
+    );
+});

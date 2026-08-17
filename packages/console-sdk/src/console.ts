@@ -1,5 +1,7 @@
 import { PluginManifestSchema } from '@platform/plugin-sdk';
+import { isControlDiagramConsoleSlot } from '@platform/shared';
 import type { PluginManifest } from '@platform/plugin-sdk';
+import type { ControlDiagramConsoleSlot } from '@platform/shared';
 
 const IDENTIFIER_PATTERN = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
 const ROM_EXTENSION_PATTERN = /^\.[a-z0-9]+$/;
@@ -57,8 +59,11 @@ export interface ConsoleAssetProfile {
   };
   readonly controlDiagram?: {
     readonly alt: string;
+    readonly aspectRatio?: number;
+    readonly scale?: number;
     readonly controlPoints: readonly {
       readonly action: string;
+      readonly slot: ControlDiagramConsoleSlot;
       readonly x: number;
       readonly y: number;
     }[];
@@ -256,19 +261,27 @@ export const validateConsolePlugin = (input: unknown): ConsolePluginValidationRe
         if (
           !isRecord(diagram) ||
           typeof diagram['alt'] !== 'string' ||
-          !Array.isArray(diagram['controlPoints'])
+          !Array.isArray(diagram['controlPoints']) ||
+          (diagram['aspectRatio'] !== undefined &&
+            (typeof diagram['aspectRatio'] !== 'number' || diagram['aspectRatio'] <= 0)) ||
+          (diagram['scale'] !== undefined &&
+            (typeof diagram['scale'] !== 'number' ||
+              diagram['scale'] < 0.25 ||
+              diagram['scale'] > 2))
         ) {
           diagnostics.push(
             diagnostic(
               ['console', 'assets', 'controlDiagram'],
-              'A control diagram must declare alt text and control points.',
+              'A control diagram must declare alt text, control points, and optional valid aspect ratio and scale.',
             ),
           );
         } else {
+          const slots = new Set<string>();
           diagram['controlPoints'].forEach((point, index) => {
             if (
               !isRecord(point) ||
               !isIdentifier(point['action']) ||
+              !isControlDiagramConsoleSlot(point['slot']) ||
               typeof point['x'] !== 'number' ||
               typeof point['y'] !== 'number' ||
               point['x'] < 0 ||
@@ -279,9 +292,17 @@ export const validateConsolePlugin = (input: unknown): ConsolePluginValidationRe
               diagnostics.push(
                 diagnostic(
                   ['console', 'assets', 'controlDiagram', 'controlPoints', index],
-                  'Control points require an action and normalized coordinates between 0 and 100.',
+                  'Control points require an action, normalized coordinates, and a valid console callout slot.',
                 ),
               );
+            else if (slots.has(point['slot']))
+              diagnostics.push(
+                diagnostic(
+                  ['console', 'assets', 'controlDiagram', 'controlPoints', index, 'slot'],
+                  'Each control point must use a unique callout slot.',
+                ),
+              );
+            else slots.add(point['slot']);
           });
         }
       }

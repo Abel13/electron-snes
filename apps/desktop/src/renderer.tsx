@@ -58,6 +58,9 @@ import type { EmulatorCapabilities } from '@platform/emulator-sdk';
 import { setLocale, type SupportedLocale } from './localization.js';
 import { buildConsoleCatalog } from './console-catalog.js';
 import './renderer.css';
+
+const isDevelopmentBuild =
+  (import.meta as ImportMeta & { readonly env?: { readonly DEV?: boolean } }).env?.DEV === true;
 import { kenneyInputPromptAssets } from './input-prompt-assets.js';
 import {
   clearLegacyGlobalPreferences,
@@ -201,6 +204,9 @@ const ProductApp = (): React.JSX.Element => {
   const [devices, setDevices] = useState<readonly InputDeviceDescriptor[]>([]);
   const [profile, setProfile] = useState<InputProfile>();
   const profileRef = useRef<InputProfile | undefined>(undefined);
+  const [inputMapping, setInputMapping] = useState<ConsoleInputMapping>();
+  const inputMappingRef = useRef<ConsoleInputMapping | undefined>(undefined);
+  const inputConfigurationRequest = useRef(0);
   const statusRef = useRef<ProductStatus>(status);
   const screenRef = useRef<AppScreen>(screen);
   const globalSettingsOpenRef = useRef(false);
@@ -423,34 +429,42 @@ const ProductApp = (): React.JSX.Element => {
   const applyInputConfiguration = (
     configuration: Awaited<ReturnType<typeof window.pixelCore.getInputConfiguration>>,
   ): void => {
-    const compatibleProfile =
-      configuration.profile?.mapping.consoleId === configuration.mapping.consoleId &&
-      configuration.profile.keyboardBindings.length === DEFAULT_KEYBOARD_BINDINGS.length
-        ? configuration.profile
-        : undefined;
-    const resolvedProfile: InputProfile = compatibleProfile ?? {
+    const resolvedProfile: InputProfile = configuration.profile ?? {
       advancedGamepadBindings: [],
       advancedKeyboardBindings: DEFAULT_ADVANCED_KEYBOARD_BINDINGS,
       gamepadBindings: [],
       deviceFingerprint: 'keyboard:standard',
       id: 'default',
       keyboardBindings: DEFAULT_KEYBOARD_BINDINGS,
-      mapping: configuration.mapping,
       name: 'Default input profile',
-      version: 4,
+      version: 5,
     };
     inputRuntime.current.assignments.prefer(
-      resolvedProfile.mapping.playerPortId,
+      configuration.mapping.playerPortId,
       resolvedProfile.deviceFingerprint,
     );
+    inputMappingRef.current = configuration.mapping;
     profileRef.current = resolvedProfile;
     keyboard.current.setBindings(resolvedProfile.keyboardBindings);
+    setInputMapping(configuration.mapping);
     setProfile(resolvedProfile);
   };
 
+  const loadInputConfiguration = async (consoleId?: string): Promise<void> => {
+    const request = ++inputConfigurationRequest.current;
+    const configuration = await window.pixelCore.getInputConfiguration(consoleId);
+    if (request !== inputConfigurationRequest.current) return;
+    applyInputConfiguration(configuration);
+  };
+
   useEffect(() => {
-    void window.pixelCore.getInputConfiguration().then(applyInputConfiguration);
+    void loadInputConfiguration();
   }, []);
+
+  useEffect(() => {
+    if (screen !== 'library' || activeConsole?.id === undefined) return;
+    void loadInputConfiguration(activeConsole.id);
+  }, [activeConsole?.id, screen]);
 
   useEffect(() => {
     const discovery = new InputDeviceDiscovery({ getGamepads: () => [...navigator.getGamepads()] });
@@ -476,14 +490,15 @@ const ProductApp = (): React.JSX.Element => {
       if (promptGamepad !== undefined)
         setInputPromptScheme(classifyGamepadPromptScheme(promptGamepad.id));
       const currentProfile = profileRef.current;
-      if (currentProfile !== undefined) {
+      const currentMapping = inputMappingRef.current;
+      if (currentProfile !== undefined && currentMapping !== undefined) {
         inputRuntime.current.assignments.prefer(
-          currentProfile.mapping.playerPortId,
+          currentMapping.playerPortId,
           currentProfile.deviceFingerprint,
         );
         inputRuntime.current.updateDevices(discovered);
         const deviceId = inputRuntime.current.assignments.resolveDeviceId(
-          currentProfile.mapping.playerPortId,
+          currentMapping.playerPortId,
         );
         let actions: readonly NormalizedInputAction[] = [];
         const assignedDescriptor = discovered.find(
@@ -660,10 +675,10 @@ const ProductApp = (): React.JSX.Element => {
           deviceId === undefined
             ? []
             : inputRuntime.current.mapPlayerActions(
-                currentProfile.mapping.playerPortId,
+                currentMapping.playerPortId,
                 deviceId,
                 actions,
-                currentProfile.mapping,
+                currentMapping,
               );
         const signature = mapped.join('|');
         if (
@@ -673,7 +688,7 @@ const ProductApp = (): React.JSX.Element => {
           previousActions = signature;
           void window.pixelCore.setSessionInput({
             actions: mapped,
-            playerPortId: currentProfile.mapping.playerPortId,
+            playerPortId: currentMapping.playerPortId,
           });
         }
       }
@@ -812,30 +827,14 @@ const ProductApp = (): React.JSX.Element => {
   const persistProfile = (nextProfile: InputProfile): void => {
     setProfile(nextProfile);
     profileRef.current = nextProfile;
-    inputRuntime.current.assignments.prefer(
-      nextProfile.mapping.playerPortId,
-      nextProfile.deviceFingerprint,
-    );
+    const currentMapping = inputMappingRef.current;
+    if (currentMapping !== undefined)
+      inputRuntime.current.assignments.prefer(
+        currentMapping.playerPortId,
+        nextProfile.deviceFingerprint,
+      );
     keyboard.current.setBindings(nextProfile.keyboardBindings);
     void window.pixelCore.saveInputProfile(nextProfile);
-  };
-  const changeMapping = (normalizedAction: string, consoleAction: string): void => {
-    if (profile === undefined) return;
-    const current = profile.mapping.entries.find(
-      (entry) => entry.normalizedAction === normalizedAction,
-    );
-    if (current === undefined || current.consoleAction === consoleAction) return;
-    const mapping: ConsoleInputMapping = {
-      ...profile.mapping,
-      entries: profile.mapping.entries.map((entry) => {
-        if (entry.normalizedAction === normalizedAction) return { ...entry, consoleAction };
-        if (entry.consoleAction === consoleAction)
-          return { ...entry, consoleAction: current.consoleAction };
-        return entry;
-      }),
-    };
-    persistProfile({ ...profile, mapping });
-    uiAudio.play('toggle-on');
   };
   const changeKeyboardBinding = (normalizedAction: string, code: string): void => {
     if (profile === undefined) return;
@@ -951,7 +950,7 @@ const ProductApp = (): React.JSX.Element => {
     const nextCapabilities = await window.pixelCore.getEmulatorCapabilities();
     setEmulatorCapabilities(nextCapabilities);
     emulatorCapabilitiesRef.current = nextCapabilities;
-    applyInputConfiguration(await window.pixelCore.getInputConfiguration());
+    await loadInputConfiguration();
     setStatus('running');
   };
   const confirmAutosaveChoice = async (): Promise<void> => {
@@ -1403,7 +1402,7 @@ const ProductApp = (): React.JSX.Element => {
               ref={consoleLibrary}
               settingsRef={inputMappingSettings}
             >
-              {profile === undefined ? null : (
+              {profile === undefined || inputMapping === undefined ? null : (
                 <InputMappingSettings
                   advancedBindings={[
                     ...(emulatorCapabilities.rewind
@@ -1462,14 +1461,20 @@ const ProductApp = (): React.JSX.Element => {
                   diagram={
                     activeConsole?.assets?.controlDiagram === undefined ||
                     activeConsole.assets?.blueprintUrl === undefined
-                      ? { alt: t('gameControls'), assetUrl: '', controlPoints: [] }
-                      : {
+                        ? { alt: t('gameControls'), assetUrl: '', controlPoints: [] }
+                        : {
                           alt: activeConsole.assets.controlDiagram.alt,
+                          ...(activeConsole.assets.controlDiagram.aspectRatio === undefined
+                            ? {}
+                            : { aspectRatio: activeConsole.assets.controlDiagram.aspectRatio }),
+                          ...(activeConsole.assets.controlDiagram.scale === undefined
+                            ? {}
+                            : { scale: activeConsole.assets.controlDiagram.scale }),
                           assetUrl: activeConsole.assets.blueprintUrl,
                           controlPoints: activeConsole.assets.controlDiagram.controlPoints,
                         }
                   }
-                  entries={profile.mapping.entries}
+                  entries={inputMapping.entries}
                   keyboardBindings={profile.keyboardBindings}
                   onBackFeedback={() => uiAudio.play('back')}
                   onConfirmFeedback={() => uiAudio.play('toggle-on')}
@@ -1477,7 +1482,6 @@ const ProductApp = (): React.JSX.Element => {
                     persistProfile({ ...profile, deviceFingerprint })
                   }
                   onEditFeedback={() => uiAudio.play('select')}
-                  onMappingChange={changeMapping}
                   onKeyboardBindingChange={changeKeyboardBinding}
                   onGamepadBindingChange={changeGamepadBinding}
                   onAdvancedGamepadBindingChange={changeAdvancedGamepadBinding}
@@ -1496,6 +1500,7 @@ const ProductApp = (): React.JSX.Element => {
                   selectedDeviceKind={
                     profile.deviceFingerprint === 'keyboard:standard' ? 'keyboard' : 'gamepad'
                   }
+                  showDebugSlotGrid={isDevelopmentBuild}
                 />
               )}
             </ConsoleLibrary>

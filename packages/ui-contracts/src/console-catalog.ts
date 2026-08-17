@@ -1,3 +1,5 @@
+import type { ControlDiagramConsoleSlot } from '@platform/shared';
+
 export type ConsoleAvailability = 'available' | 'coming-soon';
 
 export interface ConsoleCatalogItem {
@@ -17,8 +19,11 @@ export interface ConsoleCatalogItem {
     };
     readonly controlDiagram?: {
       readonly alt: string;
+      readonly aspectRatio?: number;
+      readonly scale?: number;
       readonly controlPoints: readonly {
         readonly action: string;
+        readonly slot: ControlDiagramConsoleSlot;
         readonly x: number;
         readonly y: number;
       }[];

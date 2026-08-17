@@ -1,6 +1,9 @@
 export { NORMALIZED_INPUT_ACTIONS, isNormalizedInputAction } from './actions.js';
 export type { NormalizedInputAction } from './actions.js';
-export { validateConsoleInputMapping, mapNormalizedActions } from './console-mapping.js';
+export {
+  mapNormalizedActions,
+  validateConsoleInputMapping,
+} from './console-mapping.js';
 export type { ConsoleInputMapping, ConsoleInputMappingEntry } from './console-mapping.js';
 export { InputDeviceDiscovery, KEYBOARD_DEVICE } from './device-discovery.js';
 export type {

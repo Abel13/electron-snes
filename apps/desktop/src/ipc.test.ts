@@ -7,6 +7,7 @@ import {
   hasBooleanPayload,
   hasLibraryLaunchPayload,
   hasNoIpcPayload,
+  hasOptionalConsoleIdPayload,
   isHostVersionResponse,
   isGlobalPreferencesLoadResponse,
   isGlobalPreferencesSaveResponse,
@@ -113,6 +114,40 @@ describe('IPC boundary contracts', () => {
   it('accepts only an empty request payload for host version', () => {
     expect(hasNoIpcPayload([])).toBe(true);
     expect(hasNoIpcPayload(['untrusted'])).toBe(false);
+  });
+
+  it('accepts an optional console ID when requesting input configuration', async () => {
+    expect(hasOptionalConsoleIdPayload([])).toBe(true);
+    expect(hasOptionalConsoleIdPayload(['org.pixelcore.game-boy-advance'])).toBe(true);
+    expect(hasOptionalConsoleIdPayload([''])).toBe(false);
+    expect(hasOptionalConsoleIdPayload([42])).toBe(false);
+    expect(hasOptionalConsoleIdPayload(['console', 'extra'])).toBe(false);
+
+    const response = {
+      mapping: {
+        consoleId: 'org.pixelcore.game-boy-advance',
+        entries: [
+          { consoleAction: 'up', normalizedAction: 'move-up' },
+          { consoleAction: 'down', normalizedAction: 'move-down' },
+          { consoleAction: 'left', normalizedAction: 'move-left' },
+          { consoleAction: 'right', normalizedAction: 'move-right' },
+          { consoleAction: 'a', normalizedAction: 'primary' },
+          { consoleAction: 'b', normalizedAction: 'secondary' },
+          { consoleAction: 'start', normalizedAction: 'start' },
+          { consoleAction: 'select', normalizedAction: 'select' },
+        ],
+        playerPortId: 'player-one',
+        version: 1,
+      },
+    } as const;
+    const api = createPixelCoreApi(async (channel, ...payload) => {
+      expect(channel).toBe(IPC_CHANNELS.getInputConfiguration);
+      expect(payload).toEqual(['org.pixelcore.game-boy-advance']);
+      return response;
+    });
+    await expect(api.getInputConfiguration('org.pixelcore.game-boy-advance')).resolves.toEqual(
+      response,
+    );
   });
 
   it('accepts only renderer-safe unique console plugin identifiers', async () => {

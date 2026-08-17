@@ -4,6 +4,7 @@ import { isGlobalPreferences, type GlobalPreferences } from './global-preference
 import { SAVE_STATE_SLOTS, type SaveStateDescriptor, type SaveStateSlot } from '@platform/emulator';
 import type { EmulatorCapabilities } from '@platform/emulator-sdk';
 import { isResolvedGameMetadata, type ResolvedGameMetadata } from '@platform/game-sdk';
+import type { ControlDiagramConsoleSlot } from '@platform/shared';
 
 export const IPC_CHANNELS = {
   importGame: 'pixel-core:import-game',
@@ -114,7 +115,7 @@ export interface PixelCoreApi {
   checkForUpdates(): Promise<UpdateState>;
   downloadUpdate(): Promise<UpdateState>;
   getGlobalPreferences(): Promise<GlobalPreferencesLoadResponse>;
-  getInputConfiguration(): Promise<InputConfigurationResponse>;
+  getInputConfiguration(consoleId?: string): Promise<InputConfigurationResponse>;
   getHostVersion(): Promise<HostVersionResponse>;
   getUpdateState(): Promise<UpdateState>;
   getEmulatorCapabilities(): Promise<EmulatorCapabilities>;
@@ -179,8 +180,11 @@ export interface ConsolePluginAssetEntry {
     };
     readonly controlDiagram?: {
       readonly alt: string;
+      readonly aspectRatio?: number;
+      readonly scale?: number;
       readonly controlPoints: readonly {
         readonly action: string;
+        readonly slot: ControlDiagramConsoleSlot;
         readonly x: number;
         readonly y: number;
       }[];
@@ -314,6 +318,12 @@ const isSessionVideoEvent = (value: unknown): value is SessionVideoEvent =>
   typeof value['width'] === 'number';
 
 export const hasNoIpcPayload = (payload: readonly unknown[]): boolean => payload.length === 0;
+
+export const hasOptionalConsoleIdPayload = (
+  payload: readonly unknown[],
+): payload is readonly [] | readonly [string] =>
+  payload.length === 0 ||
+  (payload.length === 1 && typeof payload[0] === 'string' && payload[0].length > 0);
 
 export const hasRomSelectionIdPayload = (
   payload: readonly unknown[],
@@ -611,8 +621,11 @@ export const createPixelCoreApi = (
     if (!isSaveStateListResponse(response)) throw new Error('Received an invalid save-state list.');
     return response;
   },
-  async getInputConfiguration(): Promise<InputConfigurationResponse> {
-    const response = await invoke(IPC_CHANNELS.getInputConfiguration);
+  async getInputConfiguration(consoleId?: string): Promise<InputConfigurationResponse> {
+    const response =
+      consoleId === undefined
+        ? await invoke(IPC_CHANNELS.getInputConfiguration)
+        : await invoke(IPC_CHANNELS.getInputConfiguration, consoleId);
     if (!isInputConfigurationResponse(response))
       throw new Error('Received an invalid input configuration response.');
     return response;

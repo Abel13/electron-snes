@@ -28,6 +28,7 @@ import {
   hasLibraryGameIdPayload,
   hasLibraryLaunchPayload,
   hasNoIpcPayload,
+  hasOptionalConsoleIdPayload,
   hasInputProfilePayload,
   hasRomSelectionIdPayload,
   hasSaveStateSlotPayload,
@@ -389,19 +390,21 @@ app.whenReady().then(() => {
   });
 
   ipcMain.handle(IPC_CHANNELS.getInputConfiguration, async (_event, ...payload: unknown[]) => {
-    if (!hasNoIpcPayload(payload))
-      throw new Error('The input-configuration channel does not accept a payload.');
+    if (!hasOptionalConsoleIdPayload(payload))
+      throw new Error('The input-configuration channel accepts one optional console ID.');
     const loaded = await inputProfiles.load('default');
     if (!loaded.ok) throw new Error(loaded.error.message);
+    const consolePlugin =
+      payload[0] === undefined
+        ? consoleForExtension(activeSessionExtension) ?? officialConsole
+        : resolveOfficialConsolePlugin(payload[0]);
+    if (consolePlugin === undefined) throw new Error('The requested console is unavailable.');
     return {
       mapping: {
-        consoleId: (consoleForExtension(activeSessionExtension) ?? officialConsole).console.id,
-        entries: (consoleForExtension(activeSessionExtension) ?? officialConsole).console
-          .inputMapping.entries,
-        playerPortId: (consoleForExtension(activeSessionExtension) ?? officialConsole).console
-          .inputMapping.playerPortId,
-        version: (consoleForExtension(activeSessionExtension) ?? officialConsole).console
-          .inputMapping.version,
+        consoleId: consolePlugin.console.id,
+        entries: consolePlugin.console.inputMapping.entries,
+        playerPortId: consolePlugin.console.inputMapping.playerPortId,
+        version: consolePlugin.console.inputMapping.version,
       },
       ...(loaded.value === undefined ? {} : { profile: loaded.value }),
     };

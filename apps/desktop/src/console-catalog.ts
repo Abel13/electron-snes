@@ -1,4 +1,5 @@
 import type { ConsoleCatalogItem } from '@platform/ui-contracts';
+import type { ControlDiagramConsoleSlot } from '@platform/shared';
 
 export const buildConsoleCatalog = (
   plugins: readonly {
@@ -17,8 +18,11 @@ export const buildConsoleCatalog = (
       };
       readonly controlDiagram?: {
         readonly alt: string;
+        readonly aspectRatio?: number;
+        readonly scale?: number;
         readonly controlPoints: readonly {
           readonly action: string;
+          readonly slot: ControlDiagramConsoleSlot;
           readonly x: number;
           readonly y: number;
         }[];

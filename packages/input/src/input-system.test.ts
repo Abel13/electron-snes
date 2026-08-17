@@ -4,7 +4,10 @@ import type { JsonObject, JsonValue } from '@platform/shared';
 import { describe, expect, it } from 'vitest';
 
 import { NORMALIZED_INPUT_ACTIONS } from './actions.js';
-import { validateConsoleInputMapping, mapNormalizedActions } from './console-mapping.js';
+import {
+  mapNormalizedActions,
+  validateConsoleInputMapping,
+} from './console-mapping.js';
 import { InputDeviceDiscovery, KEYBOARD_DEVICE } from './device-discovery.js';
 import {
   DEFAULT_GAMEPAD_BINDINGS,
@@ -217,7 +220,7 @@ describe('universal input', () => {
     ).toEqual([]);
   });
 
-  it('persists input profiles in user preferences', async () => {
+  it('persists only physical input preferences in user preferences', async () => {
     const storage = new MemoryStorage();
     const repository = new InputProfileRepository(storage);
     const profile = {
@@ -227,12 +230,12 @@ describe('universal input', () => {
       gamepadBindings: [],
       id: 'default',
       keyboardBindings: DEFAULT_KEYBOARD_BINDINGS.map((binding) => ({ ...binding })),
-      mapping,
       name: 'Default',
-      version: 4,
+      version: 5,
     } as const;
     await expect(repository.save(profile)).resolves.toEqual({ ok: true, value: undefined });
     await expect(repository.load('default')).resolves.toEqual({ ok: true, value: profile });
+    expect(storage.values.get('user-preferences:input-profile:default')).not.toHaveProperty('mapping');
   });
 
   it('migrates version one input profiles with default keyboard bindings', async () => {
@@ -254,9 +257,8 @@ describe('universal input', () => {
         gamepadBindings: [],
         id: 'legacy',
         keyboardBindings: DEFAULT_KEYBOARD_BINDINGS,
-        mapping,
         name: 'Legacy',
-        version: 4,
+        version: 5,
       },
     });
   });

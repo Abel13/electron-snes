@@ -1,16 +1,24 @@
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import {
+  CONTROL_DIAGRAM_CONSOLE_SLOTS,
+  CONTROL_DIAGRAM_SYSTEM_SLOTS,
+} from '@platform/shared';
+import type { ControlDiagramConsoleSlot, ControlDiagramSlot } from '@platform/shared';
 
 import { InputPrompt, InputPromptGroup, InputPromptProvider } from './input-prompts.js';
 import type { InputPromptAction, InputPromptAssetMap, InputPromptScheme } from './input-prompts.js';
 
 export interface ConsoleControlPoint {
   readonly action: string;
+  readonly slot: ControlDiagramConsoleSlot;
   readonly x: number;
   readonly y: number;
 }
 
 export interface ConsoleControlDiagram {
   readonly alt: string;
+  readonly aspectRatio?: number;
+  readonly scale?: number;
   readonly assetUrl: string;
   readonly controlPoints: readonly ConsoleControlPoint[];
 }
@@ -41,7 +49,6 @@ export interface AdvancedBindingOption {
 export interface InputMappingSettingsHandle {
   back(): boolean;
   captureGamepadInput(index: number): boolean;
-  captureInput(action: string): boolean;
   captureKeyboard(code: string, label: string): boolean;
   confirm(): void;
   move(direction: 'down' | 'left' | 'right' | 'up'): void;
@@ -79,7 +86,6 @@ export interface InputMappingSettingsProps {
   readonly onConfirmFeedback?: () => void;
   readonly onDeviceChange: (fingerprint: string) => void;
   readonly onEditFeedback?: () => void;
-  readonly onMappingChange: (normalizedAction: string, consoleAction: string) => void;
   readonly onKeyboardBindingChange: (normalizedAction: string, code: string) => void;
   readonly onGamepadBindingChange: (normalizedAction: string, index: number) => void;
   readonly onAdvancedGamepadBindingChange?: (command: string, index: number) => void;
@@ -88,6 +94,7 @@ export interface InputMappingSettingsProps {
   readonly promptScheme: InputPromptScheme;
   readonly selectedDeviceFingerprint: string;
   readonly selectedDeviceKind: 'gamepad' | 'keyboard';
+  readonly showDebugSlotGrid?: boolean;
 }
 
 const promptFor = (action: string): InputPromptAction => {
@@ -104,6 +111,46 @@ const keyCodeLabel = (code: string): string =>
     .replace(/^Key/, '')
     .replace(/^Digit/, '')
     .replace('Arrow', '');
+
+interface ControlDiagramSlotPosition {
+  readonly angle: number;
+  readonly side: 'left' | 'right';
+}
+
+const consoleSlotPosition = (slot: ControlDiagramConsoleSlot): ControlDiagramSlotPosition => {
+  const [side, indexText] = slot.split('-');
+  const index = Number(indexText) - 1;
+  const spacing = 112 / 11;
+  return side === 'left'
+    ? { angle: 316 - index * spacing, side: 'left' }
+    : { angle: 44 + index * spacing, side: 'right' };
+};
+
+const slotPosition = (slot: ControlDiagramSlot): ControlDiagramSlotPosition => {
+  if (slot === 'system-right-01') return { angle: 16, side: 'right' };
+  if (slot === 'system-right-02') return { angle: 30, side: 'right' };
+  return consoleSlotPosition(slot);
+};
+
+interface ControlDiagramConnector {
+  readonly action: string;
+  readonly endX: number;
+  readonly endY: number;
+  readonly startX: number;
+  readonly startY: number;
+}
+
+const CONTROL_DIAGRAM_GRID_SLOTS: readonly ControlDiagramSlot[] = [
+  ...CONTROL_DIAGRAM_CONSOLE_SLOTS,
+  ...CONTROL_DIAGRAM_SYSTEM_SLOTS,
+];
+
+const slotLabel = (slot: ControlDiagramSlot): string => {
+  if (slot === 'system-right-01') return 'S1';
+  if (slot === 'system-right-02') return 'S2';
+  const [side, index] = slot.split('-');
+  return `${side === 'left' ? 'L' : 'R'}${index}`;
+};
 
 export const InputMappingSettings = forwardRef<
   InputMappingSettingsHandle,
@@ -138,7 +185,6 @@ export const InputMappingSettings = forwardRef<
     onConfirmFeedback,
     onDeviceChange,
     onEditFeedback,
-    onMappingChange,
     onKeyboardBindingChange,
     onGamepadBindingChange,
     onAdvancedGamepadBindingChange,
@@ -147,6 +193,7 @@ export const InputMappingSettings = forwardRef<
     promptScheme,
     selectedDeviceFingerprint,
     selectedDeviceKind,
+    showDebugSlotGrid = false,
   },
   ref,
 ): React.JSX.Element {
@@ -172,23 +219,79 @@ export const InputMappingSettings = forwardRef<
   const [stage, setStage] = useState<InputMappingStage>('device-selection');
   const [deviceCursor, setDeviceCursor] = useState(selectedDeviceIndex);
   const [actionCursor, setActionCursor] = useState(0);
-  const [capturedAction, setCapturedAction] = useState<string>();
   const [capturedKeyboard, setCapturedKeyboard] = useState<{
     readonly code: string;
     readonly label: string;
   }>();
   const [capturedGamepadIndex, setCapturedGamepadIndex] = useState<number>();
   const [announcement, setAnnouncement] = useState(copy.chooseDevice);
+  const [connectors, setConnectors] = useState<readonly ControlDiagramConnector[]>([]);
+  const boardRef = useRef<HTMLDivElement>(null);
+  const consoleFigureRef = useRef<HTMLDivElement>(null);
+  const slotGridRefs = useRef(new Map<ControlDiagramSlot, HTMLElement>());
   const selectedEntry = entries[actionCursor];
   const selectedAdvanced = advancedBindings[actionCursor - entries.length];
   const selectedPoint = diagram.controlPoints.find(
     (point) => point.action === selectedEntry?.consoleAction,
   );
-  const capturedEntry = entries.find((entry) => entry.normalizedAction === capturedAction);
 
   useEffect(() => {
     if (stage === 'device-selection') setDeviceCursor(selectedDeviceIndex);
   }, [selectedDeviceIndex, stage]);
+
+  useLayoutEffect(() => {
+    const updateConnectors = (): void => {
+      const board = boardRef.current;
+      const figure = consoleFigureRef.current;
+      if (board === null || figure === null) return;
+
+      const boardRect = board.getBoundingClientRect();
+      const figureRect = figure.getBoundingClientRect();
+      if (boardRect.width === 0 || boardRect.height === 0 || figureRect.width === 0) return;
+
+      const centerX = boardRect.width / 2;
+      const centerY = boardRect.height / 2;
+      const next = diagram.controlPoints.flatMap((point) => {
+        const slot = slotGridRefs.current.get(point.slot);
+        if (slot === undefined) return [];
+
+        const slotRect = slot.getBoundingClientRect();
+        const slotX = slotRect.left - boardRect.left + slotRect.width / 2;
+        const slotY = slotRect.top - boardRect.top + slotRect.height / 2;
+        const directionX = slotX - centerX;
+        const directionY = slotY - centerY;
+        const directionLength = Math.hypot(directionX, directionY);
+        if (directionLength === 0) return [];
+
+        const clearance = Math.max(slotRect.width, slotRect.height) / 2 + 8;
+        return [
+          {
+            action: point.action,
+            startX:
+              ((figureRect.left - boardRect.left + (point.x / 100) * figureRect.width) /
+                boardRect.width) *
+              100,
+            startY:
+              ((figureRect.top - boardRect.top + (point.y / 100) * figureRect.height) /
+                boardRect.height) *
+              100,
+            endX: ((slotX - (directionX / directionLength) * clearance) / boardRect.width) * 100,
+            endY: ((slotY - (directionY / directionLength) * clearance) / boardRect.height) * 100,
+          },
+        ];
+      });
+      setConnectors(next);
+    };
+
+    updateConnectors();
+    const observer =
+      typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(updateConnectors);
+    if (observer !== undefined) {
+      if (boardRef.current !== null) observer.observe(boardRef.current);
+      if (consoleFigureRef.current !== null) observer.observe(consoleFigureRef.current);
+    }
+    return () => observer?.disconnect();
+  }, [diagram.controlPoints]);
 
   const move = (direction: 'down' | 'left' | 'right' | 'up'): void => {
     if (stage === 'device-selection') {
@@ -237,7 +340,6 @@ export const InputMappingSettings = forwardRef<
     }
     if (selectedEntry === undefined && selectedAdvanced === undefined) return;
     if (stage === 'button-navigation') {
-      setCapturedAction(undefined);
       setCapturedKeyboard(undefined);
       setCapturedGamepadIndex(undefined);
       setStage('mapping-capture');
@@ -256,14 +358,7 @@ export const InputMappingSettings = forwardRef<
         onAdvancedGamepadBindingChange?.(selectedAdvanced.command, capturedGamepadIndex);
       else if (selectedEntry !== undefined)
         onGamepadBindingChange(selectedEntry.normalizedAction, capturedGamepadIndex);
-    } else if (
-      selectedEntry !== undefined &&
-      capturedAction !== undefined &&
-      capturedAction !== selectedEntry.normalizedAction
-    )
-      onMappingChange(capturedAction, selectedEntry.consoleAction);
-    else if (capturedAction === undefined) return;
-    setCapturedAction(undefined);
+    } else return;
     setCapturedKeyboard(undefined);
     setCapturedGamepadIndex(undefined);
     setStage('button-navigation');
@@ -273,7 +368,6 @@ export const InputMappingSettings = forwardRef<
 
   const back = (): boolean => {
     if (stage === 'mapping-capture' || stage === 'mapping-confirmation') {
-      setCapturedAction(undefined);
       setCapturedKeyboard(undefined);
       setCapturedGamepadIndex(undefined);
       setStage('button-navigation');
@@ -288,21 +382,6 @@ export const InputMappingSettings = forwardRef<
       return true;
     }
     return false;
-  };
-
-  const captureInput = (action: string): boolean => {
-    if (selectedDeviceKind !== 'gamepad') return false;
-    if (stage === 'mapping-capture') {
-      if (!entries.some((entry) => entry.normalizedAction === action)) return true;
-      setCapturedAction(action);
-      setStage('mapping-confirmation');
-      setAnnouncement(`${copy.mappingPreview} ${actionLabel(action)}`);
-      return true;
-    }
-    if (stage !== 'mapping-confirmation') return false;
-    if (action === 'primary') confirm();
-    else if (action === 'secondary') back();
-    return true;
   };
 
   const captureGamepadInput = (index: number): boolean => {
@@ -339,7 +418,6 @@ export const InputMappingSettings = forwardRef<
   useImperativeHandle(ref, () => ({
     back,
     captureGamepadInput,
-    captureInput,
     captureKeyboard,
     confirm,
     move,
@@ -436,14 +514,54 @@ export const InputMappingSettings = forwardRef<
             ))}
           </aside>
 
-          <div className="pc-input-map-board">
+          <div className="pc-input-map-board" ref={boardRef}>
+            <div
+              aria-hidden="true"
+              className={`pc-input-map-slot-grid${showDebugSlotGrid ? ' is-debug-visible' : ''}`}
+            >
+              {CONTROL_DIAGRAM_GRID_SLOTS.map((slot) => {
+                const position = slotPosition(slot);
+                return (
+                  <i
+                    className={`is-${position.side}${slot.startsWith('system-') ? ' is-system' : ''}`}
+                    key={slot}
+                    ref={(element) => {
+                      if (element === null) slotGridRefs.current.delete(slot);
+                      else slotGridRefs.current.set(slot, element);
+                    }}
+                    style={{ '--pc-callout-angle': `${position.angle}deg` } as React.CSSProperties}
+                  >
+                    {slotLabel(slot)}
+                  </i>
+                );
+              })}
+            </div>
+            <svg aria-hidden="true" className="pc-input-map-lines" preserveAspectRatio="none" viewBox="0 0 100 100">
+              {connectors.map((connector) => {
+                const index = entries.findIndex((entry) => entry.consoleAction === connector.action);
+                return (
+                  <line
+                    className={
+                      stage !== 'device-selection' && actionCursor === index ? 'is-active' : undefined
+                    }
+                    key={connector.action}
+                    x1={connector.startX}
+                    x2={connector.endX}
+                    y1={connector.startY}
+                    y2={connector.endY}
+                  />
+                );
+              })}
+            </svg>
             <div className="pc-input-map-actions">
               {entries.map((entry, index) => {
                 const active = stage !== 'device-selection' && actionCursor === index;
-                const displayedAction =
-                  active && stage === 'mapping-confirmation' && capturedEntry !== undefined
-                    ? capturedEntry.normalizedAction
-                    : entry.normalizedAction;
+                const point = diagram.controlPoints.find(
+                  (candidate) => candidate.action === entry.consoleAction,
+                );
+                if (point === undefined) return null;
+                const position = slotPosition(point.slot);
+                const displayedAction = entry.normalizedAction;
                 const keyboardBinding = keyboardBindings.find(
                   (binding) => binding.normalizedAction === entry.normalizedAction,
                 );
@@ -453,7 +571,7 @@ export const InputMappingSettings = forwardRef<
                     : keyboardBinding?.code;
                 return (
                   <button
-                    className={active ? 'is-focused' : undefined}
+                    className={`is-callout-slot is-callout-${position.side} ${active ? 'is-focused' : ''}`}
                     key={entry.normalizedAction}
                     onClick={() => {
                       if (
@@ -465,6 +583,7 @@ export const InputMappingSettings = forwardRef<
                       if (actionCursor === index) confirm();
                       else setActionCursor(index);
                     }}
+                    style={{ '--pc-callout-angle': `${position.angle}deg` } as React.CSSProperties}
                     type="button"
                   >
                     <span className="pc-input-map-badge">
@@ -493,8 +612,11 @@ export const InputMappingSettings = forwardRef<
                 <span className="pc-input-map-group-label">{copy.advancedControls}</span>
               ) : null}
               {advancedBindings.map((binding, offset) => {
+                const slot = CONTROL_DIAGRAM_SYSTEM_SLOTS[offset];
+                if (slot === undefined) return null;
                 const index = entries.length + offset;
                 const active = stage !== 'device-selection' && actionCursor === index;
+                const position = slotPosition(slot);
                 const displayedKeyboardCode =
                   active && stage === 'mapping-confirmation' && capturedKeyboard !== undefined
                     ? capturedKeyboard.code
@@ -505,7 +627,7 @@ export const InputMappingSettings = forwardRef<
                     : binding.gamepadIndex;
                 return (
                   <button
-                    className={active ? 'is-focused' : undefined}
+                    className={`is-callout-slot is-callout-${position.side} ${active ? 'is-focused' : ''}`}
                     key={binding.command}
                     onClick={() => {
                       if (
@@ -517,6 +639,7 @@ export const InputMappingSettings = forwardRef<
                       if (actionCursor === index) confirm();
                       else setActionCursor(index);
                     }}
+                    style={{ '--pc-callout-angle': `${position.angle}deg` } as React.CSSProperties}
                     type="button"
                   >
                     <span className="pc-input-map-badge">
@@ -536,34 +659,16 @@ export const InputMappingSettings = forwardRef<
             </div>
             <div className="pc-input-map-console">
               <span className="pc-input-map-glow" />
-              <div className="pc-input-map-console-figure">
-                <svg
-                  aria-hidden="true"
-                  className="pc-input-map-lines"
-                  preserveAspectRatio="none"
-                  viewBox="-70 0 240 100"
-                >
-                  {entries.map((entry, index) => {
-                    const point = diagram.controlPoints.find(
-                      (candidate) => candidate.action === entry.consoleAction,
-                    );
-                    if (point === undefined) return null;
-                    return (
-                      <line
-                        className={
-                          stage !== 'device-selection' && actionCursor === index
-                            ? 'is-active'
-                            : undefined
-                        }
-                        key={entry.normalizedAction}
-                        x1={index < 4 ? -90 : 180}
-                        x2={point.x}
-                        y1={20 + (index % 4) * 20}
-                        y2={point.y}
-                      />
-                    );
-                  })}
-                </svg>
+              <div
+                className="pc-input-map-console-figure"
+                ref={consoleFigureRef}
+                style={{
+                  aspectRatio: diagram.aspectRatio ?? 2 / 3,
+                  ...(diagram.scale === undefined
+                    ? {}
+                    : { height: `min(${62 * diagram.scale}vh, ${570 * diagram.scale}px)` }),
+                }}
+              >
                 <img alt={diagram.alt} src={diagram.assetUrl} />
                 {diagram.controlPoints.map((point) => (
                   <i
@@ -583,29 +688,18 @@ export const InputMappingSettings = forwardRef<
                     className="pc-input-map-preview"
                     style={{ left: `${selectedPoint.x}%`, top: `${selectedPoint.y}%` }}
                   >
-                    {capturedEntry === undefined &&
-                    capturedKeyboard === undefined &&
-                    capturedGamepadIndex === undefined ? (
+                    {capturedKeyboard === undefined && capturedGamepadIndex === undefined ? (
                       <strong>{copy.pressInput}</strong>
                     ) : (
                       <>
                         {capturedKeyboard !== undefined ? (
                           <span className="pc-physical-key">{capturedKeyboard.label}</span>
-                        ) : capturedGamepadIndex !== undefined ? (
+                        ) : (
                           <span className="pc-physical-key">B{capturedGamepadIndex}</span>
-                        ) : capturedEntry !== undefined ? (
-                          <InputPrompt
-                            action={promptFor(capturedEntry.normalizedAction)}
-                            label={actionLabel(capturedEntry.normalizedAction)}
-                          />
-                        ) : null}
+                        )}
                         <strong>
                           {capturedKeyboard?.label ??
-                            (capturedGamepadIndex === undefined
-                              ? capturedEntry === undefined
-                                ? ''
-                                : actionLabel(capturedEntry.normalizedAction)
-                              : `B${capturedGamepadIndex}`)}
+                            `B${capturedGamepadIndex}`}
                         </strong>
                         <button onClick={confirm} type="button">
                           {copy.mappingConfirm}
