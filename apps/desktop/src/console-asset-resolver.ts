@@ -28,10 +28,13 @@ const readAsset = async (root: URL, relativePath: string): Promise<string> => {
   } catch {
     throw new Error(`Unsafe console asset reference: ${relativePath}`);
   }
-  if (!decodedPath.startsWith('assets/'))
+  if (!decodedPath.startsWith('assets/') || decodedPath.includes('\\'))
+    throw new Error(`Unsafe console asset reference: ${relativePath}`);
+  const assetRelativePath = decodedPath.slice('assets/'.length);
+  if (assetRelativePath.split('/').some((segment) => segment === '.' || segment === '..'))
     throw new Error(`Unsafe console asset reference: ${relativePath}`);
   const rootPath = resolve(fileURLToPath(root));
-  const unresolvedAssetPath = resolve(rootPath, decodedPath.slice('assets/'.length));
+  const unresolvedAssetPath = resolve(rootPath, assetRelativePath);
   const unresolvedPathFromRoot = relative(rootPath, unresolvedAssetPath);
   if (
     unresolvedPathFromRoot === '' ||

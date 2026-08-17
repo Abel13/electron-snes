@@ -4,7 +4,7 @@ import { spawnSync } from 'node:child_process';
 
 const rootDirectory = fileURLToPath(new URL('..', import.meta.url));
 const pnpm = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
-const result = spawnSync(pnpm, ['exec', 'vitest', 'run', '--coverage'], {
+const result = spawnSync(pnpm, ['run', 'coverage'], {
   cwd: rootDirectory,
   env: { ...process.env, COVERAGE_BASELINE_MODE: 'update' },
   stdio: 'inherit',

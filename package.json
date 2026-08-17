@@ -10,7 +10,7 @@
   },
   "scripts": {
     "build": "turbo run build",
-    "coverage": "vitest run --coverage",
+    "coverage": "pnpm build && vitest run --coverage",
     "coverage:baseline": "node scripts/update-coverage-baseline.mjs",
     "dev": "pnpm --filter @platform/desktop run dev",
     "format:check": "prettier --check --ignore-unknown package.json pnpm-workspace.yaml turbo.json .npmrc .gitignore .gitattributes .nvmrc tsconfig.base.json eslint.config.js prettier.config.js vitest.config.ts coverage-baseline.json .github/workflows apps packages plugins scripts",
