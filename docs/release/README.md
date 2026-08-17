@@ -9,3 +9,7 @@ Public binaries are produced only by `.github/workflows/release.yml` from a vers
 Windows, macOS, and Linux downloads are attached to GitHub Releases. The Windows x64 installer is
 currently unsigned and may display a Windows SmartScreen warning. Local packages are development
 evidence and must never be uploaded as official releases.
+
+[PixelCore Pages](https://abel13.github.io/electron-snes/) is the public project page for product
+information, code-signing policy, and links to official downloads. GitHub Releases remain the sole
+source of distributable binaries.
