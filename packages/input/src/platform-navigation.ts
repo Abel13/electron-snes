@@ -30,7 +30,11 @@ export class PlatformKeyboardNavigationAdapter {
     PLATFORM_KEYBOARD_NAVIGATION_BINDINGS.map((binding) => [binding.code, binding.action] as const),
   );
 
-  public handle(event: { readonly code: string; readonly editable: boolean; readonly pressed: boolean }): boolean {
+  public handle(event: {
+    readonly code: string;
+    readonly editable: boolean;
+    readonly pressed: boolean;
+  }): boolean {
     const action = this.#mapping.get(event.code);
     if (action === undefined || event.editable) return false;
     if (event.pressed) this.#pressed.add(action);

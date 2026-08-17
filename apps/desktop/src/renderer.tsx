@@ -572,7 +572,10 @@ const ProductApp = (): React.JSX.Element => {
             if (currentNavigation.has(action) && !previousNavigation.has(action)) {
               if (screenRef.current === 'home' && globalSettingsOpenRef.current)
                 globalSettings.current?.move(direction);
-              else if (screenRef.current === 'home' && (direction === 'left' || direction === 'right'))
+              else if (
+                screenRef.current === 'home' &&
+                (direction === 'left' || direction === 'right')
+              )
                 carousel.current?.move(direction);
               else if (screenRef.current === 'library') consoleLibrary.current?.move(direction);
               else if (screenRef.current !== 'home' && moveDirectionalFocus(direction))
@@ -597,7 +600,8 @@ const ProductApp = (): React.JSX.Element => {
             setGlobalSettings(!globalSettingsOpenRef.current);
           if (
             screenRef.current === 'home' &&
-            (currentNavigation.has('back') && !previousNavigation.has('back'))
+            currentNavigation.has('back') &&
+            !previousNavigation.has('back')
           )
             setGlobalSettings(!globalSettingsOpenRef.current);
           if (
@@ -1433,8 +1437,8 @@ const ProductApp = (): React.JSX.Element => {
                   diagram={
                     activeConsole?.assets?.controlDiagram === undefined ||
                     activeConsole.assets?.blueprintUrl === undefined
-                        ? { alt: t('gameControls'), assetUrl: '', controlPoints: [] }
-                        : {
+                      ? { alt: t('gameControls'), assetUrl: '', controlPoints: [] }
+                      : {
                           alt: activeConsole.assets.controlDiagram.alt,
                           ...(activeConsole.assets.controlDiagram.aspectRatio === undefined
                             ? {}

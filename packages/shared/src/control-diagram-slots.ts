@@ -25,15 +25,11 @@ export const CONTROL_DIAGRAM_CONSOLE_SLOTS = [
   'right-12',
 ] as const;
 
-export const CONTROL_DIAGRAM_SYSTEM_SLOTS = [
-  'system-right-01',
-  'system-right-02',
-] as const;
+export const CONTROL_DIAGRAM_SYSTEM_SLOTS = ['system-right-01', 'system-right-02'] as const;
 
 export type ControlDiagramConsoleSlot = (typeof CONTROL_DIAGRAM_CONSOLE_SLOTS)[number];
 export type ControlDiagramSystemSlot = (typeof CONTROL_DIAGRAM_SYSTEM_SLOTS)[number];
 export type ControlDiagramSlot = ControlDiagramConsoleSlot | ControlDiagramSystemSlot;
 
 export const isControlDiagramConsoleSlot = (value: unknown): value is ControlDiagramConsoleSlot =>
-  typeof value === 'string' &&
-  (CONTROL_DIAGRAM_CONSOLE_SLOTS as readonly string[]).includes(value);
+  typeof value === 'string' && (CONTROL_DIAGRAM_CONSOLE_SLOTS as readonly string[]).includes(value);

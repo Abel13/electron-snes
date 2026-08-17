@@ -1,8 +1,13 @@
-import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
-  CONTROL_DIAGRAM_CONSOLE_SLOTS,
-  CONTROL_DIAGRAM_SYSTEM_SLOTS,
-} from '@platform/shared';
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import { CONTROL_DIAGRAM_CONSOLE_SLOTS, CONTROL_DIAGRAM_SYSTEM_SLOTS } from '@platform/shared';
 import type { ControlDiagramConsoleSlot, ControlDiagramSlot } from '@platform/shared';
 
 import { InputPrompt, InputPromptGroup, InputPromptProvider } from './input-prompts.js';
@@ -536,13 +541,22 @@ export const InputMappingSettings = forwardRef<
                 );
               })}
             </div>
-            <svg aria-hidden="true" className="pc-input-map-lines" preserveAspectRatio="none" viewBox="0 0 100 100">
+            <svg
+              aria-hidden="true"
+              className="pc-input-map-lines"
+              preserveAspectRatio="none"
+              viewBox="0 0 100 100"
+            >
               {connectors.map((connector) => {
-                const index = entries.findIndex((entry) => entry.consoleAction === connector.action);
+                const index = entries.findIndex(
+                  (entry) => entry.consoleAction === connector.action,
+                );
                 return (
                   <line
                     className={
-                      stage !== 'device-selection' && actionCursor === index ? 'is-active' : undefined
+                      stage !== 'device-selection' && actionCursor === index
+                        ? 'is-active'
+                        : undefined
                     }
                     key={connector.action}
                     x1={connector.startX}
@@ -697,10 +711,7 @@ export const InputMappingSettings = forwardRef<
                         ) : (
                           <span className="pc-physical-key">B{capturedGamepadIndex}</span>
                         )}
-                        <strong>
-                          {capturedKeyboard?.label ??
-                            `B${capturedGamepadIndex}`}
-                        </strong>
+                        <strong>{capturedKeyboard?.label ?? `B${capturedGamepadIndex}`}</strong>
                         <button onClick={confirm} type="button">
                           {copy.mappingConfirm}
                         </button>

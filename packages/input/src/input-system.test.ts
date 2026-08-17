@@ -4,10 +4,7 @@ import type { JsonObject, JsonValue } from '@platform/shared';
 import { describe, expect, it } from 'vitest';
 
 import { NORMALIZED_INPUT_ACTIONS } from './actions.js';
-import {
-  mapNormalizedActions,
-  validateConsoleInputMapping,
-} from './console-mapping.js';
+import { mapNormalizedActions, validateConsoleInputMapping } from './console-mapping.js';
 import { InputDeviceDiscovery, KEYBOARD_DEVICE } from './device-discovery.js';
 import {
   DEFAULT_GAMEPAD_BINDINGS,
@@ -260,7 +257,9 @@ describe('universal input', () => {
     } as const;
     await expect(repository.save(profile)).resolves.toEqual({ ok: true, value: undefined });
     await expect(repository.load('default')).resolves.toEqual({ ok: true, value: profile });
-    expect(storage.values.get('user-preferences:input-profile:default')).not.toHaveProperty('mapping');
+    expect(storage.values.get('user-preferences:input-profile:default')).not.toHaveProperty(
+      'mapping',
+    );
   });
 
   it('migrates version one input profiles with default keyboard bindings', async () => {
