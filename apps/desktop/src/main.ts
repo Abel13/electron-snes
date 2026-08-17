@@ -64,6 +64,10 @@ const consoleForExtension = (extension: string) =>
   extension === '.gba' ? officialGbaConsole : officialConsole;
 const emulatorForExtension = (extension: string) =>
   extension === '.gba' ? officialGbaEmulator : officialEmulator;
+const emulatorForConsoleId = (consoleId: string) =>
+  resolveOfficialConsolePlugin(consoleId)?.console.supportedRomExtensions
+    .map((extension) => emulatorForExtension(extension))
+    .find((emulator) => emulator !== undefined);
 const identifiersForRom = (extension: string, bytes: Uint8Array) =>
   consoleForExtension(extension)?.console.identifyRom?.(bytes) ?? [];
 const romSizeLimitForExtension = (extension: string): number =>
@@ -324,11 +328,14 @@ app.whenReady().then(() => {
     return createHostVersionResponse(app.getVersion());
   });
   ipcMain.handle(IPC_CHANNELS.getEmulatorCapabilities, (_event, ...payload: unknown[]) => {
-    if (!hasNoIpcPayload(payload)) throw new Error('Capabilities do not accept a payload.');
-    return (
-      emulatorForExtension(activeSessionExtension)?.emulator.capabilities ??
-      officialEmulator.emulator.capabilities
-    );
+    if (!hasOptionalConsoleIdPayload(payload))
+      throw new Error('Capabilities accept one optional console ID.');
+    const emulator =
+      payload[0] === undefined
+        ? emulatorForExtension(activeSessionExtension) ?? officialEmulator
+        : emulatorForConsoleId(payload[0]);
+    if (emulator === undefined) throw new Error('The requested console emulator is unavailable.');
+    return emulator.emulator.capabilities;
   });
   ipcMain.handle(IPC_CHANNELS.getUpdateState, (_event, ...payload: unknown[]) => {
     if (!hasNoIpcPayload(payload)) throw new Error('Update state does not accept a payload.');

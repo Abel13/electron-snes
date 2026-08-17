@@ -207,6 +207,7 @@ const ProductApp = (): React.JSX.Element => {
   const [inputMapping, setInputMapping] = useState<ConsoleInputMapping>();
   const inputMappingRef = useRef<ConsoleInputMapping | undefined>(undefined);
   const inputConfigurationRequest = useRef(0);
+  const emulatorCapabilitiesRequest = useRef(0);
   const statusRef = useRef<ProductStatus>(status);
   const screenRef = useRef<AppScreen>(screen);
   const globalSettingsOpenRef = useRef(false);
@@ -286,9 +287,6 @@ const ProductApp = (): React.JSX.Element => {
   useEffect(() => {
     autosaveChoiceRef.current = autosaveChoice;
   }, [autosaveChoice]);
-  useEffect(() => {
-    void window.pixelCore.getEmulatorCapabilities().then(setEmulatorCapabilities);
-  }, []);
   useEffect(() => {
     emulatorCapabilitiesRef.current = emulatorCapabilities;
   }, [emulatorCapabilities]);
@@ -457,13 +455,23 @@ const ProductApp = (): React.JSX.Element => {
     applyInputConfiguration(configuration);
   };
 
+  const loadEmulatorCapabilities = async (consoleId?: string): Promise<void> => {
+    const request = ++emulatorCapabilitiesRequest.current;
+    const capabilities = await window.pixelCore.getEmulatorCapabilities(consoleId);
+    if (request !== emulatorCapabilitiesRequest.current) return;
+    emulatorCapabilitiesRef.current = capabilities;
+    setEmulatorCapabilities(capabilities);
+  };
+
   useEffect(() => {
     void loadInputConfiguration();
+    void loadEmulatorCapabilities();
   }, []);
 
   useEffect(() => {
     if (screen !== 'library' || activeConsole?.id === undefined) return;
     void loadInputConfiguration(activeConsole.id);
+    void loadEmulatorCapabilities(activeConsole.id);
   }, [activeConsole?.id, screen]);
 
   useEffect(() => {
@@ -947,9 +955,7 @@ const ProductApp = (): React.JSX.Element => {
     setStatus('running');
     setMessage(game.name);
     await refreshLibrary();
-    const nextCapabilities = await window.pixelCore.getEmulatorCapabilities();
-    setEmulatorCapabilities(nextCapabilities);
-    emulatorCapabilitiesRef.current = nextCapabilities;
+    await loadEmulatorCapabilities();
     await loadInputConfiguration();
     setStatus('running');
   };

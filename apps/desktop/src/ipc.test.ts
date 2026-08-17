@@ -253,6 +253,18 @@ describe('IPC boundary contracts', () => {
     expect(hasBooleanPayload(['true'])).toBe(false);
   });
 
+  it('requests capabilities for the selected console when provided', async () => {
+    const capabilities = { fastForward: true, rewind: true, saveStates: true } as const;
+    const api = createPixelCoreApi(async (channel, ...payload) => {
+      expect(channel).toBe(IPC_CHANNELS.getEmulatorCapabilities);
+      expect(payload).toEqual(['org.pixelcore.game-boy-family']);
+      return capabilities;
+    });
+    await expect(api.getEmulatorCapabilities('org.pixelcore.game-boy-family')).resolves.toEqual(
+      capabilities,
+    );
+  });
+
   it('accepts renderer-safe library records and rejects filesystem paths', () => {
     const game = {
       addedAt: '2026-08-10T00:00:00.000Z',

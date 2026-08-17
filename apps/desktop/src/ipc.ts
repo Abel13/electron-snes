@@ -118,7 +118,7 @@ export interface PixelCoreApi {
   getInputConfiguration(consoleId?: string): Promise<InputConfigurationResponse>;
   getHostVersion(): Promise<HostVersionResponse>;
   getUpdateState(): Promise<UpdateState>;
-  getEmulatorCapabilities(): Promise<EmulatorCapabilities>;
+  getEmulatorCapabilities(consoleId?: string): Promise<EmulatorCapabilities>;
   importGame(): Promise<ImportGameResponse>;
   listLibrary(): Promise<LibraryResponse>;
   listConsolePlugins(): Promise<ConsolePluginsResponse>;
@@ -644,8 +644,11 @@ export const createPixelCoreApi = (
     if (!isUpdateState(response)) throw new Error('Received an invalid update state.');
     return response;
   },
-  async getEmulatorCapabilities(): Promise<EmulatorCapabilities> {
-    const response = await invoke(IPC_CHANNELS.getEmulatorCapabilities);
+  async getEmulatorCapabilities(consoleId?: string): Promise<EmulatorCapabilities> {
+    const response =
+      consoleId === undefined
+        ? await invoke(IPC_CHANNELS.getEmulatorCapabilities)
+        : await invoke(IPC_CHANNELS.getEmulatorCapabilities, consoleId);
     if (!isEmulatorCapabilities(response))
       throw new Error('Received invalid emulator capabilities.');
     return response;
